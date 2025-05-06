@@ -32,10 +32,22 @@
     "changelogen": "^0.6.1",
     "eslint": "^9.23.0",
     "eslint-config-unjs": "^0.4.2",
+    "happy-dom": "^17.4.6",
     "prettier": "^3.5.3",
     "typescript": "^5.8.2",
     "unbuild": "^3.5.0",
     "vitest": "^3.0.9"
   },
-  "packageManager": "pnpm@10.7.0"
+  "packageManager": "pnpm@10.7.0",
+  "dependencies": {
+    "@module-federation/vite": "^1.2.7",
+    "@vitejs/plugin-vue": "^5.2.3",
+    "@vue/server-renderer": "^3.5.13",
+    "@vue/shared": "^3.5.13",
+    "@vue/test-utils": "^2.4.6",
+    "rollup": "^4.40.1",
+    "unplugin": "^2.3.2",
+    "vite": "^6.3.4",
+    "vue": "^3.5.13"
+  }
 }
