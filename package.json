@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "build": "unbuild",
-    "dev": "vitest dev",
+    "dev": "vite ./playground",
     "lint": "eslint . && prettier -c .",
     "lint:fix": "automd && eslint . --fix && prettier -w .",
     "prepack": "pnpm build",
@@ -45,6 +45,9 @@
     "@vue/server-renderer": "^3.5.13",
     "@vue/shared": "^3.5.13",
     "@vue/test-utils": "^2.4.6",
+    "acorn": "^8.14.1",
+    "magic-string": "^0.30.17",
+    "ohash": "^2.0.11",
     "rollup": "^4.40.1",
     "unplugin": "^2.3.2",
     "vite": "^6.3.4",
