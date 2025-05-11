@@ -25,15 +25,13 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
                 if (options?.include) {
                     for (const path of options.include) {
                         const resolved = await this.resolve(path)
-                        console.log('FOUND', resolved)
                         if (resolved) {
                             const id = this.emitFile({
                                 type: 'chunk',
-                                fileName: join(assetDir, hash(resolved) + '.mjs'), 
+                                fileName: join(assetDir, hash(resolved) + '.mjs'),
                                 id: resolved.id,
                                 preserveSignature: 'strict',
                             })
-                            console.log('EMIT', id, resolved.id)
                             refs.push({ path: resolved.id, id })
                         }
                     }
@@ -76,7 +74,6 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
                 handler(code, id) {
                     const ref = refs.find(ref => ref.path === id)
                     if (ref) {
-                        console.log('found', ref)
 
                         const s = new MagicString(code)
                         const ast = this.parse(code)
