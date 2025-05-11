@@ -3,6 +3,8 @@ import type { Plugin } from "vite"
 import { hash } from "ohash"
 import MagicString from "magic-string"
 import type { ExportDefaultDeclaration } from "acorn"
+import { join } from "node:path"
+
 export type Options = {
     include: string[]
     rootDir?: string
@@ -12,9 +14,13 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
     const VIRTUAL_MODULE_ID = 'virtual:components-chunk'
     const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID
     const refs: { path: string, id: string }[] = []
+    let assetDir: string = ''
     return {
         client: {
             name: 'vite:vue-server-components-client',
+            configResolved(config) {
+                assetDir = config.build.assetsDir
+            },
             async buildStart() {
                 if (options?.include) {
                     for (const path of options.include) {
@@ -23,7 +29,7 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
                         if (resolved) {
                             const id = this.emitFile({
                                 type: 'chunk',
-                                fileName: hash(resolved) + '.mjs',
+                                fileName: join(assetDir, hash(resolved) + '.mjs'), 
                                 id: resolved.id,
                                 preserveSignature: 'strict',
                             })
