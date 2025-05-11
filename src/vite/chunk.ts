@@ -1,6 +1,5 @@
 
-import type { Plugin } from "rollup"
-import { basename } from "path"
+import type { Plugin } from "vite"
 import { hash } from "ohash"
 import MagicString from "magic-string"
 import type { ExportDefaultDeclaration } from "acorn"
@@ -10,7 +9,7 @@ export type Options = {
 }
 
 export function vueServerComponentsPlugin(options?: Partial<Options>): { client: Plugin, server: Plugin } {
-     const VIRTUAL_MODULE_ID = 'virtual:components-chunk'
+    const VIRTUAL_MODULE_ID = 'virtual:components-chunk'
     const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID
     const refs: { path: string, id: string }[] = []
     return {
@@ -69,10 +68,10 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
             transform: {
                 order: 'post',
                 handler(code, id) {
-                     const ref = refs.find(ref => ref.path === id)
+                    const ref = refs.find(ref => ref.path === id)
                     if (ref) {
                         console.log('found', ref)
-                        
+
                         const s = new MagicString(code)
                         const ast = this.parse(code)
                         const exportDefault = ast.body.find(node => {
