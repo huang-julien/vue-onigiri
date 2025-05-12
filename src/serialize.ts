@@ -45,8 +45,6 @@ export async function renderVNode(vnode: VNodeChild): Promise<VServerComponent |
         } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
             if(vnode.props && 'load:client' in vnode.props && vnode.props['load:client'] !== false) {
 
-                console.log('serialize', vnode.type)
-                
                 return {
                     type: VServerComponentType.Component,
                     props: vnode.props ?? undefined,
