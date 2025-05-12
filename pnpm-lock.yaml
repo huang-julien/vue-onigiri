@@ -84,9 +84,6 @@ importers:
 
   playground:
     dependencies:
-      pathe:
-        specifier: ^2.0.3
-        version: 2.0.3
       vue:
         specifier: ^3.5.13
         version: 3.5.13(typescript@5.8.3)

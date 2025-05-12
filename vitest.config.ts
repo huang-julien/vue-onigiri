@@ -1,13 +1,19 @@
 import { defineConfig } from "vitest/config"
 import vue from "@vitejs/plugin-vue"
+import { vueServerComponentsPlugin } from "./src/vite/chunk"
 
+const { client, server } = vueServerComponentsPlugin({
+    include: ['./test/fixtures/Counter.vue'],
+})
 export default defineConfig({
     // ssr: {},
     // build: {
     //     ssr: true
     // },
     plugins: [
-        vue()
+        vue(),
+        client,
+        server
     ],
     test: {
         environment: 'happy-dom',
@@ -19,7 +25,6 @@ export default defineConfig({
         sequence: {
             hooks: 'list',
         },
+        
     },
-    mode: 'production',
- 
 })

@@ -43,12 +43,15 @@ export async function renderVNode(vnode: VNodeChild): Promise<VServerComponent |
                 children: await renderChild(vnode.children || vnode.component?.subTree || vnode.component?.vnode.children),
             }
         } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
-            if(vnode.props?.loadClientSide) {
+            if(vnode.props && 'load:client' in vnode.props && vnode.props['load:client'] !== false) {
+
+                console.log('serialize', vnode.type)
                 
                 return {
                     type: VServerComponentType.Component,
                     props: vnode.props ?? undefined,
                     children: await renderChild(vnode.children || vnode.component?.subTree || vnode.component?.vnode.children),
+                    chunk: vnode.type.__chunk as string
                 }
             }
             return {

@@ -3,7 +3,7 @@ import type { Plugin } from "vite"
 import { hash } from "ohash"
 import MagicString from "magic-string"
 import type { ExportDefaultDeclaration } from "acorn"
-import { join } from "node:path"
+import { join, normalize, relative } from "node:path"
 
 export type Options = {
     include: string[]
@@ -15,24 +15,33 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
     const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID
     const refs: { path: string, id: string }[] = []
     let assetDir: string = ''
+    let isProduction = false
+    let rootDir = process.cwd()
     return {
         client: {
             name: 'vite:vue-server-components-client',
             configResolved(config) {
                 assetDir = config.build.assetsDir
+                isProduction = config.isProduction
+                rootDir = config.root
             },
             async buildStart() {
                 if (options?.include) {
                     for (const path of options.include) {
                         const resolved = await this.resolve(path)
                         if (resolved) {
-                            const id = this.emitFile({
-                                type: 'chunk',
-                                fileName: join(assetDir, hash(resolved) + '.mjs'),
-                                id: resolved.id,
-                                preserveSignature: 'strict',
-                            })
-                            refs.push({ path: resolved.id, id })
+                            if (isProduction) {
+
+                                const id = this.emitFile({
+                                    type: 'chunk',
+                                    fileName: join(assetDir, hash(resolved) + '.mjs'),
+                                    id: resolved.id,
+                                    preserveSignature: 'strict',
+                                })
+                                refs.push({ path: resolved.id, id })
+                            } else {
+                                refs.push({ path: resolved.id, id: resolved.id })
+                            }
                         }
                     }
                 }
@@ -83,11 +92,11 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
                         const ExportDefaultDeclaration = exportDefault?.declaration
                         if (ExportDefaultDeclaration) {
                             const { start, end } = ExportDefaultDeclaration
-                            s.overwrite(start, end, `Object.assign(
-                                { __chunk: ${JSON.stringify(this.getFileName(ref.id))} },
+                             s.overwrite(start, end, `Object.assign(
+                                { __chunk: "${join('/', isProduction ? normalize(this.getFileName(ref.id)) : relative(rootDir, normalize( ref.id))).replaceAll('\\', '/')}" },
                                  ${code.slice(start, end)},
                             )`)
-                            return {
+                             return {
                                 code: s.toString(),
                                 map: s.generateMap({ hires: true }).toString(),
                             }
