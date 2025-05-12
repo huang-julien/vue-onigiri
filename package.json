@@ -42,6 +42,8 @@
   "dependencies": {
     "@module-federation/vite": "^1.2.7",
     "@vitejs/plugin-vue": "^5.2.3",
+    "@vue/compiler-dom": "^3.5.13",
+    "@vue/compiler-ssr": "^3.5.13",
     "@vue/server-renderer": "^3.5.13",
     "@vue/shared": "^3.5.13",
     "@vue/test-utils": "^2.4.6",
