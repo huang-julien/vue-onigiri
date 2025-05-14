@@ -14,9 +14,21 @@ const { client, server } = vueServerComponentsPlugin({
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    vue(),
+     (vue({
+      exclude: [/\?chunk/, /virtual:vsc:.*\.vue/],
+      include: [/\.vue(?!\?chunk)/],
+    })),
+    patchServerVue(vue({
+      include: [/virtual:vsc:.*\.vue/],
+      template: {
+        compilerOptions: {
+          ssr: false,
+          inSSR: false
+        }
+      }
+    })),
     vueDevTools(),
-    client, server
+      server,
   ],
   resolve: {
     alias: {
@@ -27,3 +39,25 @@ export default defineConfig({
     minify: false,
   }
 })
+
+function patchServerVue(plugin: Plugin): Plugin {
+	// need to force non-ssr transform to always render vnode
+ 	const oldTransform = plugin.transform;
+	plugin.transform = async function (code, id, _options) {
+    if(id.includes('HelloWorld')) {
+      console.log('TTTTTTTTTTTTT', id, await oldTransform.apply(this, [code, id, { ssr: false }]))
+
+    }
+    // @ts-expect-error ssrUtils is not a public API
+		return oldTransform.apply(this, [code, id, { ssr: false }]);
+	};
+ 	const oldLoad = plugin.load;
+	plugin.load = async function (id, _options) {
+    console.log('RRRRRRRRRRRRRR', id,oldLoad.apply(this, [id, { ssr: false }]))
+    // @ts-expect-error ssrUtils is not a public API
+		return oldLoad.apply(this, [id, { ssr: false }]);
+	};
+ 
+
+	return plugin;
+}
