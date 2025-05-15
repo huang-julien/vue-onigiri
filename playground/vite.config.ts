@@ -14,16 +14,16 @@ const { client, server } = vueServerComponentsPlugin({
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-     (vue({
-      exclude: [/\?chunk/, /virtual:vsc:.*\.vue/],
-      include: [/\.vue(?!\?chunk)/],
+     debugVue(vue({
+      exclude: [/\?chunk/, /.*\.vsc/],
+      include: [/\.vue/],
     })),
     patchServerVue(vue({
-      include: [/virtual:vsc:.*\.vue/],
+      include: [/virtual:vsc:/],
       template: {
         compilerOptions: {
-          ssr: false,
-          inSSR: false
+          // ssr: false,
+          // inSSR: false
         }
       }
     })),
@@ -40,22 +40,41 @@ export default defineConfig({
   }
 })
 
+function debugVue(plugin: Plugin): Plugin {
+  const oldTransform = plugin.transform;
+  plugin.transform = async function (code, id, _options) {
+   console.log('debugVue', id)
+   if(id.includes('virtual:vsc:') ) {
+    return
+  }
+    // @ts-expect-error ssrUtils is not a public API
+    return await oldTransform.apply(this, [code, id, _options]);
+  };
+  const oldLoad = plugin.load;
+	plugin.load = async function (id, _options) {
+    if(id.includes('virtual:vsc:') ) {
+      return
+    }
+    // console.log('RRRRRRRRRRRRRR', id,oldLoad.apply(this, [id, { ssr: false }]))
+    // @ts-expect-error ssrUtils is not a public API
+		return await oldLoad.apply(this, [id, _options]);
+	};
+  return plugin;
+}
+
 function patchServerVue(plugin: Plugin): Plugin {
 	// need to force non-ssr transform to always render vnode
  	const oldTransform = plugin.transform;
 	plugin.transform = async function (code, id, _options) {
-    if(id.includes('HelloWorld')) {
-      console.log('TTTTTTTTTTTTT', id, await oldTransform.apply(this, [code, id, { ssr: false }]))
-
-    }
     // @ts-expect-error ssrUtils is not a public API
-		return oldTransform.apply(this, [code, id, { ssr: false }]);
+		return await oldTransform.apply(this, [code, id, { ssr: false }]);
 	};
  	const oldLoad = plugin.load;
 	plugin.load = async function (id, _options) {
-    console.log('RRRRRRRRRRRRRR', id,oldLoad.apply(this, [id, { ssr: false }]))
+ 
+    // console.log('RRRRRRRRRRRRRR', id,oldLoad.apply(this, [id, { ssr: false }]))
     // @ts-expect-error ssrUtils is not a public API
-		return oldLoad.apply(this, [id, { ssr: false }]);
+		return await oldLoad.apply(this, [id, { ssr: false }]);
 	};
  
 
