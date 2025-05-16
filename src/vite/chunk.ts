@@ -4,19 +4,10 @@ import { hash } from "ohash"
 import MagicString from "magic-string"
 import type { ExportDefaultDeclaration } from "acorn"
 import { join, normalize, relative } from "node:path"
-import fs from "node:fs"
+import { readFileSync } from "node:fs"
 import vue from "@vitejs/plugin-vue"
 import { defu } from "defu"
 import type { Options } from "@vitejs/plugin-vue"
-const ogReadFileSync = fs.readFileSync
-
-// fs.readFileSync = function (path, ...args: any[]) {
-//     if (typeof path === 'string' && path.startsWith('virtual:vsc:')) {
-//         const file = path.replace(/virtual:vsc:/, '')
-//         return ogReadFileSync(file, ...args)
-//     }
-//     return ogReadFileSync(path, ...args)
-// }
 
 export type VSCOptions = {
     include: string[]
@@ -129,7 +120,7 @@ export function vueServerComponentsPlugin(options?: Partial<VSCOptions>): { clie
                                 const file = id.replace(VSC_PREFIX_RE, '')
     
                                 return {
-                                    code: fs.readFileSync(file, 'utf-8'),
+                                    code: readFileSync(file, 'utf-8'),
                                 }
                             }
                             if (filename?.endsWith('.vue')) {
