@@ -119,9 +119,8 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
                     order: 'pre',
                     async handler(id) {
                         const [filename, rawQuery] = id.split(`?`, 2);
-                        const query = Object.fromEntries(new URLSearchParams(rawQuery));
     
-                        if (query.vue === undefined) {
+                        if (!rawQuery) {
                             if (VSC_PREFIX_RE.test(id)) {
                                 const file = id.replace(VSC_PREFIX_RE, '')
     
