@@ -24,6 +24,8 @@ export type Options = {
 export function vueServerComponentsPlugin(options?: Partial<Options>): { client: Plugin, server: Plugin } {
     const VIRTUAL_MODULE_ID = 'virtual:components-chunk'
     const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID
+    const VSC_PREFIX = 'virtual:vsc:'
+    const VSC_PREFIX_RE = /^virtual:vsc:/
     const refs: { path: string, id: string }[] = []
     let assetDir: string = ''
     let isProduction = false
@@ -61,7 +63,7 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
                 for (const chunk of Object.values(bundle)) {
                     if (chunk.type === 'chunk') {
                         const list = refs.map(ref => ref.id)
-                         if (list.includes(chunk.fileName)) {
+                        if (list.includes(chunk.fileName)) {
                             chunk.isEntry = false
                             console.log(chunk.fileName)
                         }
@@ -79,14 +81,16 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
                     if (id === VIRTUAL_MODULE_ID) {
                         return RESOLVED_VIRTUAL_MODULE_ID
                     }
-                    if (importer?.startsWith('virtual:vsc:')) {
-                        return this.resolve(id, importer.replace(/virtual:vsc:/, ''), { skipSelf: true })
+                    if (importer) {
+                        if (VSC_PREFIX_RE.test(importer)) {
+                            if (VSC_PREFIX_RE.test(id)) {
+                                return id
+                            }
+                            return this.resolve(id, importer.replace(VSC_PREFIX_RE, ''), { skipSelf: true })
+                        }
                     }
-                    if (importer?.startsWith('virtual:vsc:') && id.startsWith('virtual:vsc:')) {
 
-                        return id
-                    }
-                    if (id.startsWith('virtual:vsc:')) {
+                    if (VSC_PREFIX_RE.test(id)) {
                         return id
                     }
                 }
@@ -112,8 +116,8 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
                     const query = Object.fromEntries(new URLSearchParams(rawQuery));
 
                     if (query.vue === undefined) {
-                        if (id.startsWith('virtual:vsc:')) {
-                            const file = id.replace(/virtual:vsc:/, '')
+                        if (VSC_PREFIX_RE.test(id)) {
+                            const file = id.replace(VSC_PREFIX_RE, '')
 
                             return {
                                 code: fs.readFileSync(file, 'utf-8'),
@@ -123,7 +127,7 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
                             this.emitFile({
                                 type: 'chunk',
                                 fileName: hash(id) + '.mjs',
-                                id: `virtual:vsc:` + id,
+                                id: VSC_PREFIX + id,
                                 preserveSignature: 'strict',
                             })
                         }
