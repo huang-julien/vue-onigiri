@@ -8,13 +8,13 @@ import fs from "node:fs"
 
 const ogReadFileSync = fs.readFileSync
 
-fs.readFileSync = function (path, ...args: any[]) {
-    if (typeof path === 'string' && path.startsWith('virtual:vsc:')) {
-        const file = path.replace(/virtual:vsc:/, '')
-        return ogReadFileSync(file, ...args)
-    }
-    return ogReadFileSync(path, ...args)
-}
+// fs.readFileSync = function (path, ...args: any[]) {
+//     if (typeof path === 'string' && path.startsWith('virtual:vsc:')) {
+//         const file = path.replace(/virtual:vsc:/, '')
+//         return ogReadFileSync(file, ...args)
+//     }
+//     return ogReadFileSync(path, ...args)
+// }
 
 export type Options = {
     include: string[]
@@ -82,13 +82,11 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
                         return this.resolve(id, importer.replace(/\?chunk$/, '').replace(/virtual:vsc:/, ''), { skipSelf: true })
                     }
                     if (importer?.startsWith('virtual:vsc:') && id.startsWith('virtual:vsc:')) {
-                        console.log(id)
-
+ 
                         return id
                     }
                     if (id.startsWith('virtual:vsc:')) {
                         if (id.includes('?vue')) {
-                            console.log('self-loading', id)
                             return id
                         }
                         return id
@@ -127,23 +125,10 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
                     }
                     if (id.endsWith('?chunk')) {
                         const file = id.replace(/\?chunk$/, '').replace(/virtual:vsc:/, '')
-                        console.log(file)
                         return {
-                            code: `// test \n` + fs.readFileSync(file, 'utf-8')
+                            code: fs.readFileSync(file, 'utf-8')
                         }
                     }
-                    console.log(id)
-                    // if (id.endsWith('?chunk')) {
-                    //     const resolved = await this.resolve(id.replace(/\?chunk$/, ''), undefined, {skipSelf: true})
-                    //     if (resolved) {
-                    //         const loaded = await this.load({id})
-                    //         console.log(loaded.code)
-                    //         return {
-                    //             code:`// @ts-ignore \n${ loaded.code}`,
-                    //             map: null,
-                    //         }
-                    //     }
-                    // }
                 }
             },
 

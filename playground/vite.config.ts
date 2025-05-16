@@ -20,12 +20,6 @@ export default defineConfig({
     })),
     patchServerVue(vue({
       include: [/virtual:vsc:/],
-      template: {
-        compilerOptions: {
-          // ssr: false,
-          // inSSR: false
-        }
-      }
     })),
     vueDevTools(),
       server,
@@ -43,7 +37,6 @@ export default defineConfig({
 function debugVue(plugin: Plugin): Plugin {
   const oldTransform = plugin.transform;
   plugin.transform = async function (code, id, _options) {
-   console.log('debugVue', id)
    if(id.includes('virtual:vsc:') ) {
     return
   }
@@ -55,7 +48,6 @@ function debugVue(plugin: Plugin): Plugin {
     if(id.includes('virtual:vsc:') ) {
       return
     }
-    // console.log('RRRRRRRRRRRRRR', id,oldLoad.apply(this, [id, { ssr: false }]))
     // @ts-expect-error ssrUtils is not a public API
 		return await oldLoad.apply(this, [id, _options]);
 	};
@@ -72,7 +64,6 @@ function patchServerVue(plugin: Plugin): Plugin {
  	const oldLoad = plugin.load;
 	plugin.load = async function (id, _options) {
  
-    // console.log('RRRRRRRRRRRRRR', id,oldLoad.apply(this, [id, { ssr: false }]))
     // @ts-expect-error ssrUtils is not a public API
 		return await oldLoad.apply(this, [id, { ssr: false }]);
 	};
