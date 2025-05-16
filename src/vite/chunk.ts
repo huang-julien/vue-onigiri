@@ -1,11 +1,13 @@
 
-import type { Plugin } from "vite"
+import type { PluginOption } from "vite"
 import { hash } from "ohash"
 import MagicString from "magic-string"
 import type { ExportDefaultDeclaration } from "acorn"
 import { join, normalize, relative } from "node:path"
 import fs from "node:fs"
-
+import vue from "@vitejs/plugin-vue"
+import { defu } from "defu"
+import type { Options } from "@vitejs/plugin-vue"
 const ogReadFileSync = fs.readFileSync
 
 // fs.readFileSync = function (path, ...args: any[]) {
@@ -16,22 +18,26 @@ const ogReadFileSync = fs.readFileSync
 //     return ogReadFileSync(path, ...args)
 // }
 
-export type Options = {
+export type VSCOptions = {
     include: string[]
     rootDir?: string
+    vueClient: Options
 }
 
-export function vueServerComponentsPlugin(options?: Partial<Options>): { client: Plugin, server: Plugin } {
-    const VIRTUAL_MODULE_ID = 'virtual:components-chunk'
-    const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID
-    const VSC_PREFIX = 'virtual:vsc:'
-    const VSC_PREFIX_RE = /^virtual:vsc:/
+const VSC_PREFIX = 'virtual:vsc:'
+const VSC_PREFIX_RE = /^virtual:vsc:/
+const VIRTUAL_MODULE_ID = 'virtual:components-chunk'
+const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID
+
+export function vueServerComponentsPlugin(options?: Partial<VSCOptions>): { client: PluginOption, server: PluginOption } {
     const refs: { path: string, id: string }[] = []
     let assetDir: string = ''
     let isProduction = false
     let rootDir = process.cwd()
+
     return {
-        client: {
+        client: [
+            getPatchedClientVue(options?.vueClient), {
             name: 'vite:vue-server-components-client',
             configResolved(config) {
                 assetDir = config.build.assetsDir
@@ -70,7 +76,7 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
                     }
                 }
             }
-        },
+        }],
 
         server: {
             enforce: 'pre',
@@ -174,4 +180,30 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
             }
         },
     }
+}
+
+
+// fix a bug in plugin vue
+function getPatchedClientVue(options?: Options) {
+    const plugin = vue(defu({
+        exclude: [VSC_PREFIX_RE],
+        include: [/\.vue/],
+    }, options))
+    const oldTransform = plugin.transform;
+    plugin.transform = async function (code, id, _options) {
+        if (VSC_PREFIX_RE.test(id)) {
+            return
+        }
+        // @ts-expect-error ssrUtils is not a public API
+        return await oldTransform.apply(this, [code, id, _options]);
+    };
+    const oldLoad = plugin.load;
+    plugin.load = async function (id, _options) {
+        if (VSC_PREFIX_RE.test(id)) {
+            return
+        }
+        // @ts-expect-error ssrUtils is not a public API
+        return await oldLoad.apply(this, [id, _options]);
+    };
+    return plugin;
 }
