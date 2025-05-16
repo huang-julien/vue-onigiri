@@ -61,8 +61,9 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
                 for (const chunk of Object.values(bundle)) {
                     if (chunk.type === 'chunk') {
                         const list = refs.map(ref => ref.id)
-                        if (list.includes(chunk.fileName)) {
-
+                         if (list.includes(chunk.fileName)) {
+                            chunk.isEntry = false
+                            console.log(chunk.fileName)
                         }
                     }
                 }
@@ -131,6 +132,14 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
             },
 
             generateBundle(_, bundle) {
+                for (const chunk of Object.values(bundle)) {
+                    if (chunk.type === 'chunk') {
+                        const list = refs.map(ref => ref.id)
+                        if (list.includes(chunk.fileName)) {
+                            chunk.isEntry = false
+                        }
+                    }
+                }
             },
 
             transform: {
