@@ -14,6 +14,14 @@ export type VSCOptions = {
     rootDir?: string
     vueClient?: Options
     vueServerOptions?: Options
+    /**
+     * @default your dist dir
+     */
+    serverVscDir?: string
+    /**
+     * @default your asset dir
+     */
+    clientVscDir?: string
 }
 
 const VSC_PREFIX = 'virtual:vsc:'
@@ -25,11 +33,12 @@ const MAP_VIRTUALMOD_ID = 'virtual:component-map'
 const RESOLVED_MAP_VIRTUALMOD_ID = '\0' + MAP_VIRTUALMOD_ID
 
 
-export function vueServerComponentsPlugin(options?: Partial<VSCOptions>): { client: PluginOption, server: PluginOption } {
+export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { client: PluginOption, server: PluginOption } {
     const refs: { path: string, id: string }[] = []
     let assetDir: string = ''
     let isProduction = false
     let rootDir = process.cwd()
+    const { serverVscDir = '', clientVscDir = '' } = options
 
     const serverComprefs = new Map<string, string>()
     return {
@@ -50,7 +59,7 @@ export function vueServerComponentsPlugin(options?: Partial<VSCOptions>): { clie
 
                                 const id = this.emitFile({
                                     type: 'chunk',
-                                    fileName: join(assetDir, hash(resolved) + '.mjs'),
+                                    fileName: join(clientVscDir || assetDir, hash(resolved) + '.mjs'),
                                     id: resolved.id,
                                     preserveSignature: 'strict',
                                 })
@@ -121,7 +130,7 @@ export function vueServerComponentsPlugin(options?: Partial<VSCOptions>): { clie
                                 }
                             }
                             if (filename?.endsWith('.vue')) {
-                                const fileName = hash(id) + '.mjs'
+                                const fileName = serverVscDir + hash(id) + '.mjs'
                                 this.emitFile({
                                     type: 'chunk',
                                     fileName,
@@ -129,7 +138,6 @@ export function vueServerComponentsPlugin(options?: Partial<VSCOptions>): { clie
                                     preserveSignature: 'strict',
                                 })
 
-                                console.log('emitted: ', filename, fileName)
                                 serverComprefs.set(id, fileName)
                             }
                         }
@@ -174,15 +182,6 @@ export function vueServerComponentsPlugin(options?: Partial<VSCOptions>): { clie
                         }
                     }
                 }
-            },
-            {
-                name: 'vsc:component-vnode', 
-                resolveId(id) {
-                    if(id === MAP_VIRTUALMOD_ID) {
-                        return RESOLVED_MAP_VIRTUALMOD_ID
-                    } 
-                },
-              
             }
         ],
     }
