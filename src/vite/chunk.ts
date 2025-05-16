@@ -91,6 +91,12 @@ export function vueServerComponentsPlugin(options?: Partial<VSCOptions>): { clie
                                 if (VSC_PREFIX_RE.test(id)) {
                                     return id
                                 }
+                                if(id.endsWith('.vue')) {
+                                    const resolved = (await this.resolve(id, importer.replace(VSC_PREFIX_RE, '')))
+                                    if (resolved) {
+                                        return VSC_PREFIX + resolved.id
+                                    }
+                                }
                                 return this.resolve(id, importer.replace(VSC_PREFIX_RE, ''), { skipSelf: true })
                             }
                         }
@@ -123,6 +129,7 @@ export function vueServerComponentsPlugin(options?: Partial<VSCOptions>): { clie
                                     preserveSignature: 'strict',
                                 })
 
+                                console.log('emitted: ', filename, fileName)
                                 serverComprefs.set(id, fileName)
                             }
                         }
