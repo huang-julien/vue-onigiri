@@ -21,12 +21,17 @@ const VSC_PREFIX_RE = /^virtual:vsc:/
 const VIRTUAL_MODULE_ID = 'virtual:components-chunk'
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID
 
+const MAP_VIRTUALMOD_ID = 'virtual:component-map'
+const RESOLVED_MAP_VIRTUALMOD_ID = '\0' + MAP_VIRTUALMOD_ID
+
+
 export function vueServerComponentsPlugin(options?: Partial<VSCOptions>): { client: PluginOption, server: PluginOption } {
     const refs: { path: string, id: string }[] = []
     let assetDir: string = ''
     let isProduction = false
     let rootDir = process.cwd()
 
+    const serverComprefs = new Map<string, string>()
     return {
         client: [
             getPatchedClientVue(options?.vueClient), {
@@ -95,23 +100,9 @@ export function vueServerComponentsPlugin(options?: Partial<VSCOptions>): { clie
                         }
                     }
                 },
-                // @ts-ignore
                 load: {
                     order: 'pre',
                     async handler(id) {
-    
-                        if (id === RESOLVED_VIRTUAL_MODULE_ID) {
-                            return {
-                                code: `export default {
-            ${refs.map(({ path, id }) => {
-                                    return `${JSON.stringify(path)}: ${JSON.stringify(id)}`
-                                }).join(',\n')}
-          }`,
-                                map: null,
-                            }
-                        }
-    
-    
                         const [filename, rawQuery] = id.split(`?`, 2);
                         const query = Object.fromEntries(new URLSearchParams(rawQuery));
     
@@ -124,12 +115,15 @@ export function vueServerComponentsPlugin(options?: Partial<VSCOptions>): { clie
                                 }
                             }
                             if (filename?.endsWith('.vue')) {
+                                const fileName = hash(id) + '.mjs'
                                 this.emitFile({
                                     type: 'chunk',
-                                    fileName: hash(id) + '.mjs',
+                                    fileName,
                                     id: VSC_PREFIX + id,
                                     preserveSignature: 'strict',
                                 })
+
+                                serverComprefs.set(id, fileName)
                             }
                         }
                     }
@@ -162,6 +156,7 @@ export function vueServerComponentsPlugin(options?: Partial<VSCOptions>): { clie
                                 const { start, end } = ExportDefaultDeclaration
                                 s.overwrite(start, end, `Object.assign(
                                     { __chunk: "${join('/', isProduction ? normalize(this.getFileName(ref.id)) : relative(rootDir, normalize(ref.id))).replaceAll('\\', '/')}" },
+                                    { __vnodeVersion: ${JSON.stringify(serverComprefs.get(id)!)}} ,
                                      ${code.slice(start, end)},
                                 )`)
                                 return {
@@ -172,6 +167,15 @@ export function vueServerComponentsPlugin(options?: Partial<VSCOptions>): { clie
                         }
                     }
                 }
+            },
+            {
+                name: 'vsc:component-vnode', 
+                resolveId(id) {
+                    if(id === MAP_VIRTUALMOD_ID) {
+                        return RESOLVED_MAP_VIRTUALMOD_ID
+                    } 
+                },
+              
             }
         ],
     }

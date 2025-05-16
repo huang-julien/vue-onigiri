@@ -1,8 +1,16 @@
 import type { SSRContext, } from "@vue/server-renderer"
-import type { App, VNode } from "vue"
+import type { App, DefineComponent, VNode } from "vue"
 import { isVNode, createApp, } from "vue"
-import { renderToString, renderVNode } from "@vue/server-renderer"
+import { renderToString } from "@vue/server-renderer"
 import { renderToAST } from "./serialize"
+import { h } from "vue"
+
+export async function renderIsland(_component: DefineComponent, props: any,
+  context: SSRContext = {},) {
+    const component = _component.__vnodeVersion ? await import(_component.__vnodeVersion).then(m => m.default || m) : _component
+  const app = createApp(() => h(component, props))
+  return await renderToAST(app, context)
+}
 
 export async function renderAsServerComponent(
   input: App | VNode,
