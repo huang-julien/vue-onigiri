@@ -42,8 +42,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
 
     const serverComprefs = new Map<string, string>()
     return {
-        client: [
-            getPatchedClientVue(options?.vueClient), {
+        client: [ {
             name: 'vite:vue-server-components-client',
             configResolved(config) {
                 assetDir = config.build.assetsDir
@@ -85,6 +84,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
         }],
 
         server: [
+            patchVue(options?.vueClient),
             getPatchedServerVue(options?.vueServerOptions),
             {
                 enforce: 'pre',
@@ -189,7 +189,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
 
 
 // fix a bug in plugin vue
-function getPatchedClientVue(options?: Options) {
+function patchVue(options?: Options) {
     const plugin = vue(defu({
         exclude: [VSC_PREFIX_RE],
         include: [/\.vue/],
