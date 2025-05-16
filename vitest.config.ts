@@ -3,15 +3,10 @@ import vue from "@vitejs/plugin-vue"
 import { vueServerComponentsPlugin } from "./src/vite/chunk"
 
 const { client, server } = vueServerComponentsPlugin({
-    include: ['./test/fixtures/Counter.vue'],
+    include: ['./test/fixtures/components/Counter.vue'],
 })
 export default defineConfig({
-    // ssr: {},
-    // build: {
-    //     ssr: true
-    // },
     plugins: [
-        vue(),
         client,
         server
     ],
@@ -25,6 +20,8 @@ export default defineConfig({
         sequence: {
             hooks: 'list',
         },
-        
+        include: [
+            './test/**'
+        ]
     },
 })

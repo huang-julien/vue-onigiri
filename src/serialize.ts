@@ -1,33 +1,51 @@
-import type { SSRContext } from "@vue/server-renderer";
+import type { SSRContext,  } from "@vue/server-renderer";
 // @ts-expect-error ssrUtils is not a public API
-import { createVNode, isVNode, type App, type VNode, type VNodeChild, type VNodeNormalizedChildren, ssrUtils, type ComponentInternalInstance, type SuspenseBoundary} from "vue";
-import { ShapeFlags } from "@vue/shared";
+import { createVNode, isVNode, type App, type VNode, type VNodeChild, type VNodeNormalizedChildren, ssrUtils, type ComponentInternalInstance, type SuspenseBoundary, type DefineComponent, createApp, Suspense, h, ssrContextKey, defineComponent } from "vue";
+import { isPromise, ShapeFlags } from "@vue/shared";
 import { VServerComponentType, type VServerComponent } from "./shared";
-
+ import { ssrRenderComponent } from "@vue/server-renderer"
+import { nextTick} from "vue"
 const {
-	createComponentInstance,
-	setupComponent,
-	renderComponentRoot,
+    createComponentInstance,
+    setupComponent,
+    renderComponentRoot,
 }: {
-	createComponentInstance: (
-		vnode: VNode,
-		parent: ComponentInternalInstance | null,
-		suspense: SuspenseBoundary | null,
-	) => ComponentInternalInstance;
-	setupComponent: (
-		instance: ComponentInternalInstance,
-		isSSR?: boolean,
-	) => Promise<void> | undefined;
-	renderComponentRoot: (instance: ComponentInternalInstance) => VNode;
+    createComponentInstance: (
+        vnode: VNode,
+        parent: ComponentInternalInstance | null,
+        suspense: SuspenseBoundary | null,
+    ) => ComponentInternalInstance;
+    setupComponent: (
+        instance: ComponentInternalInstance,
+        isSSR?: boolean,
+    ) => Promise<void> | undefined;
+    renderComponentRoot: (instance: ComponentInternalInstance) => VNode;
 } = ssrUtils;
+
+export async function serializeComponent(component: DefineComponent, props: any, context: SSRContext = {}) {
+    const input = createApp(component, props) 
+     const vnode = createVNode(input._component, input._props)
+     vnode.appContext = input._context
+ 
+     const instance = createComponentInstance(vnode, null, null);
+     const res = await setupComponent(instance, true);
+     if(isPromise(res)) {
+        await res
+     }
+     const child = renderComponentRoot(instance);
+ 
+ 
+    return renderVNode(child)
+}
 
 export async function renderToAST(input: App, context: SSRContext) {
     const vnode = createVNode(input._component, input._props)
     vnode.appContext = input._context
 
-			const instance = createComponentInstance(vnode, null, null);
-			await setupComponent(instance, true);
-			const child = renderComponentRoot(instance);
+    const instance = createComponentInstance(vnode, null, null);
+    await setupComponent(instance, true);
+    const child = renderComponentRoot(instance);
+
 
     return renderVNode(child)
 }
@@ -43,7 +61,7 @@ export async function renderVNode(vnode: VNodeChild): Promise<VServerComponent |
                 children: await renderChild(vnode.children || vnode.component?.subTree || vnode.component?.vnode.children),
             }
         } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
-            if(vnode.props && 'load:client' in vnode.props && vnode.props['load:client'] !== false) {
+            if (vnode.props && 'load:client' in vnode.props && vnode.props['load:client'] !== false) {
 
                 return {
                     type: VServerComponentType.Component,

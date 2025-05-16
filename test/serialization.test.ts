@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
-import ElementsOnly from "./fixtures/ElementsOnly.vue";
+import ElementsOnly from "./fixtures/components/ElementsOnly.vue";
 import { renderAsServerComponent } from "../src";
-import { defineComponent, h, nextTick } from "vue";
+import { defineComponent, h, nextTick, Suspense } from "vue";
 import { renderServerComponent } from "../src/deserialize";
-import LoadComponent from "./fixtures/LoadComponent.vue";
+import LoadComponent from "./fixtures/components/LoadComponent.vue";
+import { serializeComponent } from "../src/serialize";
+import AsyncComponent from "./fixtures/components/AsyncComponent.vue";
 
 describe("serialize/deserialize", () => {
   it('expect to parse and render a component with only elements', async () => {
@@ -117,7 +119,7 @@ describe("serialize/deserialize", () => {
                   "tag": "div",
                   "type": 0,
                 },
-                "chunk": "/test/fixtures/Counter.vue",
+                "chunk": "/test/fixtures/components/Counter.vue",
                 "props": {
                   "load:client": "",
                   "loadClientSide": "",
@@ -158,3 +160,49 @@ describe("serialize/deserialize", () => {
     })
   })
 });
+
+
+describe('serialize component only', () => {
+  it('should serialize async component', async () => {
+    const { promise, resolve } = Promise.withResolvers()
+    const ast = await serializeComponent(AsyncComponent, {v: 'some text'})
+    const wrapper = mount({
+      render() {
+        return h(Suspense, {
+          onResolve: () => resolve(true)
+        }, {
+          default: h(AsyncComponent, {
+            
+              v: 'some text'
+            
+          })
+        })
+      }
+    })
+    expect(ast).toMatchInlineSnapshot(`
+      {
+        "children": {
+          "text": "Hello world ! some text",
+          "type": 2,
+        },
+        "props": undefined,
+        "tag": "div",
+        "type": 0,
+      }
+    `)
+    await flushPromises()
+await promise
+    await nextTick() 
+    const html= wrapper.html()
+      expect(html).toMatchInlineSnapshot(`"<div>Hello world ! some text</div>"`)
+      wrapper.unmount()
+      const rebuilt = mount({
+        render: () => renderServerComponent(ast)
+      })
+      await flushPromises()
+      expect(rebuilt.html()).toMatchInlineSnapshot(`"<div>Hello world ! some text</div>"`)
+      expect(rebuilt.html()).toBe(html)
+
+  })
+})
+ 
