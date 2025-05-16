@@ -78,24 +78,14 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
                     if (id === VIRTUAL_MODULE_ID) {
                         return RESOLVED_VIRTUAL_MODULE_ID
                     }
-                    if (importer?.startsWith('virtual:vsc:') && !id.startsWith('virtual:vsc:')) {
-                        return this.resolve(id, importer.replace(/\?chunk$/, '').replace(/virtual:vsc:/, ''), { skipSelf: true })
+                    if (importer?.startsWith('virtual:vsc:')) {
+                        return this.resolve(id, importer.replace(/virtual:vsc:/, ''), { skipSelf: true })
                     }
                     if (importer?.startsWith('virtual:vsc:') && id.startsWith('virtual:vsc:')) {
- 
+
                         return id
                     }
                     if (id.startsWith('virtual:vsc:')) {
-                        if (id.includes('?vue')) {
-                            return id
-                        }
-                        return id
-                    }
-                    if (id.includes('virtual:vsc:') && id.includes('?vue')) {
-
-                        return (await this.resolve(id + 'chunk')).id
-                    }
-                    if (id.endsWith('?chunk')) {
                         return id
                     }
                 }
@@ -115,18 +105,26 @@ export function vueServerComponentsPlugin(options?: Partial<Options>): { client:
                             map: null,
                         }
                     }
-                    if (id.endsWith('.vue')) {
-                        this.emitFile({
-                            type: 'chunk',
-                            fileName: hash(id) + '.lol.mjs',
-                            id: `virtual:vsc:` + id + '?chunk',
-                            preserveSignature: 'strict',
-                        })
-                    }
-                    if (id.endsWith('?chunk')) {
-                        const file = id.replace(/\?chunk$/, '').replace(/virtual:vsc:/, '')
-                        return {
-                            code: fs.readFileSync(file, 'utf-8')
+
+
+                    const [filename, rawQuery] = id.split(`?`, 2);
+                    const query = Object.fromEntries(new URLSearchParams(rawQuery));
+
+                    if (query.vue === undefined) {
+                        if (id.startsWith('virtual:vsc:')) {
+                            const file = id.replace(/virtual:vsc:/, '')
+
+                            return {
+                                code: fs.readFileSync(file, 'utf-8'),
+                            }
+                        }
+                        if (filename?.endsWith('.vue')) {
+                            this.emitFile({
+                                type: 'chunk',
+                                fileName: hash(id) + '.mjs',
+                                id: `virtual:vsc:` + id,
+                                preserveSignature: 'strict',
+                            })
                         }
                     }
                 }

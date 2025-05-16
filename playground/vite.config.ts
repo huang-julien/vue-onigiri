@@ -15,7 +15,7 @@ const { client, server } = vueServerComponentsPlugin({
 export default defineConfig({
   plugins: [
      debugVue(vue({
-      exclude: [/\?chunk/, /.*\.vsc/],
+      exclude: [/virtual:vsc:/, /.*\.vsc/],
       include: [/\.vue/],
     })),
     patchServerVue(vue({
