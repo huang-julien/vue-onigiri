@@ -21,7 +21,8 @@ const ogReadFileSync = fs.readFileSync
 export type VSCOptions = {
     include: string[]
     rootDir?: string
-    vueClient: Options
+    vueClient?: Options
+    vueServerOptions?: Options
 }
 
 const VSC_PREFIX = 'virtual:vsc:'
@@ -78,107 +79,110 @@ export function vueServerComponentsPlugin(options?: Partial<VSCOptions>): { clie
             }
         }],
 
-        server: {
-            enforce: 'pre',
-            name: 'vite:vue-server-components-server',
-            resolveId: {
-                order: 'pre',
-                async handler(id, importer) {
-                    if (id === VIRTUAL_MODULE_ID) {
-                        return RESOLVED_VIRTUAL_MODULE_ID
-                    }
-                    if (importer) {
-                        if (VSC_PREFIX_RE.test(importer)) {
-                            if (VSC_PREFIX_RE.test(id)) {
-                                return id
+        server: [
+            getPatchedServerVue(options?.vueServerOptions),
+            {
+                enforce: 'pre',
+                name: 'vite:vue-server-components-server',
+                resolveId: {
+                    order: 'pre',
+                    async handler(id, importer) {
+                        if (id === VIRTUAL_MODULE_ID) {
+                            return RESOLVED_VIRTUAL_MODULE_ID
+                        }
+                        if (importer) {
+                            if (VSC_PREFIX_RE.test(importer)) {
+                                if (VSC_PREFIX_RE.test(id)) {
+                                    return id
+                                }
+                                return this.resolve(id, importer.replace(VSC_PREFIX_RE, ''), { skipSelf: true })
                             }
-                            return this.resolve(id, importer.replace(VSC_PREFIX_RE, ''), { skipSelf: true })
                         }
-                    }
-
-                    if (VSC_PREFIX_RE.test(id)) {
-                        return id
-                    }
-                }
-            },
-            // @ts-ignore
-            load: {
-                order: 'pre',
-                async handler(id) {
-
-                    if (id === RESOLVED_VIRTUAL_MODULE_ID) {
-                        return {
-                            code: `export default {
-        ${refs.map(({ path, id }) => {
-                                return `${JSON.stringify(path)}: ${JSON.stringify(id)}`
-                            }).join(',\n')}
-      }`,
-                            map: null,
-                        }
-                    }
-
-
-                    const [filename, rawQuery] = id.split(`?`, 2);
-                    const query = Object.fromEntries(new URLSearchParams(rawQuery));
-
-                    if (query.vue === undefined) {
+    
                         if (VSC_PREFIX_RE.test(id)) {
-                            const file = id.replace(VSC_PREFIX_RE, '')
-
+                            return id
+                        }
+                    }
+                },
+                // @ts-ignore
+                load: {
+                    order: 'pre',
+                    async handler(id) {
+    
+                        if (id === RESOLVED_VIRTUAL_MODULE_ID) {
                             return {
-                                code: fs.readFileSync(file, 'utf-8'),
+                                code: `export default {
+            ${refs.map(({ path, id }) => {
+                                    return `${JSON.stringify(path)}: ${JSON.stringify(id)}`
+                                }).join(',\n')}
+          }`,
+                                map: null,
                             }
                         }
-                        if (filename?.endsWith('.vue')) {
-                            this.emitFile({
-                                type: 'chunk',
-                                fileName: hash(id) + '.mjs',
-                                id: VSC_PREFIX + id,
-                                preserveSignature: 'strict',
-                            })
+    
+    
+                        const [filename, rawQuery] = id.split(`?`, 2);
+                        const query = Object.fromEntries(new URLSearchParams(rawQuery));
+    
+                        if (query.vue === undefined) {
+                            if (VSC_PREFIX_RE.test(id)) {
+                                const file = id.replace(VSC_PREFIX_RE, '')
+    
+                                return {
+                                    code: fs.readFileSync(file, 'utf-8'),
+                                }
+                            }
+                            if (filename?.endsWith('.vue')) {
+                                this.emitFile({
+                                    type: 'chunk',
+                                    fileName: hash(id) + '.mjs',
+                                    id: VSC_PREFIX + id,
+                                    preserveSignature: 'strict',
+                                })
+                            }
                         }
                     }
-                }
-            },
-
-            generateBundle(_, bundle) {
-                for (const chunk of Object.values(bundle)) {
-                    if (chunk.type === 'chunk') {
-                        const list = refs.map(ref => ref.id)
-                        if (list.includes(chunk.fileName)) {
-                            chunk.isEntry = false
+                },
+    
+                generateBundle(_, bundle) {
+                    for (const chunk of Object.values(bundle)) {
+                        if (chunk.type === 'chunk') {
+                            const list = refs.map(ref => ref.id)
+                            if (list.includes(chunk.fileName)) {
+                                chunk.isEntry = false
+                            }
                         }
                     }
-                }
-            },
-
-            transform: {
-                order: 'post',
-                handler(code, id) {
-                    const ref = refs.find(ref => ref.path === id)
-                    if (ref) {
-
-                        const s = new MagicString(code)
-                        const ast = this.parse(code)
-                        const exportDefault = ast.body.find(node => {
-                            return node.type === 'ExportDefaultDeclaration'
-                        }) as ExportDefaultDeclaration & { start: number, end: number } | undefined
-                        const ExportDefaultDeclaration = exportDefault?.declaration
-                        if (ExportDefaultDeclaration) {
-                            const { start, end } = ExportDefaultDeclaration
-                            s.overwrite(start, end, `Object.assign(
-                                { __chunk: "${join('/', isProduction ? normalize(this.getFileName(ref.id)) : relative(rootDir, normalize(ref.id))).replaceAll('\\', '/')}" },
-                                 ${code.slice(start, end)},
-                            )`)
-                            return {
-                                code: s.toString(),
-                                map: s.generateMap({ hires: true }).toString(),
+                },
+    
+                transform: {
+                    order: 'post',
+                    handler(code, id) {
+                        const ref = refs.find(ref => ref.path === id)
+                        if (ref) {
+    
+                            const s = new MagicString(code)
+                            const ast = this.parse(code)
+                            const exportDefault = ast.body.find(node => {
+                                return node.type === 'ExportDefaultDeclaration'
+                            }) as ExportDefaultDeclaration & { start: number, end: number } | undefined
+                            const ExportDefaultDeclaration = exportDefault?.declaration
+                            if (ExportDefaultDeclaration) {
+                                const { start, end } = ExportDefaultDeclaration
+                                s.overwrite(start, end, `Object.assign(
+                                    { __chunk: "${join('/', isProduction ? normalize(this.getFileName(ref.id)) : relative(rootDir, normalize(ref.id))).replaceAll('\\', '/')}" },
+                                     ${code.slice(start, end)},
+                                )`)
+                                return {
+                                    code: s.toString(),
+                                    map: s.generateMap({ hires: true }).toString(),
+                                }
                             }
                         }
                     }
                 }
             }
-        },
+        ],
     }
 }
 
@@ -206,4 +210,25 @@ function getPatchedClientVue(options?: Options) {
         return await oldLoad.apply(this, [id, _options]);
     };
     return plugin;
+}
+
+function getPatchedServerVue(options?: Options): PluginOption {
+    const plugin = vue(defu({
+        include: [VSC_PREFIX_RE]
+    }, options))
+	// need to force non-ssr transform to always render vnode
+ 	const oldTransform = plugin.transform;
+	plugin.transform = async function (code, id, _options) {
+    // @ts-expect-error blabla
+		return await oldTransform.apply(this, [code, id, { ssr: false }]);
+	};
+ 	const oldLoad = plugin.load;
+	plugin.load = async function (id, _options) {
+ 
+    // @ts-expect-error blabla
+		return await oldLoad.apply(this, [id, { ssr: false }]);
+	};
+ 
+
+	return plugin;
 }
