@@ -111,6 +111,12 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
                         }
     
                         if (VSC_PREFIX_RE.test(id)) {
+                            if(id.replace(VSC_PREFIX_RE, '').startsWith('./')) {
+                                const resolved = await  this.resolve(id.replace(VSC_PREFIX_RE, ''));
+                                if(resolved) {
+                                    return VSC_PREFIX + resolved?.id
+                                }
+                            }
                             return id
                         }
                     }
@@ -125,7 +131,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
                                 const file = id.replace(VSC_PREFIX_RE, '')
     
                                 return {
-                                    code: readFileSync(file, 'utf-8'),
+                                    code: readFileSync(normalize(file).replaceAll('\\', '/'), 'utf-8'),
                                 }
                             }
                             if (filename?.endsWith('.vue')) {
@@ -213,9 +219,15 @@ function patchVue(options?: Options) {
 }
 
 function getPatchedServerVue(options?: Options): PluginOption {
-    const plugin = vue(defu({
-        include: [VSC_PREFIX_RE]
-    }, options))
+    const plugin = vue(defu(options, {
+        include: [VSC_PREFIX_RE],   
+        template: {
+            compilerOptions: {
+                inSSR:true
+            }
+        }
+        
+    }))
 	// need to force non-ssr transform to always render vnode
  	const oldTransform = plugin.transform;
 	plugin.transform = async function (code, id, _options) {
