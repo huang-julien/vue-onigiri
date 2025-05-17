@@ -29,12 +29,25 @@ export async function serializeComponent(component: DefineComponent, props: any,
  
      const instance = createComponentInstance(vnode, null, null);
      const res = await setupComponent(instance, true);
-     if(isPromise(res)) {
-        await res
-     }
+     const hasAsyncSetup = isPromise(res)
+     let prefetches = instance.sp as unknown as Promise[]/* LifecycleHooks.SERVER_PREFETCH */
+
+  
      const child = renderComponentRoot(instance);
- 
- 
+     
+     if(hasAsyncSetup || prefetches) {
+        const p: Promise<unknown> = Promise.resolve(res)
+        .then(() => {
+        // instance.sp may be null until an async setup resolves, so evaluate it here
+        if (hasAsyncSetup) prefetches = instance.sp
+        if (prefetches) {
+          return Promise.all(
+            prefetches.map(prefetch => prefetch.call(instance.proxy)),
+          )
+        }
+      })
+      await p.then(() => ssrRenderComponent(instance))
+     }
     return renderVNode(child)
 }
 
@@ -76,6 +89,12 @@ export async function renderVNode(vnode: VNodeChild): Promise<VServerComponent |
             }
         }
         // handle suspense
+        else if (vnode.shapeFlag & ShapeFlags.SUSPENSE) {
+            return {
+                type: VServerComponentType.Suspense,
+                children: await renderChild(vnode.ssContent)
+            }
+        }
     } else if (typeof vnode === "string" || typeof vnode === "number") {
         return {
             type: VServerComponentType.Text,

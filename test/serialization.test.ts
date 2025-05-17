@@ -7,6 +7,7 @@ import { renderServerComponent } from "../src/deserialize";
 import LoadComponent from "./fixtures/components/LoadComponent.vue";
 import { serializeComponent } from "../src/serialize";
 import AsyncComponent from "./fixtures/components/AsyncComponent.vue";
+import WithSuspense from "virtual:vsc:./test/fixtures/components/WithSuspense.vue";
 
 describe("serialize/deserialize", () => {
   it('expect to parse and render a component with only elements', async () => {
@@ -162,7 +163,7 @@ describe("serialize/deserialize", () => {
 });
 
 
-describe('serialize component only', () => {
+describe('Async components', () => {
   it('should serialize async component', async () => {
     const { promise, resolve } = Promise.withResolvers()
     const ast = await serializeComponent(AsyncComponent, {v: 'some text'})
@@ -202,6 +203,24 @@ await promise
       await flushPromises()
       expect(rebuilt.html()).toMatchInlineSnapshot(`"<div>Hello world ! some text</div>"`)
       expect(rebuilt.html()).toBe(html)
+
+  })
+
+  it('handles Suspense', async () => {
+    const ast = await serializeComponent(WithSuspense, {})
+    expect(ast).toMatchInlineSnapshot(`
+      {
+        "children": [
+          {
+            "children": undefined,
+            "type": 3,
+          },
+        ],
+        "props": undefined,
+        "tag": "div",
+        "type": 0,
+      }
+    `)
 
   })
 })
