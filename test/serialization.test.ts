@@ -7,6 +7,8 @@ import { renderServerComponent } from "../src/deserialize";
 import LoadComponent from "./fixtures/components/LoadComponent.vue";
 import { serializeComponent } from "../src/serialize";
 import AsyncComponent from "./fixtures/components/AsyncComponent.vue";
+import WithAsyncComponent from "virtual:vsc:./test/fixtures/components/WithAsyncComponent.vue";
+
 import WithSuspense from "virtual:vsc:./test/fixtures/components/WithSuspense.vue";
 
 describe("serialize/deserialize", () => {
@@ -206,13 +208,30 @@ await promise
 
   })
 
-  it('handles Suspense', async () => {
+  it('handles nested async component', async () => {
     const ast = await serializeComponent(WithSuspense, {})
     expect(ast).toMatchInlineSnapshot(`
       {
         "children": [
           {
-            "children": undefined,
+            "children": {
+              "text": " component with suspense ",
+              "type": 2,
+            },
+            "props": undefined,
+            "tag": Symbol(v-txt),
+            "type": 0,
+          },
+          {
+            "children": {
+              "children": {
+                "text": "Hello world ! yolo",
+                "type": 2,
+              },
+              "props": undefined,
+              "tag": "div",
+              "type": 0,
+            },
             "type": 3,
           },
         ],
@@ -221,7 +240,6 @@ await promise
         "type": 0,
       }
     `)
-
   })
 })
  

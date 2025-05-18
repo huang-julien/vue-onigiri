@@ -27,7 +27,7 @@ export async function serializeComponent(component: DefineComponent, props: any,
      const vnode = createVNode(input._component, input._props)
      vnode.appContext = input._context
  
-     const instance = createComponentInstance(vnode, null, null);
+     const instance = createComponentInstance(vnode, input._instance, null);
      const res = await setupComponent(instance, true);
      const hasAsyncSetup = isPromise(res)
      let prefetches = instance.sp as unknown as Promise[]/* LifecycleHooks.SERVER_PREFETCH */
@@ -66,7 +66,7 @@ export async function renderToAST(input: App, context: SSRContext) {
 
 export async function renderVNode(vnode: VNodeChild): Promise<VServerComponent | undefined> {
     if (isVNode(vnode)) {
-        if (vnode.shapeFlag & ShapeFlags.ELEMENT) {
+        if (vnode.shapeFlag & ShapeFlags.ELEMENT || typeof vnode.type === "symbol" ) {
             return {
                 type: VServerComponentType.Element,
                 tag: vnode.type as string,
@@ -74,18 +74,39 @@ export async function renderVNode(vnode: VNodeChild): Promise<VServerComponent |
                 children: await renderChild(vnode.children || vnode.component?.subTree || vnode.component?.vnode.children),
             }
         } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
+            const instance = createComponentInstance(vnode, null, null);
+            const res = await setupComponent(instance, true);
+            const hasAsyncSetup = isPromise(res)
+            let prefetches = instance.sp as unknown as Promise[]/* LifecycleHooks.SERVER_PREFETCH */
+       
+         
+            const child = renderComponentRoot(instance);
+            
+            if(hasAsyncSetup || prefetches) {
+               const p: Promise<unknown> = Promise.resolve(res)
+               .then(() => {
+               // instance.sp may be null until an async setup resolves, so evaluate it here
+               if (hasAsyncSetup) prefetches = instance.sp
+               if (prefetches) {
+                 return Promise.all(
+                   prefetches.map(prefetch => prefetch.call(instance.proxy)),
+                 )
+               }
+             })
+             await p.then(() => ssrRenderComponent(instance))
+            }
+            
             if (vnode.props && 'load:client' in vnode.props && vnode.props['load:client'] !== false) {
-
                 return {
                     type: VServerComponentType.Component,
                     props: vnode.props ?? undefined,
-                    children: await renderChild(vnode.children || vnode.component?.subTree || vnode.component?.vnode.children),
+                    children: await renderChild(child.children || child.component?.subTree || child.component?.vnode.children),
                     chunk: vnode.type.__chunk as string
                 }
             }
             return {
                 type: VServerComponentType.Fragment,
-                children: await renderChild(vnode.children || vnode.component?.subTree || vnode.component?.vnode.children),
+                children: await renderChild(child),
             }
         }
         // handle suspense
@@ -124,3 +145,9 @@ async function renderChild(children?: VNodeNormalizedChildren | VNode): Promise<
     }
 }
 
+async function walkVNode(vnode?: VNode) {
+    if(!vnode) {
+        return
+    }
+    debugger
+}
