@@ -17,9 +17,6 @@ importers:
       '@vue/compiler-dom':
         specifier: ^3.5.13
         version: 3.5.13
-      '@vue/compiler-sfc':
-        specifier: 3.5.13
-        version: 3.5.13
       '@vue/compiler-ssr':
         specifier: ^3.5.13
         version: 3.5.13

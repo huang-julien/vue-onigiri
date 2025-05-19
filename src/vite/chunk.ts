@@ -33,7 +33,7 @@ const MAP_VIRTUALMOD_ID = 'virtual:component-map'
 const RESOLVED_MAP_VIRTUALMOD_ID = '\0' + MAP_VIRTUALMOD_ID
 
 
-export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { client: PluginOption, server: PluginOption } {
+export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { client: (opts: Options) =>  PluginOption, server: (opts: Options) => PluginOption } {
     const refs: { path: string, id: string }[] = []
     let assetDir: string = ''
     let isProduction = false
@@ -42,7 +42,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
 
     const serverComprefs = new Map<string, string>()
     return {
-        client: [ {
+        client: (opts) => [ vue(opts), {
             name: 'vite:vue-server-components-client',
             configResolved(config) {
                 assetDir = config.build.assetsDir
@@ -83,8 +83,8 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
             }
         }],
 
-        server: [
-            patchVue(options?.vueClient),
+        server: (opts) =>  [
+            patchVue(opts),
             getPatchedServerVue(options?.vueServerOptions),
             {
                 enforce: 'pre',
@@ -95,8 +95,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
                         if (id === VIRTUAL_MODULE_ID) {
                             return RESOLVED_VIRTUAL_MODULE_ID
                         }
-                        if (importer) {
-                            if (VSC_PREFIX_RE.test(importer)) {
+                        if (importer && VSC_PREFIX_RE.test(importer)) {
                                 if (VSC_PREFIX_RE.test(id)) {
                                     return id
                                 }
@@ -108,7 +107,6 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
                                 }
                                 return this.resolve(id, importer.replace(VSC_PREFIX_RE, ''), { skipSelf: true })
                             }
-                        }
     
                         if (VSC_PREFIX_RE.test(id)) {
                             if(id.replace(VSC_PREFIX_RE, '').startsWith('./')) {
@@ -205,7 +203,7 @@ function patchVue(options?: Options) {
             return
         }
         // @ts-expect-error ssrUtils is not a public API
-        return await oldTransform.apply(this, [code, id, _options]);
+        return await Reflect.apply(oldTransform, this, [code, id, _options]);
     };
     const oldLoad = plugin.load;
     plugin.load = async function (id, _options) {
@@ -213,7 +211,7 @@ function patchVue(options?: Options) {
             return
         }
         // @ts-expect-error ssrUtils is not a public API
-        return await oldLoad.apply(this, [id, _options]);
+        return await Reflect.apply(oldLoad, this, [id, _options]);
     };
     return plugin;
 }
@@ -232,13 +230,13 @@ function getPatchedServerVue(options?: Options): PluginOption {
  	const oldTransform = plugin.transform;
 	plugin.transform = async function (code, id, _options) {
     // @ts-expect-error blabla
-		return await oldTransform.apply(this, [code, id, { ssr: false }]);
+		return await Reflect.apply(oldTransform, this, [code, id, { ssr: false }]);
 	};
  	const oldLoad = plugin.load;
 	plugin.load = async function (id, _options) {
  
     // @ts-expect-error blabla
-		return await oldLoad.apply(this, [id, { ssr: false }]);
+		return await Reflect.apply(oldLoad, this, [id, { ssr: false }]);
 	};
  
 
