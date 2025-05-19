@@ -46,7 +46,7 @@ export async function serializeComponent(component: DefineComponent, props: any,
           )
         }
       })
-      await p.then(() => ssrRenderComponent(instance))
+      await p
      }
     return renderVNode(child)
 }
@@ -93,7 +93,7 @@ export async function renderVNode(vnode: VNodeChild): Promise<VServerComponent |
                  )
                }
              })
-             await p.then(() => ssrRenderComponent(instance))
+             await p 
             }
             
             if (vnode.props && 'load:client' in vnode.props && vnode.props['load:client'] !== false) {
