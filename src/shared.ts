@@ -23,7 +23,7 @@ export interface VServerComponentComponent {
     props?: Record<string, any>;
     children?: VServerComponent[] | VServerComponent ;
     slot?: VServerComponent[];
-    chunk: string
+    chunk?: string
 }
 
 export interface VServerComponentText {

@@ -1,10 +1,9 @@
-import type { SSRContext,  } from "@vue/server-renderer";
+import type { SSRContext, } from "@vue/server-renderer";
 // @ts-expect-error ssrUtils is not a public API
 import { createVNode, isVNode, type App, type VNode, type VNodeChild, type VNodeNormalizedChildren, ssrUtils, type ComponentInternalInstance, type SuspenseBoundary, type DefineComponent, createApp, Suspense, h, ssrContextKey, defineComponent } from "vue";
 import { isPromise, ShapeFlags } from "@vue/shared";
 import { VServerComponentType, type VServerComponent } from "./shared";
- import { ssrRenderComponent } from "@vue/server-renderer"
-import { nextTick} from "vue"
+
 const {
     createComponentInstance,
     setupComponent,
@@ -23,31 +22,33 @@ const {
 } = ssrUtils;
 
 export async function serializeComponent(component: DefineComponent, props: any, context: SSRContext = {}) {
-    const input = createApp(component, props) 
-     const vnode = createVNode(input._component, input._props)
-     vnode.appContext = input._context
- 
-     const instance = createComponentInstance(vnode, input._instance, null);
-     const res = await setupComponent(instance, true);
-     const hasAsyncSetup = isPromise(res)
-     let prefetches = instance.sp as unknown as Promise[]/* LifecycleHooks.SERVER_PREFETCH */
+    const input = createApp(component, props)
+    const vnode = createVNode(input._component, input._props)
+    vnode.appContext = input._context
 
-  
-     const child = renderComponentRoot(instance);
-     
-     if(hasAsyncSetup || prefetches) {
+    const instance = createComponentInstance(vnode, input._instance, null);
+    const res = await setupComponent(instance, true);
+    const hasAsyncSetup = isPromise(res)
+    // @ts-expect-error internal API
+    let prefetches = instance.sp as unknown as Promise[]/* LifecycleHooks.SERVER_PREFETCH */
+
+
+    const child = renderComponentRoot(instance);
+
+    if (hasAsyncSetup || prefetches) {
         const p: Promise<unknown> = Promise.resolve(res)
-        .then(() => {
-        // instance.sp may be null until an async setup resolves, so evaluate it here
-        if (hasAsyncSetup) prefetches = instance.sp
-        if (prefetches) {
-          return Promise.all(
-            prefetches.map(prefetch => prefetch.call(instance.proxy)),
-          )
-        }
-      })
-      await p
-     }
+            .then(() => {
+                // instance.sp may be null until an async setup resolves, so evaluate it here
+                // @ts-expect-error internal API
+                if (hasAsyncSetup) prefetches = instance.sp
+                if (prefetches) {
+                    return Promise.all(
+                        prefetches.map(prefetch => prefetch.call(instance.proxy)),
+                    )
+                }
+            })
+        await p
+    }
     return renderVNode(child)
 }
 
@@ -63,91 +64,91 @@ export async function renderToAST(input: App, context: SSRContext) {
     return renderVNode(child)
 }
 
-
-export async function renderVNode(vnode: VNodeChild): Promise<VServerComponent | undefined> {
+export async function renderVNode(vnode: VNodeChild, parentInstance?: ComponentInternalInstance): Promise<VServerComponent | undefined> {
     if (isVNode(vnode)) {
-        if (vnode.shapeFlag & ShapeFlags.ELEMENT || typeof vnode.type === "symbol" ) {
+        if (vnode.shapeFlag & ShapeFlags.ELEMENT) {
             return {
                 type: VServerComponentType.Element,
                 tag: vnode.type as string,
                 props: vnode.props ?? undefined,
-                children: await renderChild(vnode.children || vnode.component?.subTree || vnode.component?.vnode.children),
+                children: await renderChild(vnode.children || vnode.component?.subTree || vnode.component?.vnode.children, parentInstance),
             }
         } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
-            const instance = createComponentInstance(vnode, null, null);
-            const res = await setupComponent(instance, true);
+            const instance = createComponentInstance(vnode, parentInstance ?? null, null)
+            const res = await setupComponent(instance, true)
             const hasAsyncSetup = isPromise(res)
+            // @ts-expect-error internal API
             let prefetches = instance.sp as unknown as Promise[]/* LifecycleHooks.SERVER_PREFETCH */
-       
-         
-            const child = renderComponentRoot(instance);
-            
-            if(hasAsyncSetup || prefetches) {
-               const p: Promise<unknown> = Promise.resolve(res)
-               .then(() => {
-               // instance.sp may be null until an async setup resolves, so evaluate it here
-               if (hasAsyncSetup) prefetches = instance.sp
-               if (prefetches) {
-                 return Promise.all(
-                   prefetches.map(prefetch => prefetch.call(instance.proxy)),
-                 )
-               }
-             })
-             await p 
+
+            const child = renderComponentRoot(instance)
+
+            if (hasAsyncSetup || prefetches) {
+                const p: Promise<unknown> = Promise.resolve(res)
+                    .then(() => {
+                        // instance.sp may be null until an async setup resolves, so evaluate it here
+                        // @ts-expect-error internal API
+                        if (hasAsyncSetup) { prefetches = instance.sp }
+                        if (prefetches) {
+                            return Promise.all(
+                                prefetches.map(prefetch => prefetch.call(instance.proxy)),
+                            )
+                        }
+                    })
+                await p
             }
-            
+
             if (vnode.props && 'load:client' in vnode.props && vnode.props['load:client'] !== false) {
                 return {
                     type: VServerComponentType.Component,
                     props: vnode.props ?? undefined,
-                    children: await renderChild(child.children || child.component?.subTree || child.component?.vnode.children),
-                    chunk: vnode.type.__chunk as string
+                    children: await renderChild(child.children || child.component?.subTree || child.component?.vnode.children, parentInstance),
+                    // @ts-expect-error 
+                    chunk: vnode.type.__chunk as string,
                 }
             }
             return {
                 type: VServerComponentType.Fragment,
-                children: await renderChild(child),
+                children: await renderChild(child, parentInstance),
             }
         }
         // handle suspense
         else if (vnode.shapeFlag & ShapeFlags.SUSPENSE) {
             return {
                 type: VServerComponentType.Suspense,
-                children: await renderChild(vnode.ssContent)
+                // @ts-expect-error internal API
+                children: await renderChild(vnode.ssContent, parentInstance),
+            }
+        } else if (vnode.type === Text) {
+            return {
+                type: VServerComponentType.Text,
+                text: vnode.children as string,
             }
         }
-    } else if (typeof vnode === "string" || typeof vnode === "number") {
+    } else if (vnode && (typeof vnode === 'string' || typeof vnode === 'number')) {
         return {
             type: VServerComponentType.Text,
-            text: vnode as string
+            text: vnode as string,
         }
     }
 }
 
-async function renderChild(children?: VNodeNormalizedChildren | VNode): Promise<VServerComponent[] | VServerComponent | undefined> {
+async function renderChild(children?: VNodeNormalizedChildren | VNode, parentInstance?: ComponentInternalInstance): Promise<VServerComponent[] | VServerComponent | undefined> {
     if (!children) {
         return
     }
 
     if (isVNode(children)) {
-        return renderVNode(children)
+        return renderVNode(children, parentInstance)
     }
 
     if (Array.isArray(children)) {
-        return (await Promise.all(children.map(renderVNode))).filter((v): v is VServerComponent => !!v)
+        return (await Promise.all(children.map(vnode => renderVNode(vnode, parentInstance)))).filter((v): v is VServerComponent => !!v)
     }
 
-    if (typeof children === "string" || typeof children === "number") {
+    if (typeof children === 'string' || typeof children === 'number') {
         return {
             type: VServerComponentType.Text,
-            text: children as string
+            text: children as string,
         }
     }
-}
-
-async function walkVNode(vnode?: VNode) {
-    if(!vnode) {
-        return
-    }
-    debugger
 }
