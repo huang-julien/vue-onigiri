@@ -14,7 +14,6 @@ defineProps<{
 
 const result = await new Promise((r) => {
     setTimeout(() => {
-        console.log('coucou')
         r('Hello world !')
     }, 500)
 })

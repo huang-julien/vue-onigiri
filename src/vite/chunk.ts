@@ -76,7 +76,6 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
                         const list = refs.map(ref => ref.id)
                         if (list.includes(chunk.fileName)) {
                             chunk.isEntry = false
-                            console.log(chunk.fileName)
                         }
                     }
                 }
