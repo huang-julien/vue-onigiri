@@ -12,10 +12,8 @@ export function renderServerComponent(input?: VServerComponent): VNode | undefin
         return h(input.tag, input.props, Array.isArray(input.children) ? input.children.map(renderServerComponent) : renderServerComponent(input.children))
     }
     if(input.type === VServerComponentType.Component) {
-        return h(Suspense, {}, {
-            default: () => h(loader, {
-                data: input
-            })
+        return h(loader, {
+            data: input
         })
     }
     if (input.type === VServerComponentType.Fragment) {
