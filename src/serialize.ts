@@ -138,7 +138,7 @@ async function renderChild(children?: VNodeNormalizedChildren | VNode, parentIns
     }
 
     if (isVNode(children)) {
-        return renderVNode(children, parentInstance)
+        return await renderVNode(children, parentInstance)
     }
 
     if (Array.isArray(children)) {
