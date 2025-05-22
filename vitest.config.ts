@@ -7,8 +7,8 @@ const { client, server } = vueServerComponentsPlugin({
 })
 export default defineConfig({
     plugins: [
-        client,
-        server
+        client()[1]!,
+        server()
     ],
     test: {
         environment: 'happy-dom',
