@@ -80,5 +80,33 @@ await promise
       }
     `)
   })
+
+  it('handles nested async component with suspense', async () => {
+    const ast = await serializeComponent(WithSuspense, {})
+    expect(ast).toMatchInlineSnapshot(`
+      {
+        "children": [
+          {
+            "children": {
+              "children": {
+                "children": {
+                  "text": "Hello world ! yolo",
+                  "type": 2,
+                },
+                "props": undefined,
+                "tag": "div",
+                "type": 0,
+              },
+              "type": 3,
+            },
+            "type": 4,
+          },
+        ],
+        "props": undefined,
+        "tag": "div",
+        "type": 0,
+      }
+    `)
+  })
 })
  
