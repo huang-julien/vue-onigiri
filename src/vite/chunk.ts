@@ -27,12 +27,6 @@ export type VSCOptions = {
 const VSC_PREFIX = 'virtual:vsc:'
 const VSC_PREFIX_RE = /^virtual:vsc:/
 const NOVSC_PREFIX_RE = /^(?!virtual:vsc:)/
-const VIRTUAL_MODULE_ID = 'virtual:components-chunk'
-const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID
-
-const MAP_VIRTUALMOD_ID = 'virtual:component-map'
-const RESOLVED_MAP_VIRTUALMOD_ID = '\0' + MAP_VIRTUALMOD_ID
-
 
 export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { client: (opts?: Options) =>  PluginOption, server: (opts?: Options) => PluginOption } {
     const refs: { path: string, id: string }[] = []
@@ -92,9 +86,6 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
                 resolveId: {
                     order: 'pre',
                     async handler(id, importer) {
-                        if (id === VIRTUAL_MODULE_ID) {
-                            return RESOLVED_VIRTUAL_MODULE_ID
-                        }
                         if (importer && VSC_PREFIX_RE.test(importer)) {
                                 if (VSC_PREFIX_RE.test(id)) {
                                     return id
@@ -200,13 +191,8 @@ function getVuePlugin(options?: Options) {
 
 function getPatchedServerVue(options?: Options): PluginOption {
     const plugin = vue(defu(options, {
-        include: [VSC_PREFIX_RE],   
-        template: {
-            compilerOptions: {
-                inSSR:true
-            }
-        }
-        
+        include: [VSC_PREFIX_RE],
+        exclude: [NOVSC_PREFIX_RE ]
     }))
 	// need to force non-ssr transform to always render vnode
  	const oldTransform = plugin.transform;
@@ -216,7 +202,6 @@ function getPatchedServerVue(options?: Options): PluginOption {
 	};
  	const oldLoad = plugin.load;
 	plugin.load = async function (id, _options) {
- 
     // @ts-expect-error blabla
 		return await Reflect.apply(oldLoad, this, [id, { ssr: false }]);
 	};
