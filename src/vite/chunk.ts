@@ -26,6 +26,7 @@ export type VSCOptions = {
 
 const VSC_PREFIX = 'virtual:vsc:'
 const VSC_PREFIX_RE = /^virtual:vsc:/
+const NOVSC_PREFIX_RE = /^(?!virtual:vsc:)/
 const VIRTUAL_MODULE_ID = 'virtual:components-chunk'
 const RESOLVED_VIRTUAL_MODULE_ID = '\0' + VIRTUAL_MODULE_ID
 
@@ -33,7 +34,7 @@ const MAP_VIRTUALMOD_ID = 'virtual:component-map'
 const RESOLVED_MAP_VIRTUALMOD_ID = '\0' + MAP_VIRTUALMOD_ID
 
 
-export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { client: (opts: Options) =>  PluginOption, server: (opts: Options) => PluginOption } {
+export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { client: (opts?: Options) =>  PluginOption, server: (opts?: Options) => PluginOption } {
     const refs: { path: string, id: string }[] = []
     let assetDir: string = ''
     let isProduction = false
@@ -83,7 +84,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
         }],
 
         server: (opts) =>  [
-            patchVue(opts),
+            getVuePlugin(opts),
             getPatchedServerVue(options?.vueServerOptions),
             {
                 enforce: 'pre',
@@ -190,28 +191,10 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
 }
 
 
-// fix a bug in plugin vue
-function patchVue(options?: Options) {
+function getVuePlugin(options?: Options) {
     const plugin = vue(defu({
         exclude: [VSC_PREFIX_RE],
-        include: [/\.vue/],
     }, options))
-    const oldTransform = plugin.transform;
-    plugin.transform = async function (code, id, _options) {
-        if (VSC_PREFIX_RE.test(id)) {
-            return
-        }
-        // @ts-expect-error ssrUtils is not a public API
-        return await Reflect.apply(oldTransform, this, [code, id, _options]);
-    };
-    const oldLoad = plugin.load;
-    plugin.load = async function (id, _options) {
-        if (VSC_PREFIX_RE.test(id)) {
-            return
-        }
-        // @ts-expect-error ssrUtils is not a public API
-        return await Reflect.apply(oldLoad, this, [id, _options]);
-    };
     return plugin;
 }
 
@@ -237,7 +220,6 @@ function getPatchedServerVue(options?: Options): PluginOption {
     // @ts-expect-error blabla
 		return await Reflect.apply(oldLoad, this, [id, { ssr: false }]);
 	};
- 
 
 	return plugin;
 }
