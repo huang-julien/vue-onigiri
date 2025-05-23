@@ -98,12 +98,22 @@ export async function renderVNode(vnode: VNodeChild, parentInstance?: ComponentI
             }
 
             if (vnode.props && 'load:client' in vnode.props && vnode.props['load:client'] !== false) {
+
+                // @ts-expect-error 
+                if (vnode.type.__chunk) {
+                    return {
+                        type: VServerComponentType.Component,
+                        props: vnode.props ?? undefined,
+                        // @ts-expect-error 
+                        chunk: vnode.type.__chunk as string,
+                    }
+                }
+                console.warn('Component is missing chunk information')
                 return {
-                    type: VServerComponentType.Component,
+                    type: VServerComponentType.Element,
+                    tag: vnode.type as string,
                     props: vnode.props ?? undefined,
-                    children: await renderChild(child.children || child.component?.subTree || child.component?.vnode.children, parentInstance),
-                    // @ts-expect-error 
-                    chunk: vnode.type.__chunk as string,
+                    children: await renderChild(vnode.children || vnode.component?.subTree || vnode.component?.vnode.children, parentInstance),
                 }
             }
             return {

@@ -21,7 +21,6 @@ export interface VServerComponentFragment {
 export interface VServerComponentComponent {
     type: VServerComponentType.Component;
     props?: Record<string, any>;
-    children?: VServerComponent[] | VServerComponent ;
     slot?: VServerComponent[];
     chunk?: string
 }
