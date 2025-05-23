@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import ElementsOnly from "./fixtures/components/ElementsOnly.vue";
 import { renderAsServerComponent } from "../src";
-import { defineComponent, h, nextTick, Suspense } from "vue";
+import { defineComponent, h, nextTick, provide, Suspense } from "vue";
 import { renderServerComponent } from "../src/deserialize";
 import LoadComponent from "./fixtures/components/LoadComponent.vue";
 import { serializeComponent } from "../src/serialize";
@@ -11,6 +11,7 @@ import WithAsyncComponent from "virtual:vsc:./test/fixtures/components/WithAsync
 
 import WithSuspense from "virtual:vsc:./test/fixtures/components/WithSuspense.vue";
 import { removeCommentsFromHtml } from "./utils";
+import { VServerComponentType, type VServerComponent  } from "../src/shared";
 
 describe("serialize/deserialize", () => {
   it('expect to parse and render a component with only elements', async () => {
@@ -242,4 +243,35 @@ await promise
     `)
   })
 })
- 
+
+describe('revive', () => {
+
+
+  describe('injection', () => {
+    it('should injection be working when reviving', async () => {
+      const key = 'test'
+
+      const { promise, resolve } = Promise.withResolvers()
+    
+      const ast: VServerComponent = {
+        type: VServerComponentType.Component,
+        chunk: '/test/fixtures/components/Injection.vue',
+      }
+      
+      const wrapper = mount({
+        setup() {
+          provide(key, 'Success !')
+          return () => h(Suspense, { onResolve: () => resolve(true) }, {
+            default: () => renderServerComponent(ast)
+          })
+        }
+      })
+      await promise
+      await flushPromises()
+      await nextTick()
+      const html = wrapper.html()
+      expect(html).toMatchInlineSnapshot(`"<div> injection: Success !</div>"`)
+    })
+  })
+   
+})
