@@ -2,12 +2,10 @@ import { defineConfig } from "vitest/config"
 import vue from "@vitejs/plugin-vue"
 import { vueServerComponentsPlugin } from "./src/vite/chunk"
 
-const { client, server } = vueServerComponentsPlugin({
-    include: ['./test/fixtures/components/Counter.vue'],
-})
+const { client, server } = vueServerComponentsPlugin()
 export default defineConfig({
-    plugins: [
-        client()[1]!,
+    plugins: [ 
+        client()[1],
         server()
     ],
     test: {

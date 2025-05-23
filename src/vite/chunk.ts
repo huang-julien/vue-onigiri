@@ -8,9 +8,15 @@ import { readFileSync } from "node:fs"
 import vue from "@vitejs/plugin-vue"
 import { defu } from "defu"
 import type { Options } from "@vitejs/plugin-vue"
-
+import { createFilter, type FilterPattern } from "vite"
 export type VSCOptions = {
-    include: string[]
+    clientChunks?: {
+        /**
+         * @default /\.vue$/
+         */
+        include?: FilterPattern
+        exclude?: FilterPattern
+    }
     rootDir?: string
     vueClient?: Options
     vueServerOptions?: Options
@@ -28,40 +34,38 @@ const VSC_PREFIX = 'virtual:vsc:'
 const VSC_PREFIX_RE = /^virtual:vsc:/
 const NOVSC_PREFIX_RE = /^(?!virtual:vsc:)/
 
-export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { client: (opts?: Options) =>  PluginOption, server: (opts?: Options) => PluginOption } {
+export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { client: (opts?: Options) => PluginOption, server: (opts?: Options) => PluginOption } {
     const refs: { path: string, id: string }[] = []
     let assetDir: string = ''
     let isProduction = false
     let rootDir = process.cwd()
     const { serverVscDir = '', clientVscDir = '' } = options
 
+    const filter = createFilter(options.clientChunks?.include ?? /.vue$/, options.clientChunks?.exclude)
     const serverComprefs = new Map<string, string>()
     return {
-        client: (opts) => [ vue(opts), {
+        client: (opts) => [vue(opts), {
             name: 'vite:vue-server-components-client',
             configResolved(config) {
                 assetDir = config.build.assetsDir
                 isProduction = config.isProduction
                 rootDir = config.root
             },
-            async buildStart() {
-                if (options?.include) {
-                    for (const path of options.include) {
-                        const resolved = await this.resolve(path)
-                        if (resolved) {
-                            if (isProduction) {
-
-                                const id = this.emitFile({
-                                    type: 'chunk',
-                                    fileName: join(clientVscDir || assetDir, hash(resolved) + '.mjs'),
-                                    id: resolved.id,
-                                    preserveSignature: 'strict',
-                                })
-                                refs.push({ path: resolved.id, id })
-                            } else {
-                                refs.push({ path: resolved.id, id: resolved.id })
-                            }
-                        }
+            load: {
+                async handler(id) {
+                    if (!filter(id)) {
+                        return
+                    }
+                    if (isProduction) {
+                        const emitted = this.emitFile({
+                            type: 'chunk',
+                            fileName: join(clientVscDir || assetDir, hash(id) + '.mjs'),
+                            id: id,
+                            preserveSignature: 'strict',
+                        })
+                        refs.push({ path: id, id: emitted })
+                    } else {
+                        refs.push({ path: id, id })
                     }
                 }
             },
@@ -77,7 +81,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
             }
         }],
 
-        server: (opts) =>  [
+        server: (opts) => [
             getVuePlugin(opts),
             getPatchedServerVue(options?.vueServerOptions),
             {
@@ -87,22 +91,22 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
                     order: 'pre',
                     async handler(id, importer) {
                         if (importer && VSC_PREFIX_RE.test(importer)) {
-                                if (VSC_PREFIX_RE.test(id)) {
-                                    return id
-                                }
-                                if(id.endsWith('.vue')) {
-                                    const resolved = (await this.resolve(id, importer.replace(VSC_PREFIX_RE, '')))
-                                    if (resolved) {
-                                        return VSC_PREFIX + resolved.id
-                                    }
-                                }
-                                return this.resolve(id, importer.replace(VSC_PREFIX_RE, ''), { skipSelf: true })
+                            if (VSC_PREFIX_RE.test(id)) {
+                                return id
                             }
-    
+                            if (id.endsWith('.vue')) {
+                                const resolved = (await this.resolve(id, importer.replace(VSC_PREFIX_RE, '')))
+                                if (resolved) {
+                                    return VSC_PREFIX + resolved.id
+                                }
+                            }
+                            return this.resolve(id, importer.replace(VSC_PREFIX_RE, ''), { skipSelf: true })
+                        }
+
                         if (VSC_PREFIX_RE.test(id)) {
-                            if(id.replace(VSC_PREFIX_RE, '').startsWith('./')) {
-                                const resolved = await  this.resolve(id.replace(VSC_PREFIX_RE, ''));
-                                if(resolved) {
+                            if (id.replace(VSC_PREFIX_RE, '').startsWith('./')) {
+                                const resolved = await this.resolve(id.replace(VSC_PREFIX_RE, ''));
+                                if (resolved) {
                                     return VSC_PREFIX + resolved?.id
                                 }
                             }
@@ -114,13 +118,13 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
                     order: 'pre',
                     async handler(id) {
                         const [filename, rawQuery] = id.split(`?`, 2);
-    
+
                         if (!rawQuery) {
                             if (VSC_PREFIX_RE.test(id)) {
                                 const file = id.replace(VSC_PREFIX_RE, '')
-    
+
                                 return {
-                                    code: readFileSync(normalize(file).replaceAll('\\', '/'), 'utf-8'),
+                                    code: readFileSync(normalize(file).replaceAll('\\', '/'), 'utf8'),
                                 }
                             }
                             if (filename?.endsWith('.vue')) {
@@ -137,7 +141,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
                         }
                     }
                 },
-    
+
                 generateBundle(_, bundle) {
                     for (const chunk of Object.values(bundle)) {
                         if (chunk.type === 'chunk') {
@@ -148,13 +152,13 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
                         }
                     }
                 },
-    
+
                 transform: {
                     order: 'post',
                     handler(code, id) {
                         const ref = refs.find(ref => ref.path === id)
                         if (ref) {
-    
+
                             const s = new MagicString(code)
                             const ast = this.parse(code)
                             const exportDefault = ast.body.find(node => {
@@ -192,19 +196,19 @@ function getVuePlugin(options?: Options) {
 function getPatchedServerVue(options?: Options): PluginOption {
     const plugin = vue(defu(options, {
         include: [VSC_PREFIX_RE],
-        exclude: [NOVSC_PREFIX_RE ]
+        exclude: [NOVSC_PREFIX_RE]
     }))
-	// need to force non-ssr transform to always render vnode
- 	const oldTransform = plugin.transform;
-	plugin.transform = async function (code, id, _options) {
-    // @ts-expect-error blabla
-		return await Reflect.apply(oldTransform, this, [code, id, { ssr: false }]);
-	};
- 	const oldLoad = plugin.load;
-	plugin.load = async function (id, _options) {
-    // @ts-expect-error blabla
-		return await Reflect.apply(oldLoad, this, [id, { ssr: false }]);
-	};
+    // need to force non-ssr transform to always render vnode
+    const oldTransform = plugin.transform;
+    plugin.transform = async function (code, id, _options) {
+        // @ts-expect-error blabla
+        return await Reflect.apply(oldTransform, this, [code, id, { ssr: false }]);
+    };
+    const oldLoad = plugin.load;
+    plugin.load = async function (id, _options) {
+        // @ts-expect-error blabla
+        return await Reflect.apply(oldLoad, this, [id, { ssr: false }]);
+    };
 
-	return plugin;
+    return plugin;
 }
