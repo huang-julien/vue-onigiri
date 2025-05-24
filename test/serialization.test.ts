@@ -1,7 +1,7 @@
+// @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import ElementsOnly from "./fixtures/components/ElementsOnly.vue";
-import { renderAsServerComponent } from "../src";
 import { defineComponent, h, nextTick, provide, Suspense } from "vue";
 import { renderServerComponent } from "../src/deserialize";
 import LoadComponent from "./fixtures/components/LoadComponent.vue";
@@ -11,52 +11,50 @@ import WithAsyncComponent from "virtual:vsc:./test/fixtures/components/WithAsync
 
 import WithSuspense from "virtual:vsc:./test/fixtures/components/WithSuspense.vue";
 import { removeCommentsFromHtml } from "./utils";
-import { VServerComponentType, type VServerComponent  } from "../src/shared";
+import { VServerComponentType, type VServerComponent } from "../src/shared";
+import { renderToString } from "@vue/server-renderer";
 
 describe("serialize/deserialize", () => {
   it('expect to parse and render a component with only elements', async () => {
     const wrapper = mount(ElementsOnly)
     const vnode = wrapper.vm.$.vnode.component!.vnode
-    const { html, ast } = await renderAsServerComponent(vnode)
-
+    const ast = await serializeComponent(ElementsOnly)
+    const html = await renderToString(vnode)
     expect(html).toMatchInlineSnapshot(`"<div><div>1</div><div>2</div><div>0</div></div>"`)
     expect(ast).toMatchInlineSnapshot(`
       {
-        "children": {
-          "children": [
-            {
-              "children": {
-                "text": "1",
-                "type": 2,
-              },
-              "props": undefined,
-              "tag": "div",
-              "type": 0,
+        "children": [
+          {
+            "children": {
+              "text": "1",
+              "type": 2,
             },
-            {
-              "children": {
-                "text": "2",
-                "type": 2,
-              },
-              "props": undefined,
-              "tag": "div",
-              "type": 0,
+            "props": undefined,
+            "tag": "div",
+            "type": 0,
+          },
+          {
+            "children": {
+              "text": "2",
+              "type": 2,
             },
-            {
-              "children": {
-                "text": "0",
-                "type": 2,
-              },
-              "props": undefined,
-              "tag": "div",
-              "type": 0,
+            "props": undefined,
+            "tag": "div",
+            "type": 0,
+          },
+          {
+            "children": {
+              "text": "0",
+              "type": 2,
             },
-          ],
-          "props": undefined,
-          "tag": "div",
-          "type": 0,
-        },
-        "type": 3,
+            "props": undefined,
+            "tag": "div",
+            "type": 0,
+          },
+        ],
+        "props": undefined,
+        "tag": "div",
+        "type": 0,
       }
     `)
     wrapper.unmount()
@@ -77,45 +75,44 @@ describe("serialize/deserialize", () => {
 
       const wrapper = mount(LoadComponent)
       const vnode = wrapper.vm.$.vnode.component!.vnode
-      const { html, ast } = await renderAsServerComponent(vnode)
+
+      const ast = await serializeComponent(LoadComponent)
+      const html = await renderToString(vnode)
       expect(html).toMatchInlineSnapshot(`"<div><div>1</div><div>2</div><div loadclientside load:client> counter : 0 <button>Increment</button></div></div>"`)
 
       expect(ast).toMatchInlineSnapshot(`
         {
-          "children": {
-            "children": [
-              {
-                "children": {
-                  "text": "1",
-                  "type": 2,
-                },
-                "props": undefined,
-                "tag": "div",
-                "type": 0,
+          "children": [
+            {
+              "children": {
+                "text": "1",
+                "type": 2,
               },
-              {
-                "children": {
-                  "text": "2",
-                  "type": 2,
-                },
-                "props": undefined,
-                "tag": "div",
-                "type": 0,
+              "props": undefined,
+              "tag": "div",
+              "type": 0,
+            },
+            {
+              "children": {
+                "text": "2",
+                "type": 2,
               },
-              {
-                "chunk": "/test/fixtures/components/Counter.vue",
-                "props": {
-                  "load:client": "",
-                  "loadClientSide": "",
-                },
-                "type": 1,
+              "props": undefined,
+              "tag": "div",
+              "type": 0,
+            },
+            {
+              "chunk": "/test/fixtures/components/Counter.vue",
+              "props": {
+                "load:client": "",
+                "loadClientSide": "",
               },
-            ],
-            "props": undefined,
-            "tag": "div",
-            "type": 0,
-          },
-          "type": 3,
+              "type": 1,
+            },
+          ],
+          "props": undefined,
+          "tag": "div",
+          "type": 0,
         }
       `)
       wrapper.unmount()
@@ -123,7 +120,7 @@ describe("serialize/deserialize", () => {
         setup() {
           return () => h(Suspense, {}, {
             default: () => renderServerComponent(ast)
-          }) 
+          })
         }
       }))
       await flushPromises()
@@ -150,16 +147,16 @@ describe("serialize/deserialize", () => {
 describe('Async components', () => {
   it('should serialize async component', async () => {
     const { promise, resolve } = Promise.withResolvers()
-    const ast = await serializeComponent(AsyncComponent, {v: 'some text'})
+    const ast = await serializeComponent(AsyncComponent, { v: 'some text' })
     const wrapper = mount({
       render() {
         return h(Suspense, {
           onResolve: () => resolve(true)
         }, {
           default: h(AsyncComponent, {
-            
-              v: 'some text'
-            
+
+            v: 'some text'
+
           })
         })
       }
@@ -176,17 +173,17 @@ describe('Async components', () => {
       }
     `)
     await flushPromises()
-await promise
-    await nextTick() 
-    const html= wrapper.html()
-      expect(html).toMatchInlineSnapshot(`"<div>Hello world ! some text</div>"`)
-      wrapper.unmount()
-      const rebuilt = mount({
-        render: () => renderServerComponent(ast)
-      })
-      await flushPromises()
-      expect(rebuilt.html()).toMatchInlineSnapshot(`"<div>Hello world ! some text</div>"`)
-      expect(rebuilt.html()).toBe(html)
+    await promise
+    await nextTick()
+    const html = wrapper.html()
+    expect(html).toMatchInlineSnapshot(`"<div>Hello world ! some text</div>"`)
+    wrapper.unmount()
+    const rebuilt = mount({
+      render: () => renderServerComponent(ast)
+    })
+    await flushPromises()
+    expect(rebuilt.html()).toMatchInlineSnapshot(`"<div>Hello world ! some text</div>"`)
+    expect(rebuilt.html()).toBe(html)
 
   })
 
@@ -195,6 +192,10 @@ await promise
     expect(ast).toMatchInlineSnapshot(`
       {
         "children": [
+          {
+            "text": " component with suspense ",
+            "type": 2,
+          },
           {
             "children": {
               "children": {
@@ -220,6 +221,10 @@ await promise
     expect(ast).toMatchInlineSnapshot(`
       {
         "children": [
+          {
+            "text": " component with suspense ",
+            "type": 2,
+          },
           {
             "children": {
               "children": {
@@ -252,12 +257,12 @@ describe('revive', () => {
       const key = 'test'
 
       const { promise, resolve } = Promise.withResolvers()
-    
+
       const ast: VServerComponent = {
         type: VServerComponentType.Component,
         chunk: '/test/fixtures/components/Injection.vue',
       }
-      
+
       const wrapper = mount({
         setup() {
           provide(key, 'Success !')
@@ -273,5 +278,5 @@ describe('revive', () => {
       expect(html).toMatchInlineSnapshot(`"<div> injection: Success !</div>"`)
     })
   })
-   
+
 })

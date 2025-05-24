@@ -1,6 +1,6 @@
 import type { SSRContext, } from "@vue/server-renderer";
 // @ts-expect-error ssrUtils is not a public API
-import { createVNode, isVNode, type App, type VNode, type VNodeChild, type VNodeNormalizedChildren, ssrUtils, type ComponentInternalInstance, type SuspenseBoundary, type DefineComponent, createApp, Suspense, h, ssrContextKey, defineComponent } from "vue";
+import { createVNode, isVNode, type App, type VNode, type VNodeChild, type VNodeNormalizedChildren, ssrUtils, type ComponentInternalInstance, type SuspenseBoundary, type DefineComponent, createApp, Text, h, ssrContextKey, defineComponent } from "vue";
 import { isPromise, ShapeFlags } from "@vue/shared";
 import { VServerComponentType, type VServerComponent } from "./shared";
 
@@ -21,7 +21,7 @@ const {
     renderComponentRoot: (instance: ComponentInternalInstance) => VNode;
 } = ssrUtils;
 
-export async function serializeComponent(component: DefineComponent, props: any, context: SSRContext = {}) {
+export async function serializeComponent(component: DefineComponent, props?: any, context: SSRContext = {}) {
     const input = createApp(component, props)
     const vnode = createVNode(input._component, input._props)
     vnode.appContext = input._context
@@ -52,16 +52,44 @@ export async function serializeComponent(component: DefineComponent, props: any,
     return renderVNode(child)
 }
 
-export async function renderToAST(input: App, context: SSRContext) {
+export async function serializeApp(app: App, context: SSRContext = {}) {
+    const input = app
+    app.provide(ssrContextKey, context)
+
     const vnode = createVNode(input._component, input._props)
-    vnode.appContext = input._context
+    // vnode.appContext = input._context
+    const instance = createComponentInstance(vnode, input._instance, null)
+    instance.appContext = input._context
 
-    const instance = createComponentInstance(vnode, null, null);
-    await setupComponent(instance, true);
-    const child = renderComponentRoot(instance);
+    return await app.runWithContext(async () => {
 
+        const res = await setupComponent(instance, true)
+        return await app.runWithContext(async() => {
+            const hasAsyncSetup = isPromise(res)
 
-    return renderVNode(child)
+            // @ts-expect-error internal API
+            let prefetches = instance.sp as unknown as Promise[]/* LifecycleHooks.SERVER_PREFETCH */
+    
+            const child = renderComponentRoot(instance)
+    
+            if (hasAsyncSetup || prefetches) {
+                const p: Promise<unknown> = Promise.resolve(res)
+                    .then(() => {
+                        // instance.sp may be null until an async setup resolves, so evaluate it here
+                        // @ts-expect-error internal API
+                        if (hasAsyncSetup) { prefetches = instance.sp }
+                        if (prefetches) {
+                            return Promise.all(
+                                prefetches.map(prefetch => prefetch.call(instance.proxy)),
+                            )
+                        }
+                    })
+    
+                await p
+            }
+            return await renderVNode(child, instance)
+        })
+    })
 }
 
 export async function renderVNode(vnode: VNodeChild, parentInstance?: ComponentInternalInstance): Promise<VServerComponent | undefined> {

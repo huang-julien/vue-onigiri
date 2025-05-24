@@ -9,7 +9,7 @@ export default defineConfig({
         server()
     ],
     test: {
-        environment: 'happy-dom',
+        environment: 'node',
         globals: true,
         pool: 'threads',
         environmentMatchGlobs: [
@@ -19,7 +19,7 @@ export default defineConfig({
             hooks: 'list',
         },
         include: [
-            './test/**'
+            './test/**/*.test.ts'
         ]
     },
 })
