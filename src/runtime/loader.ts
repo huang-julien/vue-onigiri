@@ -1,6 +1,6 @@
 import { h, type DefineComponent, defineComponent } from "vue";
-import type { VServerComponentComponent } from "../shared";
-import { renderChildren } from "../deserialize";
+import type { VServerComponentComponent } from "./shared";
+import { renderChildren } from "./deserialize";
 
 const componentMap = new Map<string, DefineComponent>()
 
@@ -20,10 +20,13 @@ export default defineComponent({
         }
         return () => {
             const component = componentMap.get(props.data.chunk)
-            if (component) {
-                return h(component, props.data.props, {
-                    default: () => renderChildren(props.data.children),
+            const slots = Object.fromEntries(
+                Object.entries(props.data.slots || {}).map(([key, value]) => {
+                    return [key, () => renderChildren(value)]
                 })
+            )
+            if (component) {
+                return h(component, props.data.props, slots)
             }
         }
     }

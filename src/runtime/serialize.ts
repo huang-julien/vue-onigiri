@@ -18,7 +18,7 @@ const {
         instance: ComponentInternalInstance,
         isSSR?: boolean,
     ) => Promise<void> | undefined;
-    renderComponentRoot: (instance: ComponentInternalInstance) => VNode;
+    renderComponentRoot: (instance: ComponentInternalInstance) => VNode & { ctx?: { __slotsResult?: Record<string, VNode> } };
 } = ssrUtils;
 
 export async function serializeComponent(component: DefineComponent, props?: any, context: SSRContext = {}) {
@@ -198,17 +198,23 @@ async function renderChild(children?: VNodeNormalizedChildren | VNode, parentIns
 }
 
 
-async function renderSlots(slots: Record<string, VNode> | undefined): Promise<Record<string, VServerComponent[] | VServerComponent | undefined>> {
+async function renderSlots(slots: Record<string, VNode> | undefined): Promise<Record<string, VServerComponent[] | VServerComponent>> {
     if (!slots) {
         return {}
     }
-    const result: Record<string, VServerComponent[]> = {}
+    const result: Record<string, VServerComponent[] | VServerComponent> = {}
     for (const key in slots) {
         const slot = slots[key]
         if (Array.isArray(slot)) {
-            result[key] = await Promise.all(slot.map(vnode => renderVNode(vnode)))
+            const r = (await Promise.all(slot.map(vnode => renderVNode(vnode)))).filter(Boolean) as VServerComponent[]
+            if(r.length > 0) {
+                result[key] = r
+            }
         } else if (isVNode(slot)) {
-            result[key] =  await renderVNode(slot) 
+            const r = await renderVNode(slot) 
+            if (r) {
+                result[key] = r
+            }
         } else {
             console.warn(`Unexpected slot type: ${typeof slot} for key: ${key}`)
         }

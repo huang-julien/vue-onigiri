@@ -5,13 +5,13 @@ import ElementsOnly from "./fixtures/components/ElementsOnly.vue";
 import { defineComponent, h, nextTick, provide, Suspense } from "vue";
 import { renderServerComponent } from "../src/deserialize";
 import LoadComponent from "./fixtures/components/LoadComponent.vue";
-import { serializeComponent } from "../src/serialize";
+import { serializeComponent } from "../src/runtime/serialize";
 import AsyncComponent from "./fixtures/components/AsyncComponent.vue";
 import WithAsyncComponent from "virtual:vsc:./test/fixtures/components/WithAsyncComponent.vue";
 import SlotToCounter from "virtual:vsc:./test/fixtures/components/SlotToCounter.vue";
 import WithSuspense from "virtual:vsc:./test/fixtures/components/WithSuspense.vue";
 import { removeCommentsFromHtml } from "./utils";
-import { VServerComponentType, type VServerComponent } from "../src/shared";
+import { VServerComponentType, type VServerComponent } from "../src/runtime/shared";
 import { renderToString } from "@vue/server-renderer";
 
 describe("serialize/deserialize", () => {

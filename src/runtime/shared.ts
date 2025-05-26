@@ -21,8 +21,8 @@ export interface VServerComponentFragment {
 export interface VServerComponentComponent {
     type: VServerComponentType.Component;
     props?: Record<string, any>;
-    slot?: VServerComponent[];
-    chunk?: string
+    slots?: Record<string, VServerComponent[] | VServerComponent>;
+    chunk: string
 }
 
 export interface VServerComponentText {

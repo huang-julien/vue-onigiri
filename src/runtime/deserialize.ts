@@ -1,6 +1,6 @@
 import { createTextVNode, type VNode, h, Fragment, Suspense } from "vue";
 import { VServerComponentType, type VServerComponent } from "./shared";
-import loader from "./components/loader";
+import loader from "./loader";
 
 
 export function renderServerComponent(input?: VServerComponent): VNode | undefined {
@@ -9,7 +9,7 @@ export function renderServerComponent(input?: VServerComponent): VNode | undefin
         return createTextVNode(input.text)
     }
     if (input.type === VServerComponentType.Element) {
-        return h(input.tag, input.props, Array.isArray(input.children) ? input.children.map(renderServerComponent) : renderServerComponent(input.children))
+        return h(input.tag, input.props, Array.isArray(input.children) ? input.children.map((v) => renderServerComponent(v)) : renderServerComponent(input.children))
     }
     if(input.type === VServerComponentType.Component) {
         return h(loader, {
@@ -17,7 +17,7 @@ export function renderServerComponent(input?: VServerComponent): VNode | undefin
         })
     }
     if (input.type === VServerComponentType.Fragment) {
-        return Array.isArray(input.children) ? h(Fragment, input.children.map(renderServerComponent)) : renderServerComponent(input.children)
+        return Array.isArray(input.children) ? h(Fragment, input.children.map((v) => renderServerComponent(v))) : renderServerComponent(input.children)
     }
     if(input.type === VServerComponentType.Suspense) {
         return h(Suspense, {}, {
@@ -29,9 +29,5 @@ export function renderServerComponent(input?: VServerComponent): VNode | undefin
 
 export function renderChildren(data: VServerComponent | VServerComponent[] | undefined): VNode | undefined {
     if (!data) return;
-    if (Array.isArray(data)) {
-        return h(Fragment, data.map(renderServerComponent))
-    } else {
-        return renderServerComponent(data)
-    }
+    return Array.isArray(data) ? h(Fragment, data.map((v) => renderServerComponent(v))) : renderServerComponent(data);
 }
