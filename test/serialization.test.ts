@@ -11,16 +11,21 @@ import WithAsyncComponent from "virtual:vsc:./fixtures/components/WithAsyncCompo
 import SlotToCounter from "virtual:vsc:./fixtures/components/SlotToCounter.vue";
 import WithSuspense from "virtual:vsc:./fixtures/components/WithSuspense.vue";
 import { removeCommentsFromHtml } from "./utils";
-import { VServerComponentType, type VServerComponent } from "../src/runtime/shared";
+import {
+  VServerComponentType,
+  type VServerComponent,
+} from "../src/runtime/shared";
 import { renderToString } from "@vue/server-renderer";
 
 describe("serialize/deserialize", () => {
-  it('expect to parse and render a component with only elements', async () => {
-    const wrapper = mount(ElementsOnly)
-    const vnode = wrapper.vm.$.vnode.component!.vnode
-    const ast = await serializeComponent(ElementsOnly)
-    const html = await renderToString(vnode)
-    expect(html).toMatchInlineSnapshot(`"<div><div>1</div><div>2</div><div>0</div></div>"`)
+  it("expect to parse and render a component with only elements", async () => {
+    const wrapper = mount(ElementsOnly);
+    const vnode = wrapper.vm.$.vnode.component!.vnode;
+    const ast = await serializeComponent(ElementsOnly);
+    const html = await renderToString(vnode);
+    expect(html).toMatchInlineSnapshot(
+      `"<div><div>1</div><div>2</div><div>0</div></div>"`,
+    );
     expect(ast).toMatchInlineSnapshot(`
       {
         "children": [
@@ -56,29 +61,32 @@ describe("serialize/deserialize", () => {
         "tag": "div",
         "type": 0,
       }
-    `)
-    wrapper.unmount()
-    const clientSide = mount(defineComponent({
-      setup() {
-        return () => renderServerComponent(ast)
-      }
-    }))
-    const rebuiltHtml = clientSide.html().replaceAll(/\r?\n| /g, '')
-    expect(rebuiltHtml).toMatchInlineSnapshot(`"<div><div>1</div><div>2</div><div>0</div></div>"`)
-    expect(rebuiltHtml).toEqual(html)
-  })
+    `);
+    wrapper.unmount();
+    const clientSide = mount(
+      defineComponent({
+        setup() {
+          return () => renderServerComponent(ast);
+        },
+      }),
+    );
+    const rebuiltHtml = clientSide.html().replaceAll(/\r?\n| /g, "");
+    expect(rebuiltHtml).toMatchInlineSnapshot(
+      `"<div><div>1</div><div>2</div><div>0</div></div>"`,
+    );
+    expect(rebuiltHtml).toEqual(html);
+  });
 
+  describe("load components", () => {
+    it("should render a component with loadClientSide prop", async () => {
+      const wrapper = mount(LoadComponent);
+      const vnode = wrapper.vm.$.vnode.component!.vnode;
 
-
-  describe('load components', () => {
-    it('should render a component with loadClientSide prop', async () => {
-
-      const wrapper = mount(LoadComponent)
-      const vnode = wrapper.vm.$.vnode.component!.vnode
-
-      const ast = await serializeComponent(LoadComponent)
-      const html = await renderToString(vnode)
-      expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(`"<div><div>1</div><div>2</div><div loadclientside load:client> counter : 0 <button>Increment</button></div></div>"`)
+      const ast = await serializeComponent(LoadComponent);
+      const html = await renderToString(vnode);
+      expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
+        `"<div><div>1</div><div>2</div><div loadclientside load:client> counter : 0 <button>Increment</button></div></div>"`,
+      );
 
       expect(ast).toMatchInlineSnapshot(`
         {
@@ -115,53 +123,68 @@ describe("serialize/deserialize", () => {
           "tag": "div",
           "type": 0,
         }
-      `)
-      wrapper.unmount()
-      const clientSide = mount(defineComponent({
-        setup() {
-          return () => h(Suspense, {}, {
-            default: () => renderServerComponent(ast)
-          })
-        }
-      }))
-      await flushPromises()
-      await nextTick()
-      const rebuiltHtml = removeCommentsFromHtml(clientSide.html().replaceAll(/\r?\n| |=""/g, ''))
-      expect(removeCommentsFromHtml(rebuiltHtml)).toMatchInlineSnapshot(`"<div><div>1</div><div>2</div><divloadclientsideload:client>counter:0<button>Increment</button></div></div>"`)
-      expect(rebuiltHtml).toEqual(removeCommentsFromHtml(html).replaceAll(/\r?\n| |=""/g, ''))
+      `);
+      wrapper.unmount();
+      const clientSide = mount(
+        defineComponent({
+          setup() {
+            return () =>
+              h(
+                Suspense,
+                {},
+                {
+                  default: () => renderServerComponent(ast),
+                },
+              );
+          },
+        }),
+      );
+      await flushPromises();
+      await nextTick();
+      const rebuiltHtml = removeCommentsFromHtml(
+        clientSide.html().replaceAll(/\r?\n| |=""/g, ""),
+      );
+      expect(removeCommentsFromHtml(rebuiltHtml)).toMatchInlineSnapshot(
+        `"<div><div>1</div><div>2</div><divloadclientsideload:client>counter:0<button>Increment</button></div></div>"`,
+      );
+      expect(rebuiltHtml).toEqual(
+        removeCommentsFromHtml(html).replaceAll(/\r?\n| |=""/g, ""),
+      );
 
-      await clientSide.find('button').trigger('click')
-      await flushPromises()
-      await nextTick()
-      expect(clientSide.html()).contain('1')
+      await clientSide.find("button").trigger("click");
+      await flushPromises();
+      await nextTick();
+      expect(clientSide.html()).contain("1");
       expect(clientSide.html()).toMatchInlineSnapshot(`
         "<div>
           <div>1</div>
           <div>2</div>
           <div loadclientside="" load:client=""> counter : 1 <button>Increment</button></div>
         </div>"
-      `)
-    })
-  })
+      `);
+    });
+  });
 });
 
-describe('Async components', () => {
-  it('should serialize async component', async () => {
-    const { promise, resolve } = Promise.withResolvers()
-    const ast = await serializeComponent(AsyncComponent, { v: 'some text' })
+describe("Async components", () => {
+  it("should serialize async component", async () => {
+    const { promise, resolve } = Promise.withResolvers();
+    const ast = await serializeComponent(AsyncComponent, { v: "some text" });
     const wrapper = mount({
       render() {
-        return h(Suspense, {
-          onResolve: () => resolve(true)
-        }, {
-          default: h(AsyncComponent, {
-
-            v: 'some text'
-
-          })
-        })
-      }
-    })
+        return h(
+          Suspense,
+          {
+            onResolve: () => resolve(true),
+          },
+          {
+            default: h(AsyncComponent, {
+              v: "some text",
+            }),
+          },
+        );
+      },
+    });
     expect(ast).toMatchInlineSnapshot(`
       {
         "children": {
@@ -172,24 +195,25 @@ describe('Async components', () => {
         "tag": "div",
         "type": 0,
       }
-    `)
-    await flushPromises()
-    await promise
-    await nextTick()
-    const html = wrapper.html()
-    expect(html).toMatchInlineSnapshot(`"<div>Hello world ! some text</div>"`)
-    wrapper.unmount()
+    `);
+    await flushPromises();
+    await promise;
+    await nextTick();
+    const html = wrapper.html();
+    expect(html).toMatchInlineSnapshot(`"<div>Hello world ! some text</div>"`);
+    wrapper.unmount();
     const rebuilt = mount({
-      render: () => renderServerComponent(ast)
-    })
-    await flushPromises()
-    expect(rebuilt.html()).toMatchInlineSnapshot(`"<div>Hello world ! some text</div>"`)
-    expect(rebuilt.html()).toBe(html)
+      render: () => renderServerComponent(ast),
+    });
+    await flushPromises();
+    expect(rebuilt.html()).toMatchInlineSnapshot(
+      `"<div>Hello world ! some text</div>"`,
+    );
+    expect(rebuilt.html()).toBe(html);
+  });
 
-  })
-
-  it('handles nested async component', async () => {
-    const ast = await serializeComponent(WithAsyncComponent, {})
+  it("handles nested async component", async () => {
+    const ast = await serializeComponent(WithAsyncComponent, {});
     expect(ast).toMatchInlineSnapshot(`
       {
         "children": [
@@ -214,11 +238,11 @@ describe('Async components', () => {
         "tag": "div",
         "type": 0,
       }
-    `)
-  })
+    `);
+  });
 
-  it('handles nested async component with suspense', async () => {
-    const ast = await serializeComponent(WithSuspense, {})
+  it("handles nested async component with suspense", async () => {
+    const ast = await serializeComponent(WithSuspense, {});
     expect(ast).toMatchInlineSnapshot(`
       {
         "children": [
@@ -246,47 +270,49 @@ describe('Async components', () => {
         "tag": "div",
         "type": 0,
       }
-    `)
-  })
-})
+    `);
+  });
+});
 
-describe('revive', () => {
+describe("revive", () => {
+  describe("injection", () => {
+    it("should injection be working when reviving", async () => {
+      const key = "test";
 
-
-  describe('injection', () => {
-    it('should injection be working when reviving', async () => {
-      const key = 'test'
-
-      const { promise, resolve } = Promise.withResolvers()
+      const { promise, resolve } = Promise.withResolvers();
 
       const ast: VServerComponent = {
         type: VServerComponentType.Component,
-        chunk: '/test/fixtures/components/Injection.vue',
-      }
+        chunk: "/test/fixtures/components/Injection.vue",
+      };
 
       const wrapper = mount({
         setup() {
-          provide(key, 'Success !')
-          return () => h(Suspense, { onResolve: () => resolve(true) }, {
-            default: () => renderServerComponent(ast)
-          })
-        }
-      })
-      await promise
-      await flushPromises()
-      await nextTick()
-      const html = wrapper.html()
-      expect(html).toMatchInlineSnapshot(`"<div> injection: Success !</div>"`)
-    })
-  })
+          provide(key, "Success !");
+          return () =>
+            h(
+              Suspense,
+              { onResolve: () => resolve(true) },
+              {
+                default: () => renderServerComponent(ast),
+              },
+            );
+        },
+      });
+      await promise;
+      await flushPromises();
+      await nextTick();
+      const html = wrapper.html();
+      expect(html).toMatchInlineSnapshot(`"<div> injection: Success !</div>"`);
+    });
+  });
+});
 
-})
+describe("slots", () => {
+  it("should send slots into Counter", async () => {
+    const ast = await serializeComponent(SlotToCounter);
 
-describe('slots', () => {
-    it('should send slots into Counter', async () => {
-        const ast = await serializeComponent(SlotToCounter)
-
-        expect(ast).toMatchInlineSnapshot(`
+    expect(ast).toMatchInlineSnapshot(`
           {
             "children": [
               {
@@ -325,6 +351,6 @@ describe('slots', () => {
             "tag": "div",
             "type": 0,
           }
-        `)
-    })
-})
+        `);
+  });
+});

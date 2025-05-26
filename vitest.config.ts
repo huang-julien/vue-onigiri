@@ -1,25 +1,20 @@
-import { defineConfig } from "vitest/config"
-import vue from "@vitejs/plugin-vue"
-import { vueServerComponentsPlugin } from "./src/vite/chunk"
+import { defineConfig } from "vitest/config";
+import vue from "@vitejs/plugin-vue";
+import { vueServerComponentsPlugin } from "./src/vite/chunk";
 
-const { client, server } = vueServerComponentsPlugin()
+const { client, server } = vueServerComponentsPlugin();
 export default defineConfig({
-    plugins: [ 
-        client()[1],
-        server(), 
+  plugins: [client()[1], server()],
+  test: {
+    environment: "node",
+    globals: true,
+    pool: "threads",
+    environmentMatchGlobs: [
+      ["packages/{vue,vue-compat,runtime-dom}/**", "jsdom"],
     ],
-    test: {
-        environment: 'node',
-        globals: true,
-        pool: 'threads',
-        environmentMatchGlobs: [
-            ['packages/{vue,vue-compat,runtime-dom}/**', 'jsdom'],
-        ],
-        sequence: {
-            hooks: 'list',
-        },
-        include: [
-            './test/**/*.test.ts'
-        ]
+    sequence: {
+      hooks: "list",
     },
-})
+    include: ["./test/**/*.test.ts"],
+  },
+});

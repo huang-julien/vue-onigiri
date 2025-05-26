@@ -1,20 +1,15 @@
 <template>
-
-<div>
-{{result}} {{v}}
-</div>
-
+  <div>{{ result }} {{ v }}</div>
 </template>
 
 <script setup lang="ts">
-
 defineProps<{
-    v: string
-}>()
+  v: string;
+}>();
 
 const result = await new Promise((r) => {
-    setTimeout(() => {
-        r('Hello world !')
-    }, 500)
-})
+  setTimeout(() => {
+    r("Hello world !");
+  }, 500);
+});
 </script>

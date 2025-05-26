@@ -2,8 +2,8 @@
 
 <!-- automd:badges color=yellow -->
 
-[![npm version](https://img.shields.io/npm/v/packageName?color=yellow)](https://npmjs.com/package/packageName)
-[![npm downloads](https://img.shields.io/npm/dm/packageName?color=yellow)](https://npm.chart.dev/packageName)
+[![npm version](https://img.shields.io/npm/v/vue-cryo?color=yellow)](https://npmjs.com/package/vue-cryo)
+[![npm downloads](https://img.shields.io/npm/dm/vue-cryo?color=yellow)](https://npm.chart.dev/vue-cryo)
 
 <!-- /automd -->
 

@@ -1,38 +1,43 @@
 export const enum VServerComponentType {
-    Element,
-    Component,
-    Text,
-    Fragment,
-    Suspense
+  Element,
+  Component,
+  Text,
+  Fragment,
+  Suspense,
 }
 
 export interface VServerComponentElement {
-    type: VServerComponentType.Element;
-    tag: string;
-    props?: Record<string, any>;
-    children?: VServerComponent[] | VServerComponent ;
+  type: VServerComponentType.Element;
+  tag: string;
+  props?: Record<string, any>;
+  children?: VServerComponent[] | VServerComponent;
 }
 
 export interface VServerComponentFragment {
-    type: VServerComponentType.Fragment;
-    children?: VServerComponent[] | VServerComponent ;
+  type: VServerComponentType.Fragment;
+  children?: VServerComponent[] | VServerComponent;
 }
 
 export interface VServerComponentComponent {
-    type: VServerComponentType.Component;
-    props?: Record<string, any>;
-    slots?: Record<string, VServerComponent[] | VServerComponent>;
-    chunk: string
+  type: VServerComponentType.Component;
+  props?: Record<string, any>;
+  slots?: Record<string, VServerComponent[] | VServerComponent>;
+  chunk: string;
 }
 
 export interface VServerComponentText {
-    type: VServerComponentType.Text;
-    text: string;
+  type: VServerComponentType.Text;
+  text: string;
 }
 
 export interface VServerComponentSuspense {
-    type: VServerComponentType.Suspense
-    children?: VServerComponent[] | VServerComponent
+  type: VServerComponentType.Suspense;
+  children?: VServerComponent[] | VServerComponent;
 }
 
-export type VServerComponent = VServerComponentElement | VServerComponentComponent | VServerComponentText | VServerComponentFragment | VServerComponentSuspense   ;
+export type VServerComponent =
+  | VServerComponentElement
+  | VServerComponentComponent
+  | VServerComponentText
+  | VServerComponentFragment
+  | VServerComponentSuspense;

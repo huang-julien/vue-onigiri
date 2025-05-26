@@ -6,7 +6,7 @@ export default unjs({
   ],
   rules: {
     // rule overrides
-    'unicorn/no-null': 'off',
+    "unicorn/no-null": "off",
   },
   markdown: {
     rules: {

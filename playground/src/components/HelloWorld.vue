@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import Counter from "./Counter.vue"
+import Counter from "./Counter.vue";
 
 defineProps<{
-  msg: string
-}>()
+  msg: string;
+}>();
 </script>
 
 <template>
