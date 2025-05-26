@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import ElementsOnly from "./fixtures/components/ElementsOnly.vue";
 import { defineComponent, h, nextTick, provide, Suspense } from "vue";
-import { renderServerComponent } from "../src/deserialize";
+import { renderServerComponent } from "../src/runtime/deserialize";
 import LoadComponent from "./fixtures/components/LoadComponent.vue";
 import { serializeComponent } from "../src/runtime/serialize";
 import AsyncComponent from "./fixtures/components/AsyncComponent.vue";

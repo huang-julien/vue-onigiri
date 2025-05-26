@@ -3,7 +3,7 @@ import { createApp } from "vue"
 import { serializeApp } from "../src/runtime/serialize"
 import ElementsOnly from "virtual:vsc:./test/fixtures/components/ElementsOnly.vue"
 import { renderToString } from "@vue/server-renderer"
-import { renderServerComponent } from "../src/deserialize"
+import { renderServerComponent } from "../src/runtime/deserialize"
 import { removeCommentsFromHtml } from "./utils"
 
 describe("serializeApp", () => {
