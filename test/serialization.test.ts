@@ -8,7 +8,7 @@ import LoadComponent from "./fixtures/components/LoadComponent.vue";
 import { serializeComponent } from "../src/serialize";
 import AsyncComponent from "./fixtures/components/AsyncComponent.vue";
 import WithAsyncComponent from "virtual:vsc:./test/fixtures/components/WithAsyncComponent.vue";
-
+import SlotToCounter from "virtual:vsc:./test/fixtures/components/SlotToCounter.vue";
 import WithSuspense from "virtual:vsc:./test/fixtures/components/WithSuspense.vue";
 import { removeCommentsFromHtml } from "./utils";
 import { VServerComponentType, type VServerComponent } from "../src/shared";
@@ -78,7 +78,7 @@ describe("serialize/deserialize", () => {
 
       const ast = await serializeComponent(LoadComponent)
       const html = await renderToString(vnode)
-      expect(html).toMatchInlineSnapshot(`"<div><div>1</div><div>2</div><div loadclientside load:client> counter : 0 <button>Increment</button></div></div>"`)
+      expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(`"<div><div>1</div><div>2</div><div loadclientside load:client> counter : 0 <button>Increment</button></div></div>"`)
 
       expect(ast).toMatchInlineSnapshot(`
         {
@@ -107,6 +107,7 @@ describe("serialize/deserialize", () => {
                 "load:client": "",
                 "loadClientSide": "",
               },
+              "slots": {},
               "type": 1,
             },
           ],
@@ -125,9 +126,9 @@ describe("serialize/deserialize", () => {
       }))
       await flushPromises()
       await nextTick()
-      const rebuiltHtml = clientSide.html().replaceAll(/\r?\n| |=""/g, '')
+      const rebuiltHtml = removeCommentsFromHtml(clientSide.html().replaceAll(/\r?\n| |=""/g, ''))
       expect(removeCommentsFromHtml(rebuiltHtml)).toMatchInlineSnapshot(`"<div><div>1</div><div>2</div><divloadclientsideload:client>counter:0<button>Increment</button></div></div>"`)
-      expect(rebuiltHtml).toEqual(html.replaceAll(/\r?\n| |=""/g, ''))
+      expect(rebuiltHtml).toEqual(removeCommentsFromHtml(html).replaceAll(/\r?\n| |=""/g, ''))
 
       await clientSide.find('button').trigger('click')
       await flushPromises()
@@ -279,4 +280,51 @@ describe('revive', () => {
     })
   })
 
+})
+
+describe('slots', () => {
+    it('should send slots into Counter', async () => {
+        const ast = await serializeComponent(SlotToCounter)
+
+        expect(ast).toMatchInlineSnapshot(`
+          {
+            "children": [
+              {
+                "chunk": "/test/fixtures/components/Counter.vue",
+                "props": {
+                  "load:client": "",
+                  "loadClientSide": "",
+                },
+                "slots": {
+                  "default": {
+                    "children": [
+                      {
+                        "children": [
+                          {
+                            "children": {
+                              "text": "Slot to Counter: 0",
+                              "type": 2,
+                            },
+                            "props": undefined,
+                            "tag": "p",
+                            "type": 0,
+                          },
+                        ],
+                        "props": undefined,
+                        "tag": "div",
+                        "type": 0,
+                      },
+                    ],
+                    "type": 3,
+                  },
+                },
+                "type": 1,
+              },
+            ],
+            "props": undefined,
+            "tag": "div",
+            "type": 0,
+          }
+        `)
+    })
 })

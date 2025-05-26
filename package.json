@@ -5,8 +5,21 @@
   "repository": "unjs/packageName",
   "license": "MIT",
   "sideEffects": false,
-  "type": "module", 
- 
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index",
+      "require": "./dist/index"
+    },
+    "./*": {
+      "import": "./dist/*",
+      "require": "./dist/*"
+    },
+    "./runtime/*": {
+      "import": "./dist/runtime/*",
+      "require": "./dist/runtime/*"
+    }
+  },
   "files": [
     "dist"
   ],

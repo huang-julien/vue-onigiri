@@ -34,7 +34,7 @@ const VSC_PREFIX = 'virtual:vsc:'
 const VSC_PREFIX_RE = /^virtual:vsc:/
 const NOVSC_PREFIX_RE = /^(?!virtual:vsc:)/
 
-export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { client: (opts?: Options) => PluginOption, server: (opts?: Options) => PluginOption } {
+export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {     client: (opts?: Options) => PluginOption, server: (opts?: Options) => PluginOption } {
     const refs: { path: string, id: string }[] = []
     let assetDir: string = ''
     let isProduction = false
@@ -97,6 +97,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
                             if (id.endsWith('.vue')) {
                                 const resolved = (await this.resolve(id, importer.replace(VSC_PREFIX_RE, '')))
                                 if (resolved) {
+                                    console.log('resolved', id, importer, resolved.id)
                                     return VSC_PREFIX + resolved.id
                                 }
                             }
@@ -156,7 +157,8 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
                 transform: {
                     order: 'post',
                     handler(code, id) {
-                        const ref = refs.find(ref => ref.path === id)
+                        const ref = refs.find(ref => ref.path === id.replace(VSC_PREFIX_RE, ''))
+                        
                         if (ref) {
 
                             const s = new MagicString(code)
@@ -176,6 +178,26 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
                                     code: s.toString(),
                                     map: s.generateMap({ hires: true }).toString(),
                                 }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                name: 'vue-cryo:renderSlotReplace', 
+                transform: {
+                    order: 'post',
+                    handler(code, id) {
+                        if (VSC_PREFIX_RE.test(id)) {
+                            
+                            const s = new MagicString(code)
+                            s.prepend(`import { renderSlot as cryoRenderSlot } from 'vue-cryo/runtime/renderSlot';\n`)
+                            // replace renderSlot with vue-cryo:renderSlot
+                            s.replace(/_renderSlot\(/g, 'cryoRenderSlot(_ctx, ')
+                            console.log(s.toString())
+                            return {
+                                code: s.toString(),
+                                map: s.generateMap({ hires: true }).toString(),
                             }
                         }
                     }

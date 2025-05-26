@@ -6,7 +6,7 @@ const { client, server } = vueServerComponentsPlugin()
 export default defineConfig({
     plugins: [ 
         client()[1],
-        server()
+        server(), 
     ],
     test: {
         environment: 'node',

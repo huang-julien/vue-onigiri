@@ -1,8 +1,8 @@
 import type { SSRContext, } from "@vue/server-renderer";
 // @ts-expect-error ssrUtils is not a public API
-import { createVNode, isVNode, type App, type VNode, type VNodeChild, type VNodeNormalizedChildren, ssrUtils, type ComponentInternalInstance, type SuspenseBoundary, type DefineComponent, createApp, Text, h, ssrContextKey, defineComponent } from "vue";
+import { createVNode, isVNode, type App, type VNode, type VNodeChild, type VNodeNormalizedChildren, ssrUtils, type ComponentInternalInstance, type SuspenseBoundary, type DefineComponent, createApp, Text, h, ssrContextKey, defineComponent, type SlotsType, Fragment } from "vue";
 import { isPromise, ShapeFlags } from "@vue/shared";
-import { VServerComponentType, type VServerComponent } from "./shared";
+import { VServerComponentType, type VServerComponent } from "./shared"; 
 
 const {
     createComponentInstance,
@@ -64,14 +64,14 @@ export async function serializeApp(app: App, context: SSRContext = {}) {
     return await app.runWithContext(async () => {
 
         const res = await setupComponent(instance, true)
-        return await app.runWithContext(async() => {
+        return await app.runWithContext(async () => {
             const hasAsyncSetup = isPromise(res)
 
             // @ts-expect-error internal API
             let prefetches = instance.sp as unknown as Promise[]/* LifecycleHooks.SERVER_PREFETCH */
-    
+
             const child = renderComponentRoot(instance)
-    
+
             if (hasAsyncSetup || prefetches) {
                 const p: Promise<unknown> = Promise.resolve(res)
                     .then(() => {
@@ -84,7 +84,7 @@ export async function serializeApp(app: App, context: SSRContext = {}) {
                             )
                         }
                     })
-    
+
                 await p
             }
             return await renderVNode(child, instance)
@@ -134,6 +134,7 @@ export async function renderVNode(vnode: VNodeChild, parentInstance?: ComponentI
                         props: vnode.props ?? undefined,
                         // @ts-expect-error 
                         chunk: vnode.type.__chunk as string,
+                        slots: await renderSlots(child.ctx?.__slotsResult),
                     }
                 }
                 console.warn('Component is missing chunk information')
@@ -160,6 +161,11 @@ export async function renderVNode(vnode: VNodeChild, parentInstance?: ComponentI
             return {
                 type: VServerComponentType.Text,
                 text: vnode.children as string,
+            }
+        } else if(vnode.type === Fragment) {
+            return {
+                type: VServerComponentType.Fragment,
+                children: await renderChild(vnode.children, parentInstance),
             }
         }
     } else if (vnode && (typeof vnode === 'string' || typeof vnode === 'number')) {
@@ -189,4 +195,23 @@ async function renderChild(children?: VNodeNormalizedChildren | VNode, parentIns
             text: children as string,
         }
     }
+}
+
+
+async function renderSlots(slots: Record<string, VNode> | undefined): Promise<Record<string, VServerComponent[] | VServerComponent | undefined>> {
+    if (!slots) {
+        return {}
+    }
+    const result: Record<string, VServerComponent[]> = {}
+    for (const key in slots) {
+        const slot = slots[key]
+        if (Array.isArray(slot)) {
+            result[key] = await Promise.all(slot.map(vnode => renderVNode(vnode)))
+        } else if (isVNode(slot)) {
+            result[key] =  await renderVNode(slot) 
+        } else {
+            console.warn(`Unexpected slot type: ${typeof slot} for key: ${key}`)
+        }
+    }
+    return result
 }

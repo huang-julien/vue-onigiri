@@ -2,6 +2,8 @@
     <div>
         counter : {{ count }}
         <button @click="increment">Increment</button>
+
+        <slot :count="count" />
     </div>
 </template>
 
