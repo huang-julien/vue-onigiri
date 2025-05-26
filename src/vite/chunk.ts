@@ -191,7 +191,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
                         if (VSC_PREFIX_RE.test(id)) {
                             
                             const s = new MagicString(code)
-                            s.prepend(`import { renderSlot as cryoRenderSlot } from 'vue-cryo/runtime/renderSlot';\n`)
+                            s.prepend(`import { renderSlot as cryoRenderSlot } from 'vue-cryo/runtime/render-slot';\n`)
                             // replace renderSlot with vue-cryo:renderSlot
                             s.replace(/_renderSlot\(/g, 'cryoRenderSlot(_ctx, ')
                             console.log(s.toString())
