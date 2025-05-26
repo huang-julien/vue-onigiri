@@ -106,7 +106,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): { 
 
                         if (VSC_PREFIX_RE.test(id)) {
                             if (id.replace(VSC_PREFIX_RE, '').startsWith('./')) {
-                                const resolved = await this.resolve(id.replace(VSC_PREFIX_RE, ''));
+                                const resolved = await this.resolve(id.replace(VSC_PREFIX_RE, ''), importer?.replace(VSC_PREFIX_RE, ''));
                                 if (resolved) {
                                     return VSC_PREFIX + resolved?.id
                                 }
