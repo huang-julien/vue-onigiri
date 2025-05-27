@@ -1,5 +1,4 @@
 import type { SSRContext } from "@vue/server-renderer";
-// @ts-expect-error ssrUtils is not a public API
 import {
   createVNode,
   isVNode,
@@ -7,17 +6,15 @@ import {
   type VNode,
   type VNodeChild,
   type VNodeNormalizedChildren,
+  // @ts-expect-error ssrUtils is not a public API
   ssrUtils,
   type ComponentInternalInstance,
   type SuspenseBoundary,
-  type DefineComponent,
   createApp,
   Text,
-  h,
   ssrContextKey,
-  defineComponent,
-  type SlotsType,
   Fragment,
+  type Component,
 } from "vue";
 import { isPromise, ShapeFlags } from "@vue/shared";
 import { VServerComponentType, type VServerComponent } from "./shared";
@@ -42,9 +39,8 @@ const {
 } = ssrUtils;
 
 export async function serializeComponent(
-  component: DefineComponent,
+  component: Component,
   props?: any,
-  context: SSRContext = {},
 ) {
   const input = createApp(component, props);
   const vnode = createVNode(input._component, input._props);
@@ -53,8 +49,8 @@ export async function serializeComponent(
   const instance = createComponentInstance(vnode, input._instance, null);
   const res = await setupComponent(instance, true);
   const hasAsyncSetup = isPromise(res);
-  // @ts-expect-error internal API
   let prefetches =
+    // @ts-expect-error internal API
     instance.sp as unknown as Promise[]; /* LifecycleHooks.SERVER_PREFETCH */
 
   const child = renderComponentRoot(instance);
@@ -89,8 +85,8 @@ export async function serializeApp(app: App, context: SSRContext = {}) {
     return await app.runWithContext(async () => {
       const hasAsyncSetup = isPromise(res);
 
-      // @ts-expect-error internal API
       let prefetches =
+        // @ts-expect-error internal API
         instance.sp as unknown as Promise[]; /* LifecycleHooks.SERVER_PREFETCH */
 
       const child = renderComponentRoot(instance);
@@ -98,8 +94,8 @@ export async function serializeApp(app: App, context: SSRContext = {}) {
       if (hasAsyncSetup || prefetches) {
         const p: Promise<unknown> = Promise.resolve(res).then(() => {
           // instance.sp may be null until an async setup resolves, so evaluate it here
-          // @ts-expect-error internal API
           if (hasAsyncSetup) {
+            // @ts-expect-error internal API
             prefetches = instance.sp;
           }
           if (prefetches) {
@@ -141,8 +137,8 @@ export async function renderVNode(
       );
       const res = await setupComponent(instance, true);
       const hasAsyncSetup = isPromise(res);
-      // @ts-expect-error internal API
       let prefetches =
+        // @ts-expect-error internal API
         instance.sp as unknown as Promise[]; /* LifecycleHooks.SERVER_PREFETCH */
 
       const child = renderComponentRoot(instance);
@@ -150,8 +146,8 @@ export async function renderVNode(
       if (hasAsyncSetup || prefetches) {
         const p: Promise<unknown> = Promise.resolve(res).then(() => {
           // instance.sp may be null until an async setup resolves, so evaluate it here
-          // @ts-expect-error internal API
           if (hasAsyncSetup) {
+            // @ts-expect-error internal API
             prefetches = instance.sp;
           }
           if (prefetches) {

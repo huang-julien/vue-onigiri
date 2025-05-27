@@ -1,12 +1,11 @@
-// @vitest-environment happy-dom
 import { describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
-import ElementsOnly from "./fixtures/components/ElementsOnly.vue";
+import ElementsOnly from "virtual:vsc:./fixtures/components/ElementsOnly.vue";
 import { defineComponent, h, nextTick, provide, Suspense } from "vue";
 import { renderServerComponent } from "../src/runtime/deserialize";
-import LoadComponent from "./fixtures/components/LoadComponent.vue";
+import LoadComponent from "virtual:vsc:./fixtures/components/LoadComponent.vue";
 import { serializeComponent } from "../src/runtime/serialize";
-import AsyncComponent from "./fixtures/components/AsyncComponent.vue";
+import AsyncComponent from "virtual:vsc:./fixtures/components/AsyncComponent.vue";
 import WithAsyncComponent from "virtual:vsc:./fixtures/components/WithAsyncComponent.vue";
 import SlotToCounter from "virtual:vsc:./fixtures/components/SlotToCounter.vue";
 import WithSuspense from "virtual:vsc:./fixtures/components/WithSuspense.vue";
