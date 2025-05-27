@@ -105,7 +105,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
               if (id.endsWith(".vue")) {
                 const resolved = await this.resolve(
                   id,
-                  importer.replace(VSC_PREFIX_RE, ""),
+                  importer
                 );
                 if (resolved) {
                   return VSC_PREFIX + resolved.id;
