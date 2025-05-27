@@ -19,8 +19,8 @@ import {
 import { renderToString } from "@vue/server-renderer";
 
 describe("serialize/deserialize", () => {
-  it("expect to parse and render a component with only elements", async () => { 
-     const ast = await serializeComponent(ElementsOnly);
+  it("expect to parse and render a component with only elements", async () => {
+    const ast = await serializeComponent(ElementsOnly);
     const html = await renderToString(h(ElementsOnly));
     expect(html).toMatchInlineSnapshot(
       `"<div><div>1</div><div>2</div><div>0</div></div>"`,
@@ -60,7 +60,7 @@ describe("serialize/deserialize", () => {
         "tag": "div",
         "type": 0,
       }
-    `); 
+    `);
     const clientSide = mount(
       defineComponent({
         setup() {
@@ -76,14 +76,14 @@ describe("serialize/deserialize", () => {
   });
 
   describe("load components", () => {
-    it("should render a component with loadClientSide prop", async () => { 
+    it("should render a component with loadClientSide prop", async () => {
       const ast = await serializeComponent(LoadComponent);
       const html = await renderToString(h(LoadComponent));
       expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
         `"<div><div>1</div><div>2</div><div loadclientside load:client> counter : 0 <button>Increment</button></div></div>"`,
       );
 
-      expect(ast).toMatchInlineSnapshot( `
+      expect(ast).toMatchInlineSnapshot(`
         {
           "children": [
             {
@@ -118,7 +118,7 @@ describe("serialize/deserialize", () => {
           "tag": "div",
           "type": 0,
         }
-      `); 
+      `);
       const clientSide = mount(
         defineComponent({
           setup() {
@@ -162,12 +162,12 @@ describe("serialize/deserialize", () => {
 
 describe("Async components", () => {
   it("should serialize async component", async () => {
-     const ast = await serializeComponent(AsyncComponent, { v: "some text" });
-    const  html = await renderToString(
+    const ast = await serializeComponent(AsyncComponent, { v: "some text" });
+    const html = await renderToString(
       h(AsyncComponent, {
         v: "some text",
-      })
-    )
+      }),
+    );
     expect(ast).toMatchInlineSnapshot(`
       {
         "children": {
@@ -179,10 +179,10 @@ describe("Async components", () => {
         "type": 0,
       }
     `);
-    await flushPromises(); 
-    await nextTick(); 
+    await flushPromises();
+    await nextTick();
     expect(html).toMatchInlineSnapshot(`"<div>Hello world ! some text</div>"`);
-     const rebuilt = mount({
+    const rebuilt = mount({
       render: () => renderServerComponent(ast),
     });
     await flushPromises();
