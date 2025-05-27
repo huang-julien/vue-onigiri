@@ -1,20 +1,19 @@
 import { defineConfig } from "vitest/config";
-import vue from "@vitejs/plugin-vue";
 import { vueServerComponentsPlugin } from "./src/vite/chunk";
+import type { Plugin } from "vite"
 
 const { client, server } = vueServerComponentsPlugin();
 export default defineConfig({
-  plugins: [client()[1], server()],
+  plugins: [(client() as [Plugin, Plugin])[1], server()],
   test: {
     environment: "node",
     globals: true,
-    pool: "threads",
-    environmentMatchGlobs: [
-      ["packages/{vue,vue-compat,runtime-dom}/**", "jsdom"],
-    ],
-    sequence: {
-      hooks: "list",
-    },
     include: ["./test/**/*.test.ts"],
+    pool:'vmForks',
+    setupFiles: ["./test/vitest.setup.ts"],
+  },
+  define: {
+    "import.meta.hot.on": "globalThis.mockedFn",
+    "import.meta.hot.accept": "globalThis.mockedFn",
   },
 });
