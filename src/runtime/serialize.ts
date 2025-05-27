@@ -38,10 +38,7 @@ const {
   ) => VNode & { ctx?: { __slotsResult?: Record<string, VNode> } };
 } = ssrUtils;
 
-export async function serializeComponent(
-  component: Component,
-  props?: any,
-) {
+export async function serializeComponent(component: Component, props?: any) {
   const input = createApp(component, props);
   const vnode = createVNode(input._component, input._props);
   vnode.appContext = input._context;
