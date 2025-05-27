@@ -303,7 +303,7 @@ describe("revive", () => {
       await flushPromises();
       await nextTick();
       const html = wrapper.html();
-      expect(html).toMatchInlineSnapshot(`"<div> injection: Success !</div>"`);
+      expect(html).toMatchInlineSnapshot(`"<div>injection: Success !</div>"`);
     });
   });
 });
