@@ -108,7 +108,6 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
                   importer.replace(VSC_PREFIX_RE, ""),
                 );
                 if (resolved) {
-                  console.log("resolved", id, importer, resolved.id);
                   return VSC_PREFIX + resolved.id;
                 }
               }
@@ -221,7 +220,6 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
               );
               // replace renderSlot with vue-bento:renderSlot
               s.replace(/_renderSlot\(/g, "cryoRenderSlot(_ctx, ");
-              console.log(s.toString());
               return {
                 code: s.toString(),
                 map: s.generateMap({ hires: true }).toString(),
