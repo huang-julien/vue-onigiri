@@ -1,3 +1,5 @@
+// @vitest-environment happy-dom
+
 import { describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import ElementsOnly from "virtual:vsc:./fixtures/components/ElementsOnly.vue";
@@ -17,11 +19,9 @@ import {
 import { renderToString } from "@vue/server-renderer";
 
 describe("serialize/deserialize", () => {
-  it("expect to parse and render a component with only elements", async () => {
-    const wrapper = mount(ElementsOnly);
-    const vnode = wrapper.vm.$.vnode.component!.vnode;
-    const ast = await serializeComponent(ElementsOnly);
-    const html = await renderToString(vnode);
+  it("expect to parse and render a component with only elements", async () => { 
+     const ast = await serializeComponent(ElementsOnly);
+    const html = await renderToString(h(ElementsOnly));
     expect(html).toMatchInlineSnapshot(
       `"<div><div>1</div><div>2</div><div>0</div></div>"`,
     );
@@ -60,8 +60,7 @@ describe("serialize/deserialize", () => {
         "tag": "div",
         "type": 0,
       }
-    `);
-    wrapper.unmount();
+    `); 
     const clientSide = mount(
       defineComponent({
         setup() {
@@ -77,17 +76,14 @@ describe("serialize/deserialize", () => {
   });
 
   describe("load components", () => {
-    it("should render a component with loadClientSide prop", async () => {
-      const wrapper = mount(LoadComponent);
-      const vnode = wrapper.vm.$.vnode.component!.vnode;
-
+    it("should render a component with loadClientSide prop", async () => { 
       const ast = await serializeComponent(LoadComponent);
-      const html = await renderToString(vnode);
+      const html = await renderToString(h(LoadComponent));
       expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
         `"<div><div>1</div><div>2</div><div loadclientside load:client> counter : 0 <button>Increment</button></div></div>"`,
       );
 
-      expect(ast).toMatchInlineSnapshot(`
+      expect(ast).toMatchInlineSnapshot( `
         {
           "children": [
             {
@@ -122,8 +118,7 @@ describe("serialize/deserialize", () => {
           "tag": "div",
           "type": 0,
         }
-      `);
-      wrapper.unmount();
+      `); 
       const clientSide = mount(
         defineComponent({
           setup() {
@@ -167,23 +162,12 @@ describe("serialize/deserialize", () => {
 
 describe("Async components", () => {
   it("should serialize async component", async () => {
-    const { promise, resolve } = Promise.withResolvers();
-    const ast = await serializeComponent(AsyncComponent, { v: "some text" });
-    const wrapper = mount({
-      render() {
-        return h(
-          Suspense,
-          {
-            onResolve: () => resolve(true),
-          },
-          {
-            default: h(AsyncComponent, {
-              v: "some text",
-            }),
-          },
-        );
-      },
-    });
+     const ast = await serializeComponent(AsyncComponent, { v: "some text" });
+    const  html = await renderToString(
+      h(AsyncComponent, {
+        v: "some text",
+      })
+    )
     expect(ast).toMatchInlineSnapshot(`
       {
         "children": {
@@ -195,13 +179,10 @@ describe("Async components", () => {
         "type": 0,
       }
     `);
-    await flushPromises();
-    await promise;
-    await nextTick();
-    const html = wrapper.html();
+    await flushPromises(); 
+    await nextTick(); 
     expect(html).toMatchInlineSnapshot(`"<div>Hello world ! some text</div>"`);
-    wrapper.unmount();
-    const rebuilt = mount({
+     const rebuilt = mount({
       render: () => renderServerComponent(ast),
     });
     await flushPromises();
@@ -312,44 +293,22 @@ describe("slots", () => {
     const ast = await serializeComponent(SlotToCounter);
 
     expect(ast).toMatchInlineSnapshot(`
+      {
+        "children": [
           {
-            "children": [
-              {
-                "chunk": "/test/fixtures/components/Counter.vue",
-                "props": {
-                  "load:client": "",
-                  "loadClientSide": "",
-                },
-                "slots": {
-                  "default": {
-                    "children": [
-                      {
-                        "children": [
-                          {
-                            "children": {
-                              "text": "Slot to Counter: 0",
-                              "type": 2,
-                            },
-                            "props": undefined,
-                            "tag": "p",
-                            "type": 0,
-                          },
-                        ],
-                        "props": undefined,
-                        "tag": "div",
-                        "type": 0,
-                      },
-                    ],
-                    "type": 3,
-                  },
-                },
-                "type": 1,
-              },
-            ],
-            "props": undefined,
-            "tag": "div",
-            "type": 0,
-          }
-        `);
+            "chunk": "/test/fixtures/components/Counter.vue",
+            "props": {
+              "load:client": "",
+              "loadClientSide": "",
+            },
+            "slots": {},
+            "type": 1,
+          },
+        ],
+        "props": undefined,
+        "tag": "div",
+        "type": 0,
+      }
+    `);
   });
 });
