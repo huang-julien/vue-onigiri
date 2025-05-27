@@ -47,7 +47,6 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
     options.clientChunks?.include ?? /.vue$/,
     options.clientChunks?.exclude,
   );
-  const serverComprefs = new Map<string, string>();
   return {
     client: (opts) => [
       vue(opts),
@@ -70,6 +69,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
                 id: id,
                 preserveSignature: "strict",
               });
+              console.log(emitted)
               refs.push({ path: id, id: emitted });
             } else {
               refs.push({ path: id, id });
@@ -154,8 +154,6 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
                   id: VSC_PREFIX + id,
                   preserveSignature: "strict",
                 });
-
-                serverComprefs.set(id, fileName);
               }
             }
           },
@@ -195,7 +193,6 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
                   end,
                   `Object.assign(
                                     { __chunk: "${join("/", isProduction ? normalize(this.getFileName(ref.id)) : relative(rootDir, normalize(ref.id))).replaceAll("\\", "/")}" },
-                                    { __vnodeVersion: ${JSON.stringify(serverComprefs.get(id)!)}} ,
                                      ${code.slice(start, end)},
                                 )`,
                 );
