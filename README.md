@@ -2,8 +2,8 @@
 
 <!-- automd:badges color=yellow -->
 
-[![npm version](https://img.shields.io/npm/v/vue-cryo?color=yellow)](https://npmjs.com/package/vue-cryo)
-[![npm downloads](https://img.shields.io/npm/dm/vue-cryo?color=yellow)](https://npm.chart.dev/vue-cryo)
+[![npm version](https://img.shields.io/npm/v/vue-bento?color=yellow)](https://npmjs.com/package/vue-bento)
+[![npm downloads](https://img.shields.io/npm/dm/vue-bento?color=yellow)](https://npm.chart.dev/vue-bento)
 
 <!-- /automd -->
 

@@ -210,16 +210,16 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
         },
       },
       {
-        name: "vue-cryo:renderSlotReplace",
+        name: "vue-bento:renderSlotReplace",
         transform: {
           order: "post",
           handler(code, id) {
             if (VSC_PREFIX_RE.test(id)) {
               const s = new MagicString(code);
               s.prepend(
-                `import { renderSlot as cryoRenderSlot } from 'vue-cryo/runtime/render-slot';\n`,
+                `import { renderSlot as cryoRenderSlot } from 'vue-bento/runtime/render-slot';\n`,
               );
-              // replace renderSlot with vue-cryo:renderSlot
+              // replace renderSlot with vue-bento:renderSlot
               s.replace(/_renderSlot\(/g, "cryoRenderSlot(_ctx, ");
               console.log(s.toString());
               return {
