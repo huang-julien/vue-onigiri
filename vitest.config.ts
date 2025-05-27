@@ -1,6 +1,6 @@
 import { defineConfig } from "vitest/config";
 import { vueServerComponentsPlugin } from "./src/vite/chunk";
-import type { Plugin } from "vite"
+import type { Plugin } from "vite";
 
 const { client, server } = vueServerComponentsPlugin();
 export default defineConfig({
@@ -9,7 +9,7 @@ export default defineConfig({
     environment: "node",
     globals: true,
     include: ["./test/**/*.test.ts"],
-    pool:'vmForks',
+    pool: "vmForks",
     setupFiles: ["./test/vitest.setup.ts"],
   },
   define: {

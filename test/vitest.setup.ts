@@ -1,3 +1,3 @@
-import { vi } from 'vitest';
+import { vi } from "vitest";
 
-vi.stubGlobal('mockedFn', vi.fn())
+vi.stubGlobal("mockedFn", vi.fn());

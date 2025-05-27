@@ -69,7 +69,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
                 id: id,
                 preserveSignature: "strict",
               });
-              console.log(emitted)
+              console.log(emitted);
               refs.push({ path: id, id: emitted });
             } else {
               refs.push({ path: id, id });
