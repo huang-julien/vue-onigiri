@@ -173,9 +173,7 @@ export async function renderVNode(
         }
         console.warn("Component is missing chunk information");
         return {
-          type: VServerComponentType.Element,
-          tag: vnode.type as string,
-          props: vnode.props ?? undefined,
+          type: VServerComponentType.Fragment,
           children: await renderChild(
             vnode.children ||
               vnode.component?.subTree ||
