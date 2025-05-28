@@ -27,6 +27,10 @@ export type VSCOptions = {
    * @default your asset dir
    */
   clientVscDir?: string;
+  /**
+   * @default undefined
+   */
+  clientAssetsPrefix?: string;
 };
 
 const VSC_PREFIX = "virtual:vsc:";
@@ -41,7 +45,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
   let assetDir: string = "";
   let isProduction = false;
   let rootDir = process.cwd();
-  const { serverVscDir = "", clientVscDir = "" } = options;
+  const { serverVscDir = "", clientVscDir = "", clientAssetsPrefix = "" } = options;
 
   const filter = createFilter(
     options.clientChunks?.include ?? /.vue$/,
@@ -69,9 +73,9 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
                 id: id,
                 preserveSignature: "strict",
               });
-              refs.push({ path: id, id: emitted });
+              refs.push({ path: id, id: join(clientAssetsPrefix, emitted) });
             } else {
-              refs.push({ path: id, id });
+              refs.push({ path: id, id: join(clientAssetsPrefix, id) });
             }
           },
         },
