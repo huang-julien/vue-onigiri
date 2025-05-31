@@ -1,8 +1,8 @@
-import { h, type DefineComponent, defineComponent } from "vue";
+import { h, type DefineComponent, defineComponent, inject } from "vue";
 import type { VServerComponentComponent } from "./shared";
 import { renderChildren } from "./deserialize";
+import { INJECTION_KEY } from "./plugin";
 
-const componentMap = new Map<string, DefineComponent>();
 
 export default defineComponent({
   name: "vsc:loader",
@@ -13,6 +13,10 @@ export default defineComponent({
     },
   },
   async setup(props) {
+    const componentMap = inject(
+      INJECTION_KEY,
+      new Map<string, DefineComponent>(),
+    )
     const hasComponent = componentMap.has(props.data.chunk);
     if (!hasComponent) {
       const { default: component } = await import(
