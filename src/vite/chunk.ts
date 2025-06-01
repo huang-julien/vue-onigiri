@@ -49,7 +49,11 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
   let assetDir: string = "";
   let isProduction = false;
   let rootDir = process.cwd();
-  const { serverVscDir = "", clientVscDir = "", clientAssetsPrefix = "" } = options;
+  const {
+    serverVscDir = "",
+    clientVscDir = "",
+    clientAssetsPrefix = "",
+  } = options;
 
   return {
     client: (opts) => [
