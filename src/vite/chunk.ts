@@ -7,8 +7,12 @@ import { readFileSync } from "node:fs";
 import vue from "@vitejs/plugin-vue";
 import { defu } from "defu";
 import type { Options } from "@vitejs/plugin-vue";
-import { createFilter, type FilterPattern } from "vite";
+import { glob } from "node:fs/promises";
+import { type FilterPattern } from "vite";
 export type VSCOptions = {
+  /**
+   * included chunks will be processed to be emitted
+   */
   clientChunks?: {
     /**
      * @default /\.vue$/
@@ -16,6 +20,7 @@ export type VSCOptions = {
     include?: FilterPattern;
     exclude?: FilterPattern;
   };
+  includeClientChunks: string[];
   rootDir?: string;
   vueClient?: Options;
   vueServerOptions?: Options;
@@ -34,9 +39,8 @@ export type VSCOptions = {
 };
 
 const VSC_PREFIX = "virtual:vsc:";
-const VSC_PREFIX_RE = /^virtual:vsc:/;
-const NOVSC_PREFIX_RE = /^(?!virtual:vsc:)/;
-
+const VSC_PREFIX_RE = /^(\/?@id\/)?virtual:vsc:/;
+const NOVSC_PREFIX_RE = /^(\/?@id\/)?(?!virtual:vsc:)/;
 export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
   client: (opts?: Options) => PluginOption;
   server: (opts?: Options) => PluginOption;
@@ -47,10 +51,6 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
   let rootDir = process.cwd();
   const { serverVscDir = "", clientVscDir = "", clientAssetsPrefix = "" } = options;
 
-  const filter = createFilter(
-    options.clientChunks?.include ?? /.vue$/,
-    options.clientChunks?.exclude,
-  );
   return {
     client: (opts) => [
       vue(opts),
@@ -61,11 +61,16 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
           isProduction = config.isProduction;
           rootDir = config.root;
         },
-        load: {
-          async handler(id) {
-            if (!filter(id)) {
-              return;
-            }
+        async buildStart() {
+          const chunksToInclude = Array.isArray(options.includeClientChunks)
+            ? options.includeClientChunks
+            : [options.includeClientChunks || '**/*.vue',];
+
+          const files = glob(chunksToInclude, {
+            cwd: rootDir,
+          });
+          for await (const file of files) {
+            const id = join(rootDir, file);
             if (isProduction) {
               const emitted = this.emitFile({
                 type: "chunk",
@@ -73,12 +78,13 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
                 id: id,
                 preserveSignature: "strict",
               });
-              refs.push({ path: id, id: join(clientAssetsPrefix, emitted) });
+              refs.push({ path: id.replaceAll('\\', '/'), id: this.getFileName(emitted).replaceAll('\\', '//') });
             } else {
-              refs.push({ path: id, id: join(clientAssetsPrefix, id) });
+              refs.push({ path: id.replaceAll('\\', '/'), id: join(clientAssetsPrefix, relative(rootDir ,id)).replaceAll('\\', '//') });
             }
-          },
+          }
         },
+
         generateBundle(_, bundle) {
           for (const chunk of Object.values(bundle)) {
             if (chunk.type === "chunk") {
@@ -192,7 +198,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
                   start,
                   end,
                   `Object.assign(
-                                    { __chunk: "${join("/", isProduction ? normalize(this.getFileName(ref.id)) : relative(rootDir, normalize(ref.id))).replaceAll("\\", "/")}" },
+                                    { __chunk: "${join("/", isProduction ? normalize(ref.id) : relative(rootDir, normalize(ref.id))).replaceAll("\\", "/")}" },
                                      ${code.slice(start, end)},
                                 )`,
                 );
