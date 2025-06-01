@@ -78,13 +78,13 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
             if (isProduction) {
               const emitted = this.emitFile({
                 type: "chunk",
-                fileName: join(clientVscDir || assetDir, hash(id) + ".mjs"),
+                fileName: join(clientVscDir || assetDir, hash(id) + ".mjs").replaceAll("\\", "/"),
                 id: id,
                 preserveSignature: "strict",
               });
-              refs.push({ path: id.replaceAll('\\', '/'), id: this.getFileName(emitted).replaceAll('\\', '//') });
+              refs.push({ path: id.replaceAll('\\', '/'), id: this.getFileName(emitted).replaceAll("\\", "/") });
             } else {
-              refs.push({ path: id.replaceAll('\\', '/'), id: join(clientAssetsPrefix, relative(rootDir ,id)).replaceAll('\\', '//') });
+              refs.push({ path: id.replaceAll('\\', '/'), id: join(clientAssetsPrefix, relative(rootDir ,id)).replaceAll("\\", "/") });
             }
           }
         },
