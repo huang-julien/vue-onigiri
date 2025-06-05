@@ -17,7 +17,7 @@ export default defineComponent({
     const hasComponent = componentMap.has(props.data.chunk);
     if (!hasComponent) {
       const component = await importFn(
-        /* @vite-ignore */ props.data.chunk
+        props.data.chunk
       );
       componentMap.set(props.data.chunk, component);
     }
