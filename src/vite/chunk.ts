@@ -123,7 +123,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
         async buildStart() {
           const chunksToInclude = Array.isArray(options.includeClientChunks)
             ? options.includeClientChunks
-            : [options.includeClientChunks || '**/*.vue',];
+            : [options.includeClientChunks || "**/*.vue"];
 
           const files = glob(chunksToInclude, {
             cwd: rootDir,
@@ -133,7 +133,10 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
             if (isProduction) {
               this.emitFile({
                 type: "chunk",
-                fileName: join(serverVscDir, hash(id) + ".mjs").replaceAll("\\", "/"),
+                fileName: join(serverVscDir, hash(id) + ".mjs").replaceAll(
+                  "\\",
+                  "/",
+                ),
                 id: id,
                 preserveSignature: "strict",
               });
