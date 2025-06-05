@@ -108,6 +108,26 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
       {
         enforce: "pre",
         name: "vite:vue-server-components-server",
+        async buildStart() {
+          const chunksToInclude = Array.isArray(options.includeClientChunks)
+            ? options.includeClientChunks
+            : [options.includeClientChunks || '**/*.vue',];
+
+          const files = glob(chunksToInclude, {
+            cwd: rootDir,
+          });
+          for await (const file of files) {
+            const id = join(rootDir, file);
+            if (isProduction) {
+              this.emitFile({
+                type: "chunk",
+                fileName: join(serverVscDir, hash(id) + ".mjs").replaceAll("\\", "/"),
+                id: id,
+                preserveSignature: "strict",
+              });
+            }
+          }
+        },
         resolveId: {
           order: "pre",
           async handler(id, importer) {
