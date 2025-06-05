@@ -7,17 +7,13 @@
   "sideEffects": false,
   "type": "module",
   "exports": {
-    ".": {
-      "import": "./dist/index",
-      "require": "./dist/index"
-    },
     "./*": {
-      "import": "./dist/*",
-      "require": "./dist/*"
+      "import": "./dist/*.js",
+      "require": "./dist/*.js"
     },
     "./runtime/*": {
-      "import": "./dist/runtime/*",
-      "require": "./dist/runtime/*"
+      "import": "./dist/runtime/*.js",
+      "require": "./dist/runtime/*.js"
     }
   },
   "files": [

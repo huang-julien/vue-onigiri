@@ -6,6 +6,7 @@ export default defineBuildConfig({
       builder: "mkdist",
       input: "./src",
       declaration: true,
+      ext: 'js'
     },
   ],
 });
