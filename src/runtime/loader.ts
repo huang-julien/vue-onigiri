@@ -1,9 +1,10 @@
 import { h, type DefineComponent, defineComponent, inject } from "vue";
-import type { VServerComponent, VServerComponentComponent } from "./shared";
+import type { VServerComponent } from "./shared";
 import { renderChildren } from "./deserialize";
 import { INJECTION_KEY } from "./plugin";
 import { defaultImportFn } from "./utils";
-
+// @ts-expect-error virtual file should be treeshaken client side
+import clientToServerChunks from "virtual:vue-bento-client-to-server-chunks";
 
 export default defineComponent({
   name: "vue-bento:component-loader",
@@ -17,7 +18,7 @@ export default defineComponent({
     const hasComponent = componentMap.has(props.data.chunk);
     if (!hasComponent) {
       const component = await importFn(
-        /* @vite-ignore */ props.data.chunk
+        /* @vite-ignore */ clientToServerChunks(props.data.chunk) 
       );
       componentMap.set(props.data.chunk, component);
     }
@@ -31,6 +32,7 @@ export default defineComponent({
       if (component) {
         return h(component, props.data.props, slots);
       }
+      // todo fallback
     };
   },
 });
