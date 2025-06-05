@@ -41,14 +41,11 @@ export type VSCOptions = {
 const VSC_PREFIX = "virtual:vsc:";
 const VSC_PREFIX_RE = /^(\/?@id\/)?virtual:vsc:/;
 const NOVSC_PREFIX_RE = /^(\/?@id\/)?(?!virtual:vsc:)/;
-const CLIENT_TO_SERVER_CHUNKS = "virtual:vue-bento-client-to-server-chunks";
- export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
+export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
   client: (opts?: Options) => PluginOption;
   server: (opts?: Options) => PluginOption;
-  getClientToServerChunkContent: () => string;
 } {
   const refs: { path: string; id: string }[] = [];
-  const serverSideRefs: { path: string; id: string }[] = [];
   let assetDir: string = "";
   let isProduction = false;
   let rootDir = process.cwd();
@@ -58,22 +55,7 @@ const CLIENT_TO_SERVER_CHUNKS = "virtual:vue-bento-client-to-server-chunks";
     clientAssetsPrefix = "",
   } = options;
 
-  function getClientToServerChunkContent() {
-    return `
-      const chunks = new Map()
-      ${refs.map((ref) => {
-        return `chunks.set("${ref.id}", "${serverSideRefs.find(
-          (s) => s.path === ref.path,
-        )?.id}")`;
-      }).join(";\n")}
-      export default function (chunk) {
-        return chunks.get(chunk);
-      }
-    `;
-  }
-
   return {
-    getClientToServerChunkContent,
     client: (opts) => [
       vue(opts),
       {
@@ -107,25 +89,6 @@ const CLIENT_TO_SERVER_CHUNKS = "virtual:vue-bento-client-to-server-chunks";
           }
         },
 
-        resolveId(id, importer) {
-         
-            if (id === CLIENT_TO_SERVER_CHUNKS) {
-              return CLIENT_TO_SERVER_CHUNKS;
-            } 
-        },
-
-        load(id) {
-          if (id === CLIENT_TO_SERVER_CHUNKS) {
-            return {
-              code: `
-                export default function (chunk) {
-                 return chunk
-              }
-                `,
-            };
-          }
- 
-        },
         generateBundle(_, bundle) {
           for (const chunk of Object.values(bundle)) {
             if (chunk.type === "chunk") {
@@ -148,9 +111,6 @@ const CLIENT_TO_SERVER_CHUNKS = "virtual:vue-bento-client-to-server-chunks";
         resolveId: {
           order: "pre",
           async handler(id, importer) {
-            if (id === CLIENT_TO_SERVER_CHUNKS) {
-              return CLIENT_TO_SERVER_CHUNKS;
-            }
             if (importer && VSC_PREFIX_RE.test(importer)) {
               if (VSC_PREFIX_RE.test(id)) {
                 return id;
@@ -180,45 +140,13 @@ const CLIENT_TO_SERVER_CHUNKS = "virtual:vue-bento-client-to-server-chunks";
             }
           },
         },
-        
-        async buildStart() {
-          const chunksToInclude = Array.isArray(options.includeClientChunks)
-            ? options.includeClientChunks
-            : [options.includeClientChunks || '**/*.vue',];
-
-          const files = glob(chunksToInclude, {
-            cwd: rootDir,
-          });
-          for await (const file of files) {
-            const id = join(rootDir, file);
-            if (isProduction) {
-              const emitted = this.emitFile({
-                type: "chunk",
-                fileName: join(serverVscDir, hash(id) + ".mjs").replaceAll("\\", "/"),
-                id: id,
-                preserveSignature: "strict",
-              });
-              serverSideRefs.push({ path: id.replaceAll('\\', '/'), id: this.getFileName(emitted).replaceAll("\\", "/") });
-            } else {
-              serverSideRefs.push({ path: id.replaceAll('\\', '/'), id: join(clientAssetsPrefix, relative(rootDir ,id)).replaceAll("\\", "/") });
-            }
-          }
-        },
-
-
         load: {
           order: "pre",
           async handler(id) {
-
-            if (id === CLIENT_TO_SERVER_CHUNKS) {
-              return {
-                code:  getClientToServerChunkContent(),
-              }
-            }
-
             const [filename, rawQuery] = id.split(`?`, 2);
 
-            if (!rawQuery && VSC_PREFIX_RE.test(id)) {
+            if (!rawQuery) {
+              if (VSC_PREFIX_RE.test(id)) {
                 const file = id.replace(VSC_PREFIX_RE, "");
 
                 return {
@@ -228,6 +156,16 @@ const CLIENT_TO_SERVER_CHUNKS = "virtual:vue-bento-client-to-server-chunks";
                   ),
                 };
               }
+              if (filename?.endsWith(".vue")) {
+                const fileName = serverVscDir + hash(id) + ".mjs";
+                this.emitFile({
+                  type: "chunk",
+                  fileName,
+                  id: VSC_PREFIX + id,
+                  preserveSignature: "strict",
+                });
+              }
+            }
           },
         },
 
