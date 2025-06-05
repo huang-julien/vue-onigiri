@@ -68,7 +68,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
         async buildStart() {
           const chunksToInclude = Array.isArray(options.includeClientChunks)
             ? options.includeClientChunks
-            : [options.includeClientChunks || '**/*.vue',];
+            : [options.includeClientChunks || "**/*.vue"];
 
           const files = glob(chunksToInclude, {
             cwd: rootDir,
@@ -78,13 +78,25 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
             if (isProduction) {
               const emitted = this.emitFile({
                 type: "chunk",
-                fileName: join(clientVscDir || assetDir, hash(id) + ".mjs").replaceAll("\\", "/"),
+                fileName: join(
+                  clientVscDir || assetDir,
+                  hash(id) + ".mjs",
+                ).replaceAll("\\", "/"),
                 id: id,
                 preserveSignature: "strict",
               });
-              refs.push({ path: id.replaceAll('\\', '/'), id: this.getFileName(emitted).replaceAll("\\", "/") });
+              refs.push({
+                path: id.replaceAll("\\", "/"),
+                id: this.getFileName(emitted).replaceAll("\\", "/"),
+              });
             } else {
-              refs.push({ path: id.replaceAll('\\', '/'), id: join(clientAssetsPrefix, relative(rootDir ,id)).replaceAll("\\", "/") });
+              refs.push({
+                path: id.replaceAll("\\", "/"),
+                id: join(clientAssetsPrefix, relative(rootDir, id)).replaceAll(
+                  "\\",
+                  "/",
+                ),
+              });
             }
           }
         },
@@ -268,19 +280,19 @@ function getVuePlugin(options?: Options) {
       options,
     ),
   );
-    // need to force non-ssr transform to always render vnode
+  // need to force non-ssr transform to always render vnode
   const oldTransform = plugin.transform;
   plugin.transform = async function (code, id, _options) {
     if (VSC_PREFIX_RE.test(id)) {
-      return 
+      return;
     }
     // @ts-expect-error blabla
     return await Reflect.apply(oldTransform, this, [code, id, { ssr: false }]);
   };
   const oldLoad = plugin.load;
   plugin.load = async function (id, _options) {
-       if (VSC_PREFIX_RE.test(id)) {
-      return 
+    if (VSC_PREFIX_RE.test(id)) {
+      return;
     }
     // @ts-expect-error blabla
     return await Reflect.apply(oldLoad, this, [id, { ssr: false }]);
