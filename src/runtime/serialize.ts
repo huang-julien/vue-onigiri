@@ -107,12 +107,12 @@ export async function renderVNode(
       };
     } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
 
-        const child = await renderComponent(vnode, parentInstance);
       if (
         vnode.props &&
         "load:client" in vnode.props &&
         vnode.props["load:client"] !== false
       ) {
+        const child = await renderComponent(vnode, parentInstance);
         // @ts-expect-error
         if (vnode.type.__chunk) {
           return {
@@ -259,3 +259,4 @@ async function renderComponent(vnode: VNode, parentInstance?: ComponentInternalI
       return child
 
 }
+ 
