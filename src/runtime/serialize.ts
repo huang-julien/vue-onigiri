@@ -43,7 +43,7 @@ export async function serializeComponent(component: Component, props?: any) {
   const vnode = createVNode(input._component, input._props);
   vnode.appContext = input._context;
 
- const child = await renderComponent(vnode, input._instance);
+  const child = await renderComponent(vnode, input._instance);
   return renderVNode(child);
 }
 
@@ -106,7 +106,6 @@ export async function renderVNode(
         ),
       };
     } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
-
       if (
         vnode.props &&
         "load:client" in vnode.props &&
@@ -136,7 +135,7 @@ export async function renderVNode(
       }
       return {
         type: VServerComponentType.Fragment,
-        children: await renderChild(child, parentInstance),
+        children: await renderChild(vnode, parentInstance),
       };
     }
     // handle suspense
@@ -224,37 +223,34 @@ async function renderSlots(
   return result;
 }
 
+async function renderComponent(
+  vnode: VNode,
+  parentInstance?: ComponentInternalInstance | null,
+) {
+  const instance = createComponentInstance(vnode, parentInstance ?? null, null);
+  const res = await setupComponent(instance, true);
+  const hasAsyncSetup = isPromise(res);
+  let prefetches =
+    // @ts-expect-error internal API
+    instance.sp as unknown as Promise[]; /* LifecycleHooks.SERVER_PREFETCH */
 
+  const child = renderComponentRoot(instance);
 
-async function renderComponent(vnode: VNode, parentInstance?: ComponentInternalInstance | null) {
-      const instance = createComponentInstance(
-        vnode,
-        parentInstance ?? null,
-        null,
-      );
-      const res = await setupComponent(instance, true);
-      const hasAsyncSetup = isPromise(res);
-      let prefetches =
+  if (hasAsyncSetup || prefetches) {
+    const p: Promise<unknown> = Promise.resolve(res).then(() => {
+      // instance.sp may be null until an async setup resolves, so evaluate it here
+      if (hasAsyncSetup) {
         // @ts-expect-error internal API
-        instance.sp as unknown as Promise[]; /* LifecycleHooks.SERVER_PREFETCH */
-
-      const child = renderComponentRoot(instance);
-
-      if (hasAsyncSetup || prefetches) {
-        const p: Promise<unknown> = Promise.resolve(res).then(() => {
-          // instance.sp may be null until an async setup resolves, so evaluate it here
-          if (hasAsyncSetup) {
-            // @ts-expect-error internal API
-            prefetches = instance.sp;
-          }
-          if (prefetches) {
-            return Promise.all(
-              prefetches.map((prefetch) => prefetch.call(instance.proxy)),
-            );
-          }
-        });
-        await p;
+        prefetches = instance.sp;
       }
+      if (prefetches) {
+        return Promise.all(
+          prefetches.map((prefetch) => prefetch.call(instance.proxy)),
+        );
+      }
+    });
+    await p;
+  }
 
       return child
 
