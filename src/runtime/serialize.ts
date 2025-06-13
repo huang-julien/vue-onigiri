@@ -252,7 +252,5 @@ async function renderComponent(
     await p;
   }
 
-      return child
-
+  return child;
 }
- 
