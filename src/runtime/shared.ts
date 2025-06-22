@@ -5,35 +5,18 @@ export const enum VServerComponentType {
   Fragment,
   Suspense,
 }
+type Tag = string
+type ChunkPath = string;
+type Children = VServerComponent[] | undefined;
+type Props = Record<string, any> | undefined;
+type Attrs = Record<string, any> | undefined;
+type Slots = Record<string, Children> | undefined;
+type VServerComponentElement = [VServerComponentType.Element, Tag, Attrs, Children];
 
-export interface VServerComponentElement {
-  type: VServerComponentType.Element;
-  tag: string;
-  props?: Record<string, any>;
-  children?: VServerComponent[] | VServerComponent;
-}
-
-export interface VServerComponentFragment {
-  type: VServerComponentType.Fragment;
-  children?: VServerComponent[] | VServerComponent;
-}
-
-export interface VServerComponentComponent {
-  type: VServerComponentType.Component;
-  props?: Record<string, any>;
-  slots?: Record<string, VServerComponent[] | VServerComponent>;
-  chunk: string;
-}
-
-export interface VServerComponentText {
-  type: VServerComponentType.Text;
-  text: string;
-}
-
-export interface VServerComponentSuspense {
-  type: VServerComponentType.Suspense;
-  children?: VServerComponent[] | VServerComponent;
-}
+type VServerComponentComponent = [VServerComponentType.Component, Props, ChunkPath, Slots];
+type VServerComponentText = [VServerComponentType.Text, string];
+type VServerComponentFragment = [VServerComponentType.Fragment, Children];
+type VServerComponentSuspense = [VServerComponentType.Suspense, Children]; 
 
 export type VServerComponent =
   | VServerComponentElement

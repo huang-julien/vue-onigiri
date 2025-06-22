@@ -56,7 +56,7 @@ export async function serializeApp(app: App, context: SSRContext = {}) {
   const instance = createComponentInstance(vnode, input._instance, null);
   instance.appContext = input._context;
 
-  return await app.runWithContext(async () => {
+  const r=  await app.runWithContext(async () => {
     const res = await setupComponent(instance, true);
     return await app.runWithContext(async () => {
       const hasAsyncSetup = isPromise(res);
@@ -86,6 +86,7 @@ export async function serializeApp(app: App, context: SSRContext = {}) {
       return await renderVNode(child, instance);
     });
   });
+  return r
 }
 
 export async function renderVNode(
@@ -94,89 +95,78 @@ export async function renderVNode(
 ): Promise<VServerComponent | undefined> {
   if (isVNode(vnode)) {
     if (vnode.shapeFlag & ShapeFlags.ELEMENT) {
-      return {
-        type: VServerComponentType.Element,
-        tag: vnode.type as string,
-        props: vnode.props ?? undefined,
-        children: await renderChild(
-          vnode.children ||
-            vnode.component?.subTree ||
-            vnode.component?.vnode.children,
-          parentInstance,
-        ),
-      };
+      return [
+        VServerComponentType.Element,
+        vnode.type as string,
+        vnode.props ?? undefined,
+        await renderChild(vnode.children, parentInstance),
+      ]
     } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
+        const child = await renderComponent(vnode, parentInstance);
       if (
         vnode.props &&
         "load:client" in vnode.props &&
         vnode.props["load:client"] !== false
       ) {
-        const child = await renderComponent(vnode, parentInstance);
         // @ts-expect-error
         if (vnode.type.__chunk) {
-          return {
-            type: VServerComponentType.Component,
-            props: vnode.props ?? undefined,
+          return [
+            VServerComponentType.Component,
+            vnode.props ?? undefined,
             // @ts-expect-error
-            chunk: vnode.type.__chunk as string,
-            slots: await renderSlots(child.ctx?.__slotsResult),
-          };
+            vnode.type.__chunk as string,
+            await renderSlots(child.ctx?.__slotsResult),
+          ] 
         }
         console.warn("Component is missing chunk information");
-        return {
-          type: VServerComponentType.Fragment,
-          children: await renderChild(
-            vnode.children ||
-              vnode.component?.subTree ||
-              vnode.component?.vnode.children,
-            parentInstance,
-          ),
-        };
       }
-      return {
-        type: VServerComponentType.Fragment,
-        children: await renderChild(vnode, parentInstance),
-      };
+
+      return [
+        VServerComponentType.Fragment,
+        await renderChild(
+            child.children, 
+        parentInstance)
+      ] 
     }
     // handle suspense
     else if (vnode.shapeFlag & ShapeFlags.SUSPENSE) {
-      return {
-        type: VServerComponentType.Suspense,
+      return [
+        VServerComponentType.Suspense,
         // @ts-expect-error internal API
-        children: await renderChild(vnode.ssContent, parentInstance),
-      };
+        await renderChild(vnode.ssContent, parentInstance),
+      ] 
     } else if (vnode.type === Text) {
-      return {
-        type: VServerComponentType.Text,
-        text: vnode.children as string,
-      };
+      return [
+        VServerComponentType.Text,
+        vnode.children as string,
+      ] 
     } else if (vnode.type === Fragment) {
-      return {
-        type: VServerComponentType.Fragment,
-        children: await renderChild(vnode.children, parentInstance),
-      };
+      return [
+        VServerComponentType.Fragment,
+        await renderChild(vnode.children, parentInstance),
+      ] 
     }
   } else if (
     vnode &&
     (typeof vnode === "string" || typeof vnode === "number")
   ) {
-    return {
-      type: VServerComponentType.Text,
-      text: vnode as string,
-    };
+    return [
+      VServerComponentType.Text,
+      vnode as string,
+    ]
   }
 }
 
 async function renderChild(
   children?: VNodeNormalizedChildren | VNode,
   parentInstance?: ComponentInternalInstance,
-): Promise<VServerComponent[] | VServerComponent | undefined> {
+): Promise<VServerComponent[] | undefined> {
   if (!children) {
     return;
   }
 
   if (isVNode(children)) {
-    return await renderVNode(children, parentInstance);
+    return await renderChild([children], parentInstance);
   }
 
   if (Array.isArray(children)) {
@@ -186,22 +176,21 @@ async function renderChild(
       )
     ).filter((v): v is VServerComponent => !!v);
   }
-
   if (typeof children === "string" || typeof children === "number") {
-    return {
-      type: VServerComponentType.Text,
-      text: children as string,
-    };
+    return [[
+      VServerComponentType.Text,
+      children as string,
+    ]]
   }
 }
 
 async function renderSlots(
   slots: Record<string, VNode> | undefined,
-): Promise<Record<string, VServerComponent[] | VServerComponent>> {
+): Promise<Record<string, VServerComponent[]>> {
   if (!slots) {
     return {};
   }
-  const result: Record<string, VServerComponent[] | VServerComponent> = {};
+  const result: Record<string, VServerComponent[]> = {};
   for (const key in slots) {
     const slot = slots[key];
     if (Array.isArray(slot)) {
@@ -214,7 +203,7 @@ async function renderSlots(
     } else if (isVNode(slot)) {
       const r = await renderVNode(slot);
       if (r) {
-        result[key] = r;
+        result[key] = [r];
       }
     } else {
       console.warn(`Unexpected slot type: ${typeof slot} for key: ${key}`);

@@ -25,42 +25,49 @@ describe("serialize/deserialize", () => {
     expect(html).toMatchInlineSnapshot(
       `"<div><div>1</div><div>2</div><div>0</div></div>"`,
     );
+
     expect(ast).toMatchInlineSnapshot(`
-      {
-        "children": [
-          {
-            "children": {
-              "text": "1",
-              "type": 2,
-            },
-            "props": undefined,
-            "tag": "div",
-            "type": 0,
-          },
-          {
-            "children": {
-              "text": "2",
-              "type": 2,
-            },
-            "props": undefined,
-            "tag": "div",
-            "type": 0,
-          },
-          {
-            "children": {
-              "text": "0",
-              "type": 2,
-            },
-            "props": undefined,
-            "tag": "div",
-            "type": 0,
-          },
+      [
+        0,
+        "div",
+        undefined,
+        [
+          [
+            0,
+            "div",
+            undefined,
+            [
+              [
+                2,
+                "1",
+              ],
+            ],
+          ],
+          [
+            0,
+            "div",
+            undefined,
+            [
+              [
+                2,
+                "2",
+              ],
+            ],
+          ],
+          [
+            0,
+            "div",
+            undefined,
+            [
+              [
+                2,
+                "0",
+              ],
+            ],
+          ],
         ],
-        "props": undefined,
-        "tag": "div",
-        "type": 0,
-      }
-    `);
+      ]
+    `)
     const clientSide = mount(
       defineComponent({
         setup() {
@@ -83,42 +90,47 @@ describe("serialize/deserialize", () => {
         `"<div><div>1</div><div>2</div><div loadclientside load:client> counter : 0 <button>Increment</button></div></div>"`,
       );
 
-      expect(ast).toMatchInlineSnapshot(`
-        {
-          "children": [
-            {
-              "children": {
-                "text": "1",
-                "type": 2,
-              },
-              "props": undefined,
-              "tag": "div",
-              "type": 0,
-            },
-            {
-              "children": {
-                "text": "2",
-                "type": 2,
-              },
-              "props": undefined,
-              "tag": "div",
-              "type": 0,
-            },
-            {
-              "chunk": "/test/fixtures/components/Counter.vue",
-              "props": {
-                "load:client": "",
-                "loadClientSide": "",
-              },
-              "slots": {},
-              "type": 1,
-            },
+
+    expect(ast).toMatchInlineSnapshot(`
+      [
+        0,
+        "div",
+        undefined,
+        [
+          [
+            0,
+            "div",
+            undefined,
+            [
+              [
+                2,
+                "1",
+              ],
+            ],
           ],
-          "props": undefined,
-          "tag": "div",
-          "type": 0,
-        }
-      `);
+          [
+            0,
+            "div",
+            undefined,
+            [
+              [
+                2,
+                "2",
+              ],
+            ],
+          ],
+          [
+            1,
+            {
+              "load:client": "",
+              "loadClientSide": "",
+            },
+            "/test/fixtures/components/Counter.vue",
+            {},
+          ],
+        ],
+      ]
+    `)
       const clientSide = mount(
         defineComponent({
           setup() {
@@ -169,16 +181,18 @@ describe("Async components", () => {
       }),
     );
     expect(ast).toMatchInlineSnapshot(`
-      {
-        "children": {
-          "text": "Hello world ! some text",
-          "type": 2,
-        },
-        "props": undefined,
-        "tag": "div",
-        "type": 0,
-      }
-    `);
+      [
+        0,
+        "div",
+        undefined,
+        [
+          [
+            2,
+            "Hello world ! some text",
+          ],
+        ],
+      ]
+    `)
     await flushPromises();
     await nextTick();
     expect(html).toMatchInlineSnapshot(`"<div>Hello world ! some text</div>"`);
@@ -194,63 +208,63 @@ describe("Async components", () => {
 
   it("handles nested async component", async () => {
     const ast = await serializeComponent(WithAsyncComponent, {});
+
+
     expect(ast).toMatchInlineSnapshot(`
-      {
-        "children": [
-          {
-            "text": " component with suspense ",
-            "type": 2,
-          },
-          {
-            "children": {
-              "children": {
-                "text": "Hello world ! yolo",
-                "type": 2,
-              },
-              "props": undefined,
-              "tag": "div",
-              "type": 0,
-            },
-            "type": 3,
-          },
+      [
+        0,
+        "div",
+        undefined,
+        [
+          [
+            2,
+            " component with suspense ",
+          ],
+          [
+            3,
+            [
+              [
+                2,
+                "Hello world ! yolo",
+              ],
+            ],
+          ],
         ],
-        "props": undefined,
-        "tag": "div",
-        "type": 0,
-      }
-    `);
+      ]
+    `)
   });
 
   it("handles nested async component with suspense", async () => {
     const ast = await serializeComponent(WithSuspense, {});
+
     expect(ast).toMatchInlineSnapshot(`
-      {
-        "children": [
-          {
-            "text": " component with suspense ",
-            "type": 2,
-          },
-          {
-            "children": {
-              "children": {
-                "children": {
-                  "text": "Hello world ! yolo",
-                  "type": 2,
-                },
-                "props": undefined,
-                "tag": "div",
-                "type": 0,
-              },
-              "type": 3,
-            },
-            "type": 4,
-          },
+      [
+        0,
+        "div",
+        undefined,
+        [
+          [
+            2,
+            " component with suspense ",
+          ],
+          [
+            4,
+            [
+              [
+                3,
+                [
+                  [
+                    2,
+                    "Hello world ! yolo",
+                  ],
+                ],
+              ],
+            ],
+          ],
         ],
-        "props": undefined,
-        "tag": "div",
-        "type": 0,
-      }
-    `);
+      ]
+    `)
+
   });
 });
 
@@ -261,10 +275,14 @@ describe("revive", () => {
 
       const { promise, resolve } = Promise.withResolvers();
 
-      const ast: VServerComponent = {
-        type: VServerComponentType.Component,
-        chunk: "/test/fixtures/components/Injection.vue",
-      };
+ 
+      const ast: VServerComponent = [
+        VServerComponentType.Component,
+        undefined,
+        "/test/fixtures/components/Injection.vue",
+        undefined
+      ]
+
 
       const wrapper = mount({
         setup() {
@@ -293,22 +311,25 @@ describe("slots", () => {
     const ast = await serializeComponent(SlotToCounter);
 
     expect(ast).toMatchInlineSnapshot(`
-      {
-        "children": [
-          {
-            "chunk": "/test/fixtures/components/Counter.vue",
-            "props": {
+      [
+        0,
+        "div",
+        undefined,
+        [
+          [
+            1,
+            {
               "load:client": "",
               "loadClientSide": "",
             },
-            "slots": {},
-            "type": 1,
-          },
+            "/test/fixtures/components/Counter.vue",
+            {},
+          ],
         ],
-        "props": undefined,
-        "tag": "div",
-        "type": 0,
-      }
-    `);
+      ]
+    `)
+
+    const html = await renderToString(h(SlotToCounter));
+    expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(`"<div><div loadclientside load:client> counter : 0 <button>Increment</button><div><p>Slot to Counter: 0</p></div></div></div>"`)
   });
 });

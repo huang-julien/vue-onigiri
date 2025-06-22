@@ -8,45 +8,44 @@ export function renderServerComponent(
   importFn = defaultImportFn,
 ): VNode | undefined {
   if (!input) return;
-  if (input.type === VServerComponentType.Text) {
-    return createTextVNode(input.text);
+
+  if (input[0] === VServerComponentType.Text) {
+    return createTextVNode(input[1]);
   }
-  if (input.type === VServerComponentType.Element) {
+  if (input[0] === VServerComponentType.Element) {
     return h(
-      input.tag,
-      input.props,
-      Array.isArray(input.children)
-        ? input.children.map((v) => renderServerComponent(v, importFn))
-        : renderServerComponent(input.children, importFn),
+      input[1],
+      input[2],
+      input[3]?.map((v) => renderServerComponent(v as VServerComponent, importFn))
     );
   }
-  if (input.type === VServerComponentType.Component) {
+  if (input[0] === VServerComponentType.Component) {
     return h(loader, {
       data: input,
       importFn: importFn,
     });
   }
-  if (input.type === VServerComponentType.Fragment) {
-    return Array.isArray(input.children)
+  if (input[0] === VServerComponentType.Fragment) {
+    return Array.isArray(input[1])
       ? h(
           Fragment,
-          input.children.map((v) => renderServerComponent(v, importFn)),
+          input[1].map((v) => renderServerComponent(v, importFn)),
         )
-      : renderServerComponent(input.children, importFn);
+      : renderServerComponent(input[1], importFn);
   }
-  if (input.type === VServerComponentType.Suspense) {
+  if (input[0] === VServerComponentType.Suspense) {
     return h(
       Suspense,
       {},
       {
-        default: () => renderChildren(input.children, importFn),
+        default: () => renderChildren(input[1], importFn),
       },
     );
   }
 }
 
 export function renderChildren(
-  data: VServerComponent | VServerComponent[] | undefined,
+  data: VServerComponent[] | undefined,
   importFn = defaultImportFn,
 ): VNode | undefined {
   if (!data) return;

@@ -1,5 +1,5 @@
 import { h, type DefineComponent, defineComponent, inject } from "vue";
-import type { VServerComponent, VServerComponentComponent } from "./shared";
+import type { VServerComponent } from "./shared";
 import { renderChildren } from "./deserialize";
 import { INJECTION_KEY } from "./plugin";
 import { defaultImportFn } from "./utils";
@@ -13,27 +13,27 @@ export default defineComponent({
       new Map<string, DefineComponent>(),
     );
     const importFn = props.importFn || defaultImportFn;
-    const hasComponent = componentMap.has(props.data.chunk);
+    const hasComponent = componentMap.has(props.data[2]);
     if (!hasComponent) {
-      const component = await importFn(props.data.chunk);
-      componentMap.set(props.data.chunk, component);
+      const component = await importFn(props.data[2]);
+      componentMap.set(props.data[2], component);
     }
     return () => {
-      const component = componentMap.get(props.data.chunk);
+      const component = componentMap.get(props.data[2]);
       const slots = Object.fromEntries(
-        Object.entries(props.data.slots || {}).map(([key, value]) => {
+        Object.entries(props.data[3] || {}).map(([key, value]) => {
           return [
             key,
             () =>
               renderChildren(
-                value as VServerComponent | VServerComponent[] | undefined,
+                value as VServerComponent[] | undefined,
                 importFn,
               ),
           ];
         }),
       );
       if (component) {
-        return h(component, props.data.props, slots);
+        return h(component, props.data[1], slots);
       }
     };
   },

@@ -11,42 +11,7 @@ describe("serializeApp", () => {
     const app = createApp(ElementsOnly);
     const html = await renderToString(app);
     const serialized = await serializeApp(app);
-    expect(serialized).toMatchInlineSnapshot(`
-          {
-            "children": [
-              {
-                "children": {
-                  "text": "1",
-                  "type": 2,
-                },
-                "props": undefined,
-                "tag": "div",
-                "type": 0,
-              },
-              {
-                "children": {
-                  "text": "2",
-                  "type": 2,
-                },
-                "props": undefined,
-                "tag": "div",
-                "type": 0,
-              },
-              {
-                "children": {
-                  "text": "0",
-                  "type": 2,
-                },
-                "props": undefined,
-                "tag": "div",
-                "type": 0,
-              },
-            ],
-            "props": undefined,
-            "tag": "div",
-            "type": 0,
-          }
-        `);
+ 
 
     const rebuilt = createApp({
       setup() {
