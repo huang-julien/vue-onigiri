@@ -16,7 +16,9 @@ export function renderServerComponent(
     return h(
       input[1],
       input[2],
-      input[3]?.map((v) => renderServerComponent(v as VServerComponent, importFn))
+      input[3]?.map((v) =>
+        renderServerComponent(v as VServerComponent, importFn),
+      ),
     );
   }
   if (input[0] === VServerComponentType.Component) {

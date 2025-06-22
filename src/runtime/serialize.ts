@@ -56,7 +56,7 @@ export async function serializeApp(app: App, context: SSRContext = {}) {
   const instance = createComponentInstance(vnode, input._instance, null);
   instance.appContext = input._context;
 
-  const r=  await app.runWithContext(async () => {
+  const r = await app.runWithContext(async () => {
     const res = await setupComponent(instance, true);
     return await app.runWithContext(async () => {
       const hasAsyncSetup = isPromise(res);
@@ -86,7 +86,7 @@ export async function serializeApp(app: App, context: SSRContext = {}) {
       return await renderVNode(child, instance);
     });
   });
-  return r
+  return r;
 }
 
 export async function renderVNode(
@@ -100,9 +100,9 @@ export async function renderVNode(
         vnode.type as string,
         vnode.props ?? undefined,
         await renderChild(vnode.children, parentInstance),
-      ]
+      ];
     } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
-        const child = await renderComponent(vnode, parentInstance);
+      const child = await renderComponent(vnode, parentInstance);
       if (
         vnode.props &&
         "load:client" in vnode.props &&
@@ -116,17 +116,15 @@ export async function renderVNode(
             // @ts-expect-error
             vnode.type.__chunk as string,
             await renderSlots(child.ctx?.__slotsResult),
-          ] 
+          ];
         }
         console.warn("Component is missing chunk information");
       }
 
       return [
         VServerComponentType.Fragment,
-        await renderChild(
-            child.children, 
-        parentInstance)
-      ] 
+        await renderChild(child.children, parentInstance),
+      ];
     }
     // handle suspense
     else if (vnode.shapeFlag & ShapeFlags.SUSPENSE) {
@@ -134,26 +132,20 @@ export async function renderVNode(
         VServerComponentType.Suspense,
         // @ts-expect-error internal API
         await renderChild(vnode.ssContent, parentInstance),
-      ] 
+      ];
     } else if (vnode.type === Text) {
-      return [
-        VServerComponentType.Text,
-        vnode.children as string,
-      ] 
+      return [VServerComponentType.Text, vnode.children as string];
     } else if (vnode.type === Fragment) {
       return [
         VServerComponentType.Fragment,
         await renderChild(vnode.children, parentInstance),
-      ] 
+      ];
     }
   } else if (
     vnode &&
     (typeof vnode === "string" || typeof vnode === "number")
   ) {
-    return [
-      VServerComponentType.Text,
-      vnode as string,
-    ]
+    return [VServerComponentType.Text, vnode as string];
   }
 }
 
@@ -177,10 +169,7 @@ async function renderChild(
     ).filter((v): v is VServerComponent => !!v);
   }
   if (typeof children === "string" || typeof children === "number") {
-    return [[
-      VServerComponentType.Text,
-      children as string,
-    ]]
+    return [[VServerComponentType.Text, children as string]];
   }
 }
 

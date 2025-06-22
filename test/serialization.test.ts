@@ -67,7 +67,7 @@ describe("serialize/deserialize", () => {
           ],
         ],
       ]
-    `)
+    `);
     const clientSide = mount(
       defineComponent({
         setup() {
@@ -90,8 +90,7 @@ describe("serialize/deserialize", () => {
         `"<div><div>1</div><div>2</div><div loadclientside load:client> counter : 0 <button>Increment</button></div></div>"`,
       );
 
-
-    expect(ast).toMatchInlineSnapshot(`
+      expect(ast).toMatchInlineSnapshot(`
       [
         0,
         "div",
@@ -130,7 +129,7 @@ describe("serialize/deserialize", () => {
           ],
         ],
       ]
-    `)
+    `);
       const clientSide = mount(
         defineComponent({
           setup() {
@@ -192,7 +191,7 @@ describe("Async components", () => {
           ],
         ],
       ]
-    `)
+    `);
     await flushPromises();
     await nextTick();
     expect(html).toMatchInlineSnapshot(`"<div>Hello world ! some text</div>"`);
@@ -208,7 +207,6 @@ describe("Async components", () => {
 
   it("handles nested async component", async () => {
     const ast = await serializeComponent(WithAsyncComponent, {});
-
 
     expect(ast).toMatchInlineSnapshot(`
       [
@@ -231,7 +229,7 @@ describe("Async components", () => {
           ],
         ],
       ]
-    `)
+    `);
   });
 
   it("handles nested async component with suspense", async () => {
@@ -263,8 +261,7 @@ describe("Async components", () => {
           ],
         ],
       ]
-    `)
-
+    `);
   });
 });
 
@@ -275,14 +272,12 @@ describe("revive", () => {
 
       const { promise, resolve } = Promise.withResolvers();
 
- 
       const ast: VServerComponent = [
         VServerComponentType.Component,
         undefined,
         "/test/fixtures/components/Injection.vue",
-        undefined
-      ]
-
+        undefined,
+      ];
 
       const wrapper = mount({
         setup() {
@@ -327,9 +322,11 @@ describe("slots", () => {
           ],
         ],
       ]
-    `)
+    `);
 
     const html = await renderToString(h(SlotToCounter));
-    expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(`"<div><div loadclientside load:client> counter : 0 <button>Increment</button><div><p>Slot to Counter: 0</p></div></div></div>"`)
+    expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
+      `"<div><div loadclientside load:client> counter : 0 <button>Increment</button><div><p>Slot to Counter: 0</p></div></div></div>"`,
+    );
   });
 });

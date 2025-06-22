@@ -25,10 +25,7 @@ export default defineComponent({
           return [
             key,
             () =>
-              renderChildren(
-                value as VServerComponent[] | undefined,
-                importFn,
-              ),
+              renderChildren(value as VServerComponent[] | undefined, importFn),
           ];
         }),
       );

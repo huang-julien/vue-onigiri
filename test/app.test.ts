@@ -11,7 +11,6 @@ describe("serializeApp", () => {
     const app = createApp(ElementsOnly);
     const html = await renderToString(app);
     const serialized = await serializeApp(app);
- 
 
     const rebuilt = createApp({
       setup() {
