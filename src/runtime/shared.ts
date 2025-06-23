@@ -42,7 +42,7 @@ type VServerComponentComponentBuffered = [
   VServerComponentType.Component,
   Props,
   ChunkPath,
-   MaybePromise<Record<string, MaybePromise<(VServerComponentBuffered | undefined) | undefined >>> | undefined
+  MaybePromise<Record<string, VServerComponent[] | undefined >> | undefined
 ];
 type VServerComponentTextBuffered= [VServerComponentType.Text, string];
 type VServerComponentFragmentBuffered = [VServerComponentType.Fragment, MaybePromise<VServerComponentBuffered[]> | undefined];

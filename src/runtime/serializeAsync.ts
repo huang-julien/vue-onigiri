@@ -46,10 +46,10 @@ export async function serializeComponent(component: Component, props?: any) {
 
     const child = await renderComponent(vnode, input._instance);
     return renderVNode(child).then((result) => {
-               if(result) {
-                    return unrollServerComponentBufferPromises(result);
-               }
-            });
+        if (result) {
+            return unrollServerComponentBufferPromises(result);
+        }
+    });
 }
 
 export function serializeApp(app: App, context: SSRContext = {}) {
@@ -89,9 +89,9 @@ export function serializeApp(app: App, context: SSRContext = {}) {
                 await p;
             }
             return renderVNode(child, instance).then((result) => {
-               if(result) {
+                if (result) {
                     return unrollServerComponentBufferPromises(result);
-               }
+                }
             });
         });
     });
@@ -112,11 +112,16 @@ export function unrollServerComponentBufferPromises(
         const item = buffer[i];
         if (isPromise(item)) {
             promises.push(item.then((r) => {
-                return Promise.all(r.map(
-                    (v) => unrollServerComponentBufferPromises(v)
-                )).then((unrolled) => {
-                    result[i] = unrolled as VServerComponent;
-                }) 
+                if(Array.isArray(r)) {
+                    return Promise.all(r.map(
+                        (v) => unrollServerComponentBufferPromises(v)
+                    )).then((unrolled) => {
+                        result[i] = unrolled;
+                    })
+                }
+                
+                        result[i] = r;
+                return r
             }));
         } else {
             result[i] = item as VServerComponent;
@@ -211,30 +216,44 @@ function renderChild(
 
 function renderSlots(
     slots: Record<string, VNode> | undefined,
-): MaybePromise<Record<string, MaybePromise<VServerComponentBuffered | undefined>>> | undefined {
+): MaybePromise<Record<string, VServerComponent[] | undefined>> | undefined {
     if (!slots) {
         return {};
     }
-    const result: MaybePromise<Record<string, MaybePromise<VServerComponentBuffered | undefined>>> | undefined = {};
+    const result: MaybePromise<Record<string, VServerComponent[] | undefined>> | undefined = {};
+    const promises  : Promise<any>[] = [];
     for (const key in slots) {
         const slot = slots[key];
         if (Array.isArray(slot)) {
             const r = (
                 Promise.all(slot.map((vnode) => renderVNode(vnode))).then(
                     (vnodes) => vnodes.filter(Boolean) as VServerComponentBuffered,
-                )
+                ).then((v) => {
+                    return unrollServerComponentBufferPromises(v).then(v => {
+                        return (result[key] = [v]);
+                    });
+                })
             );
-            result[key] = r;
+            promises.push(r);
         } else if (isVNode(slot)) {
             const r = renderVNode(slot);
             if (r) {
-                result[key] = Promise.resolve(r);
+                promises.push(
+                    r.then(v => {
+                        if(v) {
+                            return  unrollServerComponentBufferPromises(v)
+                    .then((v) => {
+                        result[key] = [v];
+                    })
+                        }
+                    })
+                );
             }
         } else {
             console.warn(`Unexpected slot type: ${typeof slot} for key: ${key}`);
         }
     }
-    return result;
+    return Promise.all(promises).then(() => result);
 }
 
 async function renderComponent(
