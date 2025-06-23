@@ -86,7 +86,11 @@ export function serializeApp(app: App, context: SSRContext = {}) {
                     }
                 });
 
-                await p;
+                await p.then(() => renderVNode(child, instance).then((result) => {
+                    if (result) {
+                        return unrollServerComponentBufferPromises(result);
+                    }
+                }));
             }
             return renderVNode(child, instance).then((result) => {
                 if (result) {
@@ -256,18 +260,16 @@ function renderSlots(
     return Promise.all(promises).then(() => result);
 }
 
-async function renderComponent(
+  function renderComponent(
     vnode: VNode,
     parentInstance?: ComponentInternalInstance | null,
 ) {
     const instance = createComponentInstance(vnode, parentInstance ?? null, null);
-    const res = await setupComponent(instance, true);
+    const res = setupComponent(instance, true);
     const hasAsyncSetup = isPromise(res);
     let prefetches =
         // @ts-expect-error internal API
         instance.sp as unknown as Promise[]; /* LifecycleHooks.SERVER_PREFETCH */
-
-    const child = renderComponentRoot(instance);
 
     if (hasAsyncSetup || prefetches) {
         const p: Promise<unknown> = Promise.resolve(res).then(() => {
@@ -282,8 +284,9 @@ async function renderComponent(
                 );
             }
         });
-        await p;
+         return p.then(() => {
+            return renderComponentRoot(instance);
+         })
     }
-
-    return child;
+    return renderComponentRoot(instance);
 }
