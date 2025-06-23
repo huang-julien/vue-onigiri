@@ -86,7 +86,7 @@ export function serializeApp(app: App, context: SSRContext = {}) {
                     }
                 });
 
-                await p.then(() => renderVNode(child, instance).then((result) => {
+                return p.then(() => renderVNode(child, instance).then((result) => {
                     if (result) {
                         return unrollServerComponentBufferPromises(result);
                     }
