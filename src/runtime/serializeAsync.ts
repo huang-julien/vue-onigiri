@@ -116,15 +116,15 @@ export function unrollServerComponentBufferPromises(
         const item = buffer[i];
         if (isPromise(item)) {
             promises.push(item.then((r) => {
-                if(Array.isArray(r)) {
+                if (Array.isArray(r)) {
                     return Promise.all(r.map(
                         (v) => unrollServerComponentBufferPromises(v)
                     )).then((unrolled) => {
                         result[i] = unrolled;
                     })
                 }
-                
-                        result[i] = r;
+
+                result[i] = r;
                 return r
             }));
         } else {
@@ -147,29 +147,31 @@ export async function renderVNode(
                 renderChild(vnode.children, parentInstance),
             ];
         } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
-            const child = await renderComponent(vnode, parentInstance);
-            if (
-                vnode.props &&
-                "load:client" in vnode.props &&
-                vnode.props["load:client"] !== false
-            ) {
-                // @ts-expect-error
-                if (vnode.type.__chunk) {
-                    return [
-                        VServerComponentType.Component,
-                        vnode.props ?? undefined,
-                        // @ts-expect-error
-                        vnode.type.__chunk as string,
-                        renderSlots(child.ctx?.__slotsResult),
-                    ];
+            return Promise.resolve(renderComponent(vnode, parentInstance)).then((child) => {
+                if (
+                    vnode.props &&
+                    "load:client" in vnode.props &&
+                    vnode.props["load:client"] !== false
+                ) {
+                    // @ts-expect-error
+                    if (vnode.type.__chunk) {
+                        return [
+                            VServerComponentType.Component,
+                            vnode.props ?? undefined,
+                            // @ts-expect-error
+                            vnode.type.__chunk as string,
+                            renderSlots(child.ctx?.__slotsResult),
+                        ];
+                    }
+                    console.warn("Component is missing chunk information");
                 }
-                console.warn("Component is missing chunk information");
-            }
 
-            return [
-                VServerComponentType.Fragment,
-                renderChild(child.children, parentInstance),
-            ];
+                return [
+                    VServerComponentType.Fragment,
+                    renderChild(child.children, parentInstance),
+                ];
+            })
+
         }
         // handle suspense
         else if (vnode.shapeFlag & ShapeFlags.SUSPENSE) {
@@ -225,7 +227,7 @@ function renderSlots(
         return {};
     }
     const result: MaybePromise<Record<string, VServerComponent[] | undefined>> | undefined = {};
-    const promises  : Promise<any>[] = [];
+    const promises: Promise<any>[] = [];
     for (const key in slots) {
         const slot = slots[key];
         if (Array.isArray(slot)) {
@@ -243,12 +245,12 @@ function renderSlots(
             const r = renderVNode(slot);
             if (r) {
                 promises.push(
-                    r.then(v => {
-                        if(v) {
-                            return  unrollServerComponentBufferPromises(v)
-                    .then((v) => {
-                        result[key] = [v];
-                    })
+                    Promise.resolve(r).then(v => {
+                        if (v) {
+                            return unrollServerComponentBufferPromises(v)
+                                .then((v) => {
+                                    result[key] = [v];
+                                })
                         }
                     })
                 );
@@ -260,7 +262,7 @@ function renderSlots(
     return Promise.all(promises).then(() => result);
 }
 
-  function renderComponent(
+function renderComponent(
     vnode: VNode,
     parentInstance?: ComponentInternalInstance | null,
 ) {
@@ -284,9 +286,9 @@ function renderSlots(
                 );
             }
         });
-         return p.then(() => {
+        return p.then(() => {
             return renderComponentRoot(instance);
-         })
+        })
     }
     return renderComponentRoot(instance);
 }
