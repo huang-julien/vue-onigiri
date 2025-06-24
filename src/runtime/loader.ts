@@ -5,7 +5,7 @@ import { INJECTION_KEY } from "./plugin";
 import { defaultImportFn } from "./utils";
 
 export default defineComponent({
-  name: "vue-bento:component-loader",
+  name: "vue-onigiri:component-loader",
   props: ["data", "importFn"],
   async setup(props) {
     const componentMap = inject(

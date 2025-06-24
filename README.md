@@ -1,9 +1,9 @@
-# packageName
+# vue-onigiri
 
 <!-- automd:badges color=yellow -->
 
-[![npm version](https://img.shields.io/npm/v/vue-bento?color=yellow)](https://npmjs.com/package/vue-bento)
-[![npm downloads](https://img.shields.io/npm/dm/vue-bento?color=yellow)](https://npm.chart.dev/vue-bento)
+[![npm version](https://img.shields.io/npm/v/vue-onigiri?color=yellow)](https://npmjs.com/package/vue-onigiri)
+[![npm downloads](https://img.shields.io/npm/dm/vue-onigiri?color=yellow)](https://npm.chart.dev/vue-onigiri)
 
 <!-- /automd -->
 
@@ -15,7 +15,7 @@ Install the package:
 
 ```sh
 # ✨ Auto-detect (supports npm, yarn, pnpm, deno and bun)
-npx nypm install packageName
+npx nypm vue-onigiri
 ```
 
 Import:
@@ -70,3 +70,7 @@ Made by [community](https://github.com/unjs/packageName/graphs/contributors) �
 _🤖 auto updated with [automd](https://automd.unjs.io)_
 
 <!-- /automd -->
+
+## Credits
+
+- @antfu for naming this package ! 💖
