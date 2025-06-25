@@ -7,7 +7,13 @@
 
 <!-- /automd -->
 
-This is my package description.
+⚠️ This is a proof of concept. There's currently some performance issues.
+
+## Take out your vnodes everywhere ! Server components for vue !
+
+This library allows you to serialize VNodes so you can share it.
+
+Server or Client to Client. This allows to share from any Vue application and then deserialize it in another Vue application.
 
 ## Usage
 
