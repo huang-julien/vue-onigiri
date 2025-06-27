@@ -7,7 +7,7 @@
 
 <!-- /automd -->
 
-⚠️ This is a proof of concept. There's currently some performance issues.
+⚠️ This is a proof of concept.
 
 ## Take out your vnodes everywhere ! Server components for vue !
 
