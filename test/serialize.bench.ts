@@ -1,6 +1,6 @@
 import { bench, describe } from "vitest";
 
- import { serializeComponent } from "../src/runtime/serializeAsync";
+import { serializeComponent } from "../src/runtime/serialize";
 import { serializeComponent as oldSerialize } from "../src/runtime/serialize";
 import WithAsyncComponent from "virtual:vsc:./fixtures/components/WithAsyncComponent.vue";
 
