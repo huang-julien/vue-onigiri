@@ -314,16 +314,16 @@ function getPatchedServerVue(options?: Options): PluginOption {
   // need to force non-ssr transform to always render vnode
   const oldTransform = plugin.transform;
   plugin.transform = async function (code, id, _options) {
-    if(!id.includes('.vue')) {
-      return
+    if (!id.includes(".vue")) {
+      return;
     }
     // @ts-expect-error blabla
     return await Reflect.apply(oldTransform, this, [code, id, { ssr: false }]);
   };
   const oldLoad = plugin.load;
   plugin.load = async function (id, _options) {
-    if(!id.includes('.vue')) {
-      return
+    if (!id.includes(".vue")) {
+      return;
     }
     // @ts-expect-error blabla
     return await Reflect.apply(oldLoad, this, [id, { ssr: false }]);
