@@ -28,8 +28,7 @@ type VServerComponentText = [VServerComponentType.Text, string];
 type VServerComponentFragment = [VServerComponentType.Fragment, Children];
 type VServerComponentSuspense = [VServerComponentType.Suspense, Children];
 
-type MaybePromise<T> = T | Promise<T>;  
-
+type MaybePromise<T> = T | Promise<T>;
 
 type VServerComponentElementBuffered = [
   VServerComponentType.Element,
@@ -42,12 +41,17 @@ type VServerComponentComponentBuffered = [
   VServerComponentType.Component,
   Props,
   ChunkPath,
-  MaybePromise<Record<string, VServerComponent[] | undefined >> | undefined
+  MaybePromise<Record<string, VServerComponent[] | undefined>> | undefined,
 ];
-type VServerComponentTextBuffered= [VServerComponentType.Text, string];
-type VServerComponentFragmentBuffered = [VServerComponentType.Fragment, MaybePromise<VServerComponentBuffered[]> | undefined];
-type VServerComponentSuspenseBuffered = [VServerComponentType.Suspense, MaybePromise<VServerComponentBuffered[]> | undefined];
-
+type VServerComponentTextBuffered = [VServerComponentType.Text, string];
+type VServerComponentFragmentBuffered = [
+  VServerComponentType.Fragment,
+  MaybePromise<VServerComponentBuffered[]> | undefined,
+];
+type VServerComponentSuspenseBuffered = [
+  VServerComponentType.Suspense,
+  MaybePromise<VServerComponentBuffered[]> | undefined,
+];
 
 export type VServerComponentBuffered =
   | VServerComponentElementBuffered
@@ -62,5 +66,3 @@ export type VServerComponent =
   | VServerComponentText
   | VServerComponentFragment
   | VServerComponentSuspense;
-
-
