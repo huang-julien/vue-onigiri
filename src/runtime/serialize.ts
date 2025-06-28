@@ -49,7 +49,7 @@ export async function serializeComponent(component: Component, props?: any) {
   vnode.appContext = input._context;
 
   const child = await renderComponent(vnode, input._instance);
-  return renderVNode(child).then((result) => {
+  return serializeVNode(child).then((result) => {
     if (result) {
       return unrollServerComponentBufferPromises(result);
     }
@@ -91,14 +91,14 @@ export function serializeApp(app: App, context: SSRContext = {}) {
         });
 
         return p.then(() =>
-          renderVNode(child, instance).then((result) => {
+          serializeVNode(child, instance).then((result) => {
             if (result) {
               return unrollServerComponentBufferPromises(result);
             }
           }),
         );
       }
-      return renderVNode(child, instance).then((result) => {
+      return serializeVNode(child, instance).then((result) => {
         if (result) {
           return unrollServerComponentBufferPromises(result);
         }
@@ -142,7 +142,7 @@ export function unrollServerComponentBufferPromises(
   return Promise.all(promises).then(() => result);
 }
 
-export async function renderVNode(
+export async function serializeVNode(
   vnode: VNodeChild,
   parentInstance?: ComponentInternalInstance,
 ): Promise<VServerComponentBuffered | undefined> {
@@ -152,7 +152,7 @@ export async function renderVNode(
         VServerComponentType.Element,
         vnode.type as string,
         vnode.props ?? undefined,
-        renderChild(vnode.children, parentInstance),
+        serializeChildren(vnode.children, parentInstance),
       ];
     } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
       return Promise.resolve(renderComponent(vnode, parentInstance)).then(
@@ -169,7 +169,7 @@ export async function renderVNode(
                 vnode.props ?? undefined,
                 // @ts-expect-error
                 vnode.type.__chunk as string,
-                renderSlots(child.ctx?.__slotsResult),
+                serializeSlots(child.ctx?.__slotsResult),
               ];
             }
             console.warn("Component is missing chunk information");
@@ -177,7 +177,7 @@ export async function renderVNode(
 
           return [
             VServerComponentType.Fragment,
-            renderChild(child.children, parentInstance),
+            serializeChildren(child.children, parentInstance),
           ];
         },
       );
@@ -187,14 +187,14 @@ export async function renderVNode(
       return [
         VServerComponentType.Suspense,
         // @ts-expect-error internal API
-        renderChild(vnode.ssContent, parentInstance),
+        serializeChildren(vnode.ssContent, parentInstance),
       ];
     } else if (vnode.type === Text) {
       return [VServerComponentType.Text, vnode.children as string];
     } else if (vnode.type === Fragment) {
       return [
         VServerComponentType.Fragment,
-        renderChild(vnode.children, parentInstance),
+        serializeChildren(vnode.children, parentInstance),
       ];
     }
   } else if (
@@ -205,7 +205,7 @@ export async function renderVNode(
   }
 }
 
-function renderChild(
+function serializeChildren(
   children?: VNodeNormalizedChildren | VNode,
   parentInstance?: ComponentInternalInstance,
 ):
@@ -217,12 +217,12 @@ function renderChild(
   }
 
   if (isVNode(children)) {
-    return renderChild([children], parentInstance);
+    return serializeChildren([children], parentInstance);
   }
 
   if (Array.isArray(children)) {
     return Promise.all(
-      children.map((vnode) => renderVNode(vnode, parentInstance)),
+      children.map((vnode) => serializeVNode(vnode, parentInstance)),
     ).then((vnodes) => vnodes.filter(Boolean) as VServerComponentBuffered[]);
   }
   if (typeof children === "string" || typeof children === "number") {
@@ -230,7 +230,7 @@ function renderChild(
   }
 }
 
-function renderSlots(
+function serializeSlots(
   slots: Record<string, VNode> | undefined,
 ): MaybePromise<Record<string, VServerComponent[] | undefined>> | undefined {
   if (!slots) {
@@ -243,7 +243,7 @@ function renderSlots(
   for (const key in slots) {
     const slot = slots[key];
     if (Array.isArray(slot)) {
-      const r = Promise.all(slot.map((vnode) => renderVNode(vnode)))
+      const r = Promise.all(slot.map((vnode) => serializeVNode(vnode)))
         .then((vnodes) => vnodes.filter(Boolean) as VServerComponentBuffered)
         .then((v) => {
           return unrollServerComponentBufferPromises(v).then((v) => {
@@ -252,7 +252,7 @@ function renderSlots(
         });
       promises.push(r);
     } else if (isVNode(slot)) {
-      const r = renderVNode(slot);
+      const r = serializeVNode(slot);
       if (r) {
         promises.push(
           Promise.resolve(r).then((v) => {

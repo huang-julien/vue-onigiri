@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import ElementsOnly from "virtual:vsc:./fixtures/components/ElementsOnly.vue";
 import { defineComponent, h, nextTick, provide, Suspense } from "vue";
-import { renderServerComponent } from "../src/runtime/deserialize";
+import { renderOnigiri } from "../src/runtime/deserialize";
 import LoadComponent from "virtual:vsc:./fixtures/components/LoadComponent.vue";
 import { serializeComponent } from "../src/runtime/serialize";
 import AsyncComponent from "virtual:vsc:./fixtures/components/AsyncComponent.vue";
@@ -71,7 +71,7 @@ describe("serialize/deserialize", () => {
     const clientSide = mount(
       defineComponent({
         setup() {
-          return () => renderServerComponent(ast);
+          return () => renderOnigiri(ast);
         },
       }),
     );
@@ -138,7 +138,7 @@ describe("serialize/deserialize", () => {
                 Suspense,
                 {},
                 {
-                  default: () => renderServerComponent(ast),
+                  default: () => renderOnigiri(ast),
                 },
               );
           },
@@ -196,7 +196,7 @@ describe("Async components", () => {
     await nextTick();
     expect(html).toMatchInlineSnapshot(`"<div>Hello world ! some text</div>"`);
     const rebuilt = mount({
-      render: () => renderServerComponent(ast),
+      render: () => renderOnigiri(ast),
     });
     await flushPromises();
     expect(rebuilt.html()).toMatchInlineSnapshot(
@@ -287,7 +287,7 @@ describe("revive", () => {
               Suspense,
               { onResolve: () => resolve(true) },
               {
-                default: () => renderServerComponent(ast),
+                default: () => renderOnigiri(ast),
               },
             );
         },

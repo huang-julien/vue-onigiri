@@ -3,7 +3,7 @@ import { createApp } from "vue";
 import { serializeApp } from "../src/runtime/serialize";
 import ElementsOnly from "virtual:vsc:./fixtures/components/ElementsOnly.vue";
 import { renderToString } from "@vue/server-renderer";
-import { renderServerComponent } from "../src/runtime/deserialize";
+import { renderOnigiri } from "../src/runtime/deserialize";
 import { removeCommentsFromHtml } from "./utils";
 
 describe("serializeApp", () => {
@@ -14,7 +14,7 @@ describe("serializeApp", () => {
 
     const rebuilt = createApp({
       setup() {
-        return () => renderServerComponent(serialized);
+        return () => renderOnigiri(serialized);
       },
     });
     const rebuiltHtml = await renderToString(rebuilt);
