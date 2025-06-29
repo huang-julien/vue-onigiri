@@ -27,7 +27,7 @@
     "prepack": "pnpm build",
     "release": "pnpm test && changelogen --release && npm publish && git push --follow-tags",
     "test": "pnpm lint && pnpm test:types && vitest run --coverage",
-    "test:types": "tsc --noEmit --skipLibCheck"
+    "test:types": "vue-tsc"
   },
   "devDependencies": {
     "@types/node": "^22.13.13",
@@ -40,7 +40,8 @@
     "prettier": "^3.5.3",
     "typescript": "^5.8.2",
     "unbuild": "^3.5.0",
-    "vitest": "^3.1.4"
+    "vitest": "^3.1.4",
+    "vue-tsc": "^2.2.8"
   },
   "packageManager": "pnpm@10.7.0",
   "dependencies": {

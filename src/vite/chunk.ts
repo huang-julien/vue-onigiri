@@ -1,4 +1,4 @@
-import type { PluginOption } from "vite";
+import type { Plugin } from "vite";
 import { hash } from "ohash";
 import MagicString from "magic-string";
 import type { ExportDefaultDeclaration } from "acorn";
@@ -41,9 +41,10 @@ export type VSCOptions = {
 const VSC_PREFIX = "virtual:vsc:";
 const VSC_PREFIX_RE = /^(\/?@id\/)?virtual:vsc:/;
 const NOVSC_PREFIX_RE = /^(\/?@id\/)?(?!virtual:vsc:)/;
+
 export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
-  client: (opts?: Options) => PluginOption;
-  server: (opts?: Options) => PluginOption;
+  client: (opts?: Options) => Plugin[];
+  server: (opts?: Options) => Plugin[];
 } {
   const refs: { path: string; id: string }[] = [];
   let assetDir: string = "";
@@ -304,7 +305,7 @@ function getVuePlugin(options?: Options) {
   return plugin;
 }
 
-function getPatchedServerVue(options?: Options): PluginOption {
+function getPatchedServerVue(options?: Options): Plugin {
   const plugin = vue(
     defu(options, {
       include: [VSC_PREFIX_RE],
