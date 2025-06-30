@@ -1,1 +1,1 @@
-export * from "./vite/chunk"
+export * from "./vite/chunk";

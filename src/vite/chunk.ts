@@ -38,11 +38,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
   client: (opts?: Options) => Plugin[];
   server: (opts?: Options) => Plugin[];
 } {
-  
-  const {
-    serverAssetsDir = "",
-    clientAssetsDir = "",
-  } = options;
+  const { serverAssetsDir = "", clientAssetsDir = "" } = options;
   const refs: { path: string; id: string }[] = [];
   let assetDir: string = clientAssetsDir;
   let isProduction = false;
@@ -54,7 +50,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
       {
         name: "vite:vue-server-components-client",
         configResolved(config) {
-          if(!assetDir) {
+          if (!assetDir) {
             assetDir = config.build.assetsDir;
           }
           isProduction = config.isProduction;
@@ -73,10 +69,10 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
             if (isProduction) {
               const emitted = this.emitFile({
                 type: "chunk",
-                fileName: join(
-                   assetDir,
-                  hash(id) + ".mjs",
-                ).replaceAll("\\", "/"),
+                fileName: join(assetDir, hash(id) + ".mjs").replaceAll(
+                  "\\",
+                  "/",
+                ),
                 id: id,
                 preserveSignature: "strict",
               });
@@ -187,7 +183,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                 };
               }
               if (filename?.endsWith(".vue")) {
-                const fileName = join(serverAssetsDir , hash(id) + ".mjs");
+                const fileName = join(serverAssetsDir, hash(id) + ".mjs");
                 this.emitFile({
                   type: "chunk",
                   fileName,
