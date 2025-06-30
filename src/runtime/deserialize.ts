@@ -3,7 +3,7 @@ import { VServerComponentType, type VServerComponent } from "./shared";
 import loader from "./loader";
 import { defaultImportFn } from "./utils";
 
-export function renderServerComponent(
+export function renderOnigiri(
   input?: VServerComponent,
   importFn = defaultImportFn,
 ): VNode | undefined {
@@ -16,9 +16,7 @@ export function renderServerComponent(
     return h(
       input[1],
       input[2],
-      input[3]?.map((v) =>
-        renderServerComponent(v as VServerComponent, importFn),
-      ),
+      input[3]?.map((v) => renderOnigiri(v as VServerComponent, importFn)),
     );
   }
   if (input[0] === VServerComponentType.Component) {
@@ -31,9 +29,9 @@ export function renderServerComponent(
     return Array.isArray(input[1])
       ? h(
           Fragment,
-          input[1].map((v) => renderServerComponent(v, importFn)),
+          input[1].map((v) => renderOnigiri(v, importFn)),
         )
-      : renderServerComponent(input[1], importFn);
+      : renderOnigiri(input[1], importFn);
   }
   if (input[0] === VServerComponentType.Suspense) {
     return h(
@@ -54,7 +52,7 @@ export function renderChildren(
   return Array.isArray(data)
     ? h(
         Fragment,
-        data.map((v) => renderServerComponent(v, importFn)),
+        data.map((v) => renderOnigiri(v, importFn)),
       )
-    : renderServerComponent(data, importFn);
+    : renderOnigiri(data, importFn);
 }

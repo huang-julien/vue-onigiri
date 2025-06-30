@@ -299,7 +299,7 @@ function getVuePlugin(options?: Options) {
   return plugin;
 }
 
-function getPatchedServerVue(options?: Options): PluginOption {
+function getPatchedServerVue(options?: Options): Plugin {
   const plugin = vue(
     defu(options, {
       include: [VSC_PREFIX_RE],

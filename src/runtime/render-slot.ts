@@ -1,7 +1,8 @@
-import { renderSlot as _renderSlot, Slots, VNodeArrayChildren } from "vue";
+import { renderSlot as _renderSlot } from "vue";
+import type { Slots, VNodeArrayChildren } from "vue";
 
 export function renderSlot(
-  ctx,
+  ctx: any,
   slots: Slots,
   name: string,
   props = {},
