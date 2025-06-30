@@ -1,4 +1,4 @@
-import type { PluginOption } from "vite";
+import type { Plugin, PluginOption } from "vite";
 import { hash } from "ohash";
 import MagicString from "magic-string";
 import type { ExportDefaultDeclaration } from "acorn";
@@ -8,52 +8,45 @@ import vue from "@vitejs/plugin-vue";
 import { defu } from "defu";
 import type { Options } from "@vitejs/plugin-vue";
 import { glob } from "node:fs/promises";
-import { type FilterPattern } from "vite";
+
 export type VSCOptions = {
-  /**
-   * included chunks will be processed to be emitted
-   */
-  clientChunks?: {
-    /**
-     * @default /\.vue$/
-     */
-    include?: FilterPattern;
-    exclude?: FilterPattern;
-  };
   includeClientChunks: string[];
+  /**
+   * root directory from which to resolve the files.
+   * @default {string} root of the project
+   */
   rootDir?: string;
-  vueClient?: Options;
+  /**
+   * If the server plugin is used, this options will be passed to the modified vue plugin to generate component chunks using vnodes instead of string buffers.
+   */
   vueServerOptions?: Options;
   /**
-   * @default your dist dir
+   * @default {string} build asset dir to store server chunks.
    */
-  serverVscDir?: string;
+  serverAssetsDir?: string;
   /**
-   * @default your asset dir
+   * @default {string} build asset dir to store client chunks. Fallbacks to `build.assetsDir` if not provided.
    */
-  clientVscDir?: string;
-  /**
-   * @default undefined
-   */
-  clientAssetsPrefix?: string;
+  clientAssetsDir?: string;
 };
 
 const VSC_PREFIX = "virtual:vsc:";
 const VSC_PREFIX_RE = /^(\/?@id\/)?virtual:vsc:/;
 const NOVSC_PREFIX_RE = /^(\/?@id\/)?(?!virtual:vsc:)/;
-export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
-  client: (opts?: Options) => PluginOption;
-  server: (opts?: Options) => PluginOption;
+
+export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
+  client: (opts?: Options) => Plugin[];
+  server: (opts?: Options) => Plugin[];
 } {
+  
+  const {
+    serverAssetsDir = "",
+    clientAssetsDir = "",
+  } = options;
   const refs: { path: string; id: string }[] = [];
-  let assetDir: string = "";
+  let assetDir: string = clientAssetsDir;
   let isProduction = false;
   let rootDir = process.cwd();
-  const {
-    serverVscDir = "",
-    clientVscDir = "",
-    clientAssetsPrefix = "",
-  } = options;
 
   return {
     client: (opts) => [
@@ -61,7 +54,9 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
       {
         name: "vite:vue-server-components-client",
         configResolved(config) {
-          assetDir = config.build.assetsDir;
+          if(!assetDir) {
+            assetDir = config.build.assetsDir;
+          }
           isProduction = config.isProduction;
           rootDir = config.root;
         },
@@ -79,7 +74,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
               const emitted = this.emitFile({
                 type: "chunk",
                 fileName: join(
-                  clientVscDir || assetDir,
+                   assetDir,
                   hash(id) + ".mjs",
                 ).replaceAll("\\", "/"),
                 id: id,
@@ -92,7 +87,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
             } else {
               refs.push({
                 path: id.replaceAll("\\", "/"),
-                id: join(clientAssetsPrefix, relative(rootDir, id)).replaceAll(
+                id: join(clientAssetsDir, relative(rootDir, id)).replaceAll(
                   "\\",
                   "/",
                 ),
@@ -116,7 +111,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
 
     server: (opts) => [
       getVuePlugin(opts),
-      getPatchedServerVue(options?.vueServerOptions),
+      getPatchedServerVue(options?.vueServerOptions) as Plugin,
       {
         enforce: "pre",
         name: "vite:vue-server-components-server",
@@ -133,7 +128,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
             if (isProduction) {
               this.emitFile({
                 type: "chunk",
-                fileName: join(serverVscDir, hash(id) + ".mjs").replaceAll(
+                fileName: join(serverAssetsDir, hash(id) + ".mjs").replaceAll(
                   "\\",
                   "/",
                 ),
@@ -192,7 +187,7 @@ export function vueServerComponentsPlugin(options: Partial<VSCOptions> = {}): {
                 };
               }
               if (filename?.endsWith(".vue")) {
-                const fileName = serverVscDir + hash(id) + ".mjs";
+                const fileName = join(serverAssetsDir , hash(id) + ".mjs");
                 this.emitFile({
                   type: "chunk",
                   fileName,

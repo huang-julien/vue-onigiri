@@ -1,17 +1,16 @@
 import { fileURLToPath, URL } from "node:url";
 
-import { defineConfig, Plugin } from "vite";
-import vue from "@vitejs/plugin-vue";
+import { defineConfig } from "vite";
 import vueDevTools from "vite-plugin-vue-devtools";
-import { vueServerComponentsPlugin } from "../src/vite/chunk";
+import { vueOnigiriPluginFactory } from "../src/vite/chunk";
 
-const { client, server } = vueServerComponentsPlugin({
-  include: ["./src/components/HelloWorld.vue"],
+const { client, server } = vueOnigiriPluginFactory({
+  includeClientChunks: ["./src/components/HelloWorld.vue"],
 });
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [client, vueDevTools(), server],
+  plugins: [client(), vueDevTools(), server()],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("src", import.meta.url)),

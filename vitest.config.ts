@@ -1,8 +1,8 @@
 import { defineConfig } from "vitest/config";
-import { vueServerComponentsPlugin } from "./src/vite/chunk";
+import { vueOnigiriPluginFactory } from "./src/vite/chunk";
 import type { Plugin } from "vite";
 
-const { client, server } = vueServerComponentsPlugin();
+const { client, server } = vueOnigiriPluginFactory();
 export default defineConfig({
   plugins: [(client() as [Plugin, Plugin])[1], server()],
   test: {

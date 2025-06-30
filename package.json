@@ -7,6 +7,10 @@
   "sideEffects": false,
   "type": "module",
   "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
     "./*": {
       "import": "./dist/*.js",
       "require": "./dist/*.js"
