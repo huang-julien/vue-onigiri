@@ -43,11 +43,12 @@ const {
   ) => Promise<void> | undefined;
   renderComponentRoot: (
     instance: ComponentInternalInstance,
-  ) => VNode & { ctx?: { __slotsResult?: Record<string, VNode> } };
+  ) => VNode & { ctx?: { __slotsResult?: Record<string, VNode> }, _onigiriLoadClient?: boolean };
 } = ssrUtils;
 
 export async function serializeComponent(component: Component, props?: any) {
   const input = createApp(component, props);
+  applyDirective(input);
   const vnode = createVNode(input._component, input._props);
   vnode.appContext = input._context;
 
@@ -62,7 +63,7 @@ export async function serializeComponent(component: Component, props?: any) {
 export function serializeApp(app: App, context: SSRContext = {}) {
   const input = app;
   app.provide(ssrContextKey, context);
-
+  applyDirective(app);
   const vnode = createVNode(input._component, input._props);
   // vnode.appContext = input._context
   const instance = createComponentInstance(vnode, input._instance, null);
@@ -160,11 +161,7 @@ export async function serializeVNode(
     } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
       return Promise.resolve(renderComponent(vnode, parentInstance)).then(
         (child) => {
-          if (
-            vnode.props &&
-            "load:client" in vnode.props &&
-            vnode.props["load:client"] !== false
-          ) {
+          if (child._onigiriLoadClient) {
             // @ts-expect-error
             if (vnode.type.__chunk) {
               return [
@@ -339,3 +336,15 @@ function applySSRDirectives(
   return mergeProps(rawProps || {}, ...toMerge)
 }
 
+function applyDirective(app: App) {
+  app.directive('load-client', {
+    getSSRProps(binding, vnode) {
+      console.log(binding)
+      if (binding.value !== false) {
+        // @ts-ignore
+        vnode._onigiriLoadClient = true;
+      }
+      return {}
+    },
+  })
+}

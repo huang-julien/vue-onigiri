@@ -2,7 +2,7 @@
   <div>
     <div>1</div>
     <div>2</div>
-    <Counter loadClientSide load:client />
+    <Counter v-load-client />
   </div>
 </template>
 

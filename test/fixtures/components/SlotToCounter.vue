@@ -1,6 +1,6 @@
 <template>
   <div>
-    <Counter loadClientSide load:client>
+    <Counter v-load-client>
       <template #default="{ count }">
         <div>
           <p>Slot to Counter: {{ count }}</p>

@@ -87,49 +87,45 @@ describe("serialize/deserialize", () => {
       const ast = await serializeComponent(LoadComponent);
       const html = await renderToString(h(LoadComponent));
       expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
-        `"<div><div>1</div><div>2</div><div loadclientside load:client> counter : 0 <button>Increment</button></div></div>"`,
-      );
+      `"<div><div>1</div><div>2</div><div> counter : 0 <button>Increment</button></div></div>"`);
 
       expect(ast).toMatchInlineSnapshot(`
-      [
-        0,
-        "div",
-        undefined,
         [
+          0,
+          "div",
+          undefined,
           [
-            0,
-            "div",
-            undefined,
             [
+              0,
+              "div",
+              undefined,
               [
-                2,
-                "1",
+                [
+                  2,
+                  "1",
+                ],
               ],
             ],
-          ],
-          [
-            0,
-            "div",
-            undefined,
             [
+              0,
+              "div",
+              undefined,
               [
-                2,
-                "2",
+                [
+                  2,
+                  "2",
+                ],
               ],
             ],
+            [
+              1,
+              undefined,
+              "/test/fixtures/components/Counter.vue",
+              {},
+            ],
           ],
-          [
-            1,
-            {
-              "load:client": "",
-              "loadClientSide": "",
-            },
-            "/test/fixtures/components/Counter.vue",
-            {},
-          ],
-        ],
-      ]
-    `);
+        ]
+      `);
       const clientSide = mount(
         defineComponent({
           setup() {
@@ -149,9 +145,7 @@ describe("serialize/deserialize", () => {
       const rebuiltHtml = removeCommentsFromHtml(
         clientSide.html().replaceAll(/\r?\n| |=""/g, ""),
       );
-      expect(removeCommentsFromHtml(rebuiltHtml)).toMatchInlineSnapshot(
-        `"<div><div>1</div><div>2</div><divloadclientsideload:client>counter:0<button>Increment</button></div></div>"`,
-      );
+      expect(removeCommentsFromHtml(rebuiltHtml)).toMatchInlineSnapshot(`"<div><div>1</div><div>2</div><div>counter:0<button>Increment</button></div></div>"`);
       expect(rebuiltHtml).toEqual(
         removeCommentsFromHtml(html).replaceAll(/\r?\n| |=""/g, ""),
       );
@@ -164,7 +158,7 @@ describe("serialize/deserialize", () => {
         "<div>
           <div>1</div>
           <div>2</div>
-          <div loadclientside="" load:client=""> counter : 1 <button>Increment</button></div>
+          <div> counter : 1 <button>Increment</button></div>
         </div>"
       `);
     });
@@ -313,10 +307,7 @@ describe("slots", () => {
         [
           [
             1,
-            {
-              "load:client": "",
-              "loadClientSide": "",
-            },
+            undefined,
             "/test/fixtures/components/Counter.vue",
             {},
           ],
@@ -326,7 +317,7 @@ describe("slots", () => {
 
     const html = await renderToString(h(SlotToCounter));
     expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
-      `"<div><div loadclientside load:client> counter : 0 <button>Increment</button><div><p>Slot to Counter: 0</p></div></div></div>"`,
+      `"<div><div> counter : 0 <button>Increment</button><div><p>Slot to Counter: 0</p></div></div></div>"`,
     );
   });
 });
