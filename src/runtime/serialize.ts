@@ -275,7 +275,11 @@ function renderComponent(
   _vnode: VNode,
   parentInstance?: ComponentInternalInstance | null,
 ) {
-  const instance = createComponentInstance(_vnode, parentInstance ?? null, null);
+  const instance = createComponentInstance(
+    _vnode,
+    parentInstance ?? null,
+    null,
+  );
   const res = setupComponent(instance, true);
   const hasAsyncSetup = isPromise(res);
   let prefetches =
@@ -298,9 +302,9 @@ function renderComponent(
     return p.then(() => {
       const vnode = renderComponentRoot(instance);
 
-      const { dirs, props } = vnode
+      const { dirs, props } = vnode;
       if (dirs) {
-        vnode.props = applySSRDirectives(vnode, props, dirs)
+        vnode.props = applySSRDirectives(vnode, props, dirs);
       }
 
       return vnode;
@@ -308,10 +312,9 @@ function renderComponent(
   }
   const vnode = renderComponentRoot(instance);
 
-
-  const { dirs, props } = vnode
+  const { dirs, props } = vnode;
   if (dirs) {
-    vnode.props = applySSRDirectives(vnode, props, dirs)
+    vnode.props = applySSRDirectives(vnode, props, dirs);
   }
 
   return vnode;
@@ -323,17 +326,17 @@ function applySSRDirectives(
   rawProps: VNodeProps | null,
   dirs: DirectiveBinding[],
 ): VNodeProps {
-  const toMerge: VNodeProps[] = []
+  const toMerge: VNodeProps[] = [];
   // eslint-disable-next-line unicorn/no-for-loop
   for (let i = 0; i < dirs.length; i++) {
-    const binding = dirs[i]
-    const getSSRProps = binding?.dir.getSSRProps
+    const binding = dirs[i];
+    const getSSRProps = binding?.dir.getSSRProps;
     if (getSSRProps) {
-      const props = getSSRProps(binding, vnode)
-      if (props) toMerge.push(props)
+      const props = getSSRProps(binding, vnode);
+      if (props) toMerge.push(props);
     }
   }
-  return mergeProps(rawProps || {}, ...toMerge)
+  return mergeProps(rawProps || {}, ...toMerge);
 }
 
 function applyDirective(app: App) {
