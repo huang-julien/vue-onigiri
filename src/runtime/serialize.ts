@@ -43,7 +43,10 @@ const {
   ) => Promise<void> | undefined;
   renderComponentRoot: (
     instance: ComponentInternalInstance,
-  ) => VNode & { ctx?: { __slotsResult?: Record<string, VNode> }, _onigiriLoadClient?: boolean };
+  ) => VNode & {
+    ctx?: { __slotsResult?: Record<string, VNode> };
+    _onigiriLoadClient?: boolean;
+  };
 } = ssrUtils;
 
 export async function serializeComponent(component: Component, props?: any) {
@@ -340,14 +343,14 @@ function applySSRDirectives(
 }
 
 function applyDirective(app: App) {
-  app.directive('load-client', {
+  app.directive("load-client", {
     getSSRProps(binding, vnode) {
-      console.log(binding)
+      console.log(binding);
       if (binding.value !== false) {
         // @ts-ignore
         vnode._onigiriLoadClient = true;
       }
-      return {}
+      return {};
     },
-  })
+  });
 }
