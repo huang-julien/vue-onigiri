@@ -1,4 +1,4 @@
-import type { Plugin, PluginOption } from "vite";
+import type { Plugin } from "vite";
 import { hash } from "ohash";
 import MagicString from "magic-string";
 import type { ExportDefaultDeclaration } from "acorn";
@@ -8,6 +8,10 @@ import vue from "@vitejs/plugin-vue";
 import { defu } from "defu";
 import type { Options } from "@vitejs/plugin-vue";
 import { glob } from "node:fs/promises";
+
+function normalizePath(path: string): string {
+  return normalize(path).replaceAll("\\", "/");
+}
 
 export type VSCOptions = {
   includeClientChunks: string[];
@@ -69,24 +73,18 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
             if (isProduction) {
               const emitted = this.emitFile({
                 type: "chunk",
-                fileName: join(assetDir, hash(id) + ".mjs").replaceAll(
-                  "\\",
-                  "/",
-                ),
+                fileName: normalizePath(join(assetDir, hash(id) + ".mjs")),
                 id: id,
                 preserveSignature: "strict",
               });
               refs.push({
-                path: id.replaceAll("\\", "/"),
-                id: this.getFileName(emitted).replaceAll("\\", "/"),
+                path: normalizePath(id),
+                id: normalizePath(this.getFileName(emitted)),
               });
             } else {
               refs.push({
-                path: id.replaceAll("\\", "/"),
-                id: join(clientAssetsDir, relative(rootDir, id)).replaceAll(
-                  "\\",
-                  "/",
-                ),
+                path: normalizePath(id),
+                id: normalizePath(join(clientAssetsDir, relative(rootDir, id))),
               });
             }
           }
@@ -124,10 +122,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
             if (isProduction) {
               this.emitFile({
                 type: "chunk",
-                fileName: join(serverAssetsDir, hash(id) + ".mjs").replaceAll(
-                  "\\",
-                  "/",
-                ),
+                fileName: normalizePath(join(serverAssetsDir, hash(id) + ".mjs")),
                 id: id,
                 preserveSignature: "strict",
               });
@@ -177,7 +172,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
 
                 return {
                   code: readFileSync(
-                    normalize(file).replaceAll("\\", "/"),
+                    normalizePath(normalize(file)),
                     "utf8",
                   ),
                 };
@@ -228,7 +223,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                   start,
                   end,
                   `Object.assign(
-                                    { __chunk: "${join("/", isProduction ? normalize(ref.id) : relative(rootDir, normalize(ref.id))).replaceAll("\\", "/")}" },
+                                    { __chunk: "${normalizePath(join("/", isProduction ? normalize(ref.id) : relative(rootDir, normalize(ref.id))))}" },
                                      ${code.slice(start, end)},
                                 )`,
                 );
