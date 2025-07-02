@@ -15,6 +15,9 @@ import {
   ssrContextKey,
   Fragment,
   type Component,
+  mergeProps,
+  type DirectiveBinding,
+  type VNodeProps,
 } from "vue";
 import { isPromise, ShapeFlags } from "@vue/shared";
 import {
@@ -272,10 +275,10 @@ function serializeSlots(
 }
 
 function renderComponent(
-  vnode: VNode,
+  _vnode: VNode,
   parentInstance?: ComponentInternalInstance | null,
 ) {
-  const instance = createComponentInstance(vnode, parentInstance ?? null, null);
+  const instance = createComponentInstance(_vnode, parentInstance ?? null, null);
   const res = setupComponent(instance, true);
   const hasAsyncSetup = isPromise(res);
   let prefetches =
@@ -296,8 +299,43 @@ function renderComponent(
       }
     });
     return p.then(() => {
-      return renderComponentRoot(instance);
+      const vnode = renderComponentRoot(instance);
+
+      const { dirs, props } = vnode
+      if (dirs) {
+        vnode.props = applySSRDirectives(vnode, props, dirs)
+      }
+
+      return vnode;
     });
   }
-  return renderComponentRoot(instance);
+  const vnode = renderComponentRoot(instance);
+
+
+  const { dirs, props } = vnode
+  if (dirs) {
+    vnode.props = applySSRDirectives(vnode, props, dirs)
+  }
+
+  return vnode;
 }
+
+// todo test this
+function applySSRDirectives(
+  vnode: VNode,
+  rawProps: VNodeProps | null,
+  dirs: DirectiveBinding[],
+): VNodeProps {
+  const toMerge: VNodeProps[] = []
+  // eslint-disable-next-line unicorn/no-for-loop
+  for (let i = 0; i < dirs.length; i++) {
+    const binding = dirs[i]
+    const getSSRProps = binding?.dir.getSSRProps
+    if (getSSRProps) {
+      const props = getSSRProps(binding, vnode)
+      if (props) toMerge.push(props)
+    }
+  }
+  return mergeProps(rawProps || {}, ...toMerge)
+}
+
