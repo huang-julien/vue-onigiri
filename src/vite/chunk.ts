@@ -122,7 +122,9 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
             if (isProduction) {
               this.emitFile({
                 type: "chunk",
-                fileName: normalizePath(join(serverAssetsDir, hash(id) + ".mjs")),
+                fileName: normalizePath(
+                  join(serverAssetsDir, hash(id) + ".mjs"),
+                ),
                 id: id,
                 preserveSignature: "strict",
               });
@@ -171,10 +173,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                 const file = id.replace(VSC_PREFIX_RE, "");
 
                 return {
-                  code: readFileSync(
-                    normalizePath(normalize(file)),
-                    "utf8",
-                  ),
+                  code: readFileSync(normalizePath(normalize(file)), "utf8"),
                 };
               }
               if (filename?.endsWith(".vue")) {
