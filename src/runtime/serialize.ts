@@ -41,9 +41,7 @@ const {
     instance: ComponentInternalInstance,
     isSSR?: boolean,
   ) => Promise<void> | undefined;
-  renderComponentRoot: (
-    instance: ComponentInternalInstance,
-  ) => VNode & {
+  renderComponentRoot: (instance: ComponentInternalInstance) => VNode & {
     ctx?: { __slotsResult?: Record<string, VNode> };
     _onigiriLoadClient?: boolean;
   };
