@@ -111,12 +111,6 @@ export function unrollServerComponentBufferPromises(
       return unrollServerComponentBufferPromises(r);
     });
   }
-  if (Array.isArray(buffer) && typeof buffer[0] !== "number") {
-    // This is a VServerComponentBuffered
-    return (buffer as VServerComponentBuffered[]).map((element) =>
-      unrollServerComponentBufferPromises(element),
-    );
-  }
   const result = [] as unknown as VServerComponent;
   const promises: Promise<any>[] = [];
 
