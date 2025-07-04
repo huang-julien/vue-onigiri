@@ -71,7 +71,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                     node.value.callee.name === "_withCtx"
                   ) {
                     // should always be an identifier
-                    const slotName = (node.key as Identifier).name
+                    const slotName = (node.key as Identifier).name;
                     const callExpression = node.value;
 
                     s.overwrite(
