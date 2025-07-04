@@ -1,4 +1,4 @@
-import { renderSlot as _renderSlot, withCtx, getCurrentInstance } from "vue";
+import { renderSlot as _renderSlot, withCtx } from "vue";
 import type { Slots, VNode, VNodeArrayChildren } from "vue";
 
 export function renderSSRSlot(
@@ -18,7 +18,7 @@ export function renderSSRSlot(
   return result;
 }
 
-export function renderSlot(slotNode: VNode, name: string, ctx) {
+export function renderSlot(slotNode: (...args: unknown[]) => VNode, name: string, ctx) {
   return withCtx((...args) => {
     const result = slotNode(...args);
     ctx._.__slotsResult = ctx._.__slotsResult || {};

@@ -8,7 +8,7 @@ import vue from "@vitejs/plugin-vue";
 import { defu } from "defu";
 import type { Options } from "@vitejs/plugin-vue";
 import { glob } from "node:fs/promises";
-import { parseAndWalk } from "oxc-walker";
+import { parseAndWalk, type Identifier } from "oxc-walker";
 function normalizePath(path: string): string {
   return normalize(path).replaceAll("\\", "/");
 }
@@ -70,10 +70,8 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                     node.value.callee.type === "Identifier" &&
                     node.value.callee.name === "_withCtx"
                   ) {
-                    const slotName =
-                      node.key.type === "Identifier"
-                        ? node.key.name
-                        : node.key.value;
+                    // should always be an identifier
+                    const slotName = (node.key as Identifier).name
                     const callExpression = node.value;
 
                     s.overwrite(

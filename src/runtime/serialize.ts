@@ -27,6 +27,21 @@ import {
 } from "./shared";
 import type { MaybePromise } from "rollup";
 
+
+declare module "vue" {
+  interface ComponentInternalInstance {
+    __slotsResult?: Record<string, VNode>;
+  }
+}
+
+// todo better way to detect SSR
+declare global {
+  interface ImportMeta {
+    server: boolean;
+  }
+}
+
+
 const {
   createComponentInstance,
   setupComponent,
@@ -42,7 +57,7 @@ const {
     isSSR?: boolean,
   ) => Promise<void> | undefined;
   renderComponentRoot: (instance: ComponentInternalInstance) => VNode & {
-    ctx?: { __slotsResult?: Record<string, VNode> };
+    __slotsResult?: Record<string, VNode>;
     _onigiriLoadClient?: boolean;
   };
 } = ssrUtils;
