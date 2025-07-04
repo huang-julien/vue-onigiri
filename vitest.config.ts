@@ -17,5 +17,5 @@ export default defineConfig({
     "import.meta.hot.on": "globalThis.mockedFn",
     "import.meta.hot.accept": "globalThis.mockedFn",
   },
-  mode: 'production',
+  mode: "production",
 });

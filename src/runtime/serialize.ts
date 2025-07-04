@@ -113,7 +113,9 @@ export function unrollServerComponentBufferPromises(
   }
   if (Array.isArray(buffer) && typeof buffer[0] !== "number") {
     // This is a VServerComponentBuffered
-    return (buffer as VServerComponentBuffered[]).map((element) => unrollServerComponentBufferPromises(element))
+    return (buffer as VServerComponentBuffered[]).map((element) =>
+      unrollServerComponentBufferPromises(element),
+    );
   }
   const result = [] as unknown as VServerComponent;
   const promises: Promise<any>[] = [];
@@ -140,7 +142,6 @@ export function unrollServerComponentBufferPromises(
     }
   }
 
- 
   return Promise.all(promises).then(() => result);
 }
 
@@ -161,7 +162,7 @@ export async function serializeVNode(
         (child) => {
           if (child._onigiriLoadClient) {
             // @ts-expect-error
-            if (vnode.type.__chunk) { 
+            if (vnode.type.__chunk) {
               return [
                 VServerComponentType.Component,
                 vnode.props ?? undefined,
@@ -234,9 +235,7 @@ function serializeSlots(
   if (!slots) {
     return {};
   }
-  const result:
-    | Record<string, VServerComponent[] | undefined>
-    | undefined = {};
+  const result: Record<string, VServerComponent[] | undefined> | undefined = {};
   const promises: Promise<any>[] = [];
   for (const key in slots) {
     const slot = slots[key];
@@ -244,21 +243,27 @@ function serializeSlots(
     if (Array.isArray(slot)) {
       promises.push(
         Promise.all(
-          slot.map((vnode) => Promise.resolve(serializeVNode(vnode)).then(v => {
-            if(v) {
-              return unrollServerComponentBufferPromises(v)
-            }
-          }) as Promise<VServerComponentBuffered | undefined>),
-        ).then((vnodes) => { 
-          result[key] = vnodes.length > 0 ? vnodes.filter(Boolean) as VServerComponent[] : undefined;
-        })
-      )
+          slot.map(
+            (vnode) =>
+              Promise.resolve(serializeVNode(vnode)).then((v) => {
+                if (v) {
+                  return unrollServerComponentBufferPromises(v);
+                }
+              }) as Promise<VServerComponentBuffered | undefined>,
+          ),
+        ).then((vnodes) => {
+          result[key] =
+            vnodes.length > 0
+              ? (vnodes.filter(Boolean) as VServerComponent[])
+              : undefined;
+        }),
+      );
     } else {
       console.warn(`Unexpected slot type: ${typeof slot} for key: ${key}`);
     }
   }
   return Promise.all(promises).then(() => {
-    return result
+    return result;
   });
 }
 
@@ -297,7 +302,9 @@ function renderComponent(
       if (dirs) {
         vnode.props = applySSRDirectives(vnode, props, dirs);
       }
-      vnode.__slotsResult = import.meta.server ? instance.__slotsResult : instance.parent?.__slotsResult;
+      vnode.__slotsResult = import.meta.server
+        ? instance.__slotsResult
+        : instance.parent?.__slotsResult;
       return vnode;
     });
   }
@@ -307,7 +314,9 @@ function renderComponent(
   if (dirs) {
     child.props = applySSRDirectives(child, props, dirs);
   }
-  child.__slotsResult = import.meta.server ? instance.__slotsResult : instance.parent?.__slotsResult;
+  child.__slotsResult = import.meta.server
+    ? instance.__slotsResult
+    : instance.parent?.__slotsResult;
   return child;
 }
 
@@ -344,7 +353,7 @@ function applyDirective(app: App) {
         // @ts-ignore
         vnode._onigiriLoadClient = true;
       }
-      return binding
-    }
-  })
+      return binding;
+    },
+  });
 }

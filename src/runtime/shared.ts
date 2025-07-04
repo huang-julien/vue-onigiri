@@ -34,7 +34,7 @@ type VServerComponentElementBuffered = [
   VServerComponentType.Element,
   Tag,
   Attrs,
-  MaybePromise<(VServerComponentBuffered|undefined)[]> | undefined,
+  MaybePromise<(VServerComponentBuffered | undefined)[]> | undefined,
 ];
 
 type VServerComponentComponentBuffered = [

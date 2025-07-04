@@ -8,7 +8,7 @@ import vue from "@vitejs/plugin-vue";
 import { defu } from "defu";
 import type { Options } from "@vitejs/plugin-vue";
 import { glob } from "node:fs/promises";
-import { parseAndWalk} from "oxc-walker"
+import { parseAndWalk } from "oxc-walker";
 function normalizePath(path: string): string {
   return normalize(path).replaceAll("\\", "/");
 }
@@ -51,7 +51,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
   return {
     client: (opts) => [
       vue(opts),
-      
+
       {
         name: "vue-onigiri:renderSlotReplace",
         transform: {
@@ -64,19 +64,27 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
               );
               parseAndWalk(code, id, {
                 enter(node) {
-                  if(node.type === 'Property' && node.value.type === 'CallExpression' && node.value.callee.type === 'Identifier' && node.value.callee.name === '_withCtx') {
-                    const slotName = node.key.type === 'Identifier' ? node.key.name : node.key.value;
+                  if (
+                    node.type === "Property" &&
+                    node.value.type === "CallExpression" &&
+                    node.value.callee.type === "Identifier" &&
+                    node.value.callee.name === "_withCtx"
+                  ) {
+                    const slotName =
+                      node.key.type === "Identifier"
+                        ? node.key.name
+                        : node.key.value;
                     const callExpression = node.value;
 
                     s.overwrite(
                       callExpression.start,
                       callExpression.end,
                       `cryoRenderSlot(${code.slice(callExpression.start, callExpression.end)}, '${slotName}', _ctx)`,
-                    )
+                    );
                     console.log(s.toString());
                   }
-                }
-              })
+                },
+              });
               return {
                 code: s.toString(),
                 map: s.generateMap({ hires: true }).toString(),
