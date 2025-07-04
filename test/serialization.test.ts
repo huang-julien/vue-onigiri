@@ -87,7 +87,8 @@ describe("serialize/deserialize", () => {
       const ast = await serializeComponent(LoadComponent);
       const html = await renderToString(h(LoadComponent));
       expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
-      `"<div><div>1</div><div>2</div><div> counter : 0 <button>Increment</button></div></div>"`);
+        `"<div><div>1</div><div>2</div><div> counter : 0 <button>Increment</button></div></div>"`,
+      );
 
       expect(ast).toMatchInlineSnapshot(`
         [
@@ -145,7 +146,9 @@ describe("serialize/deserialize", () => {
       const rebuiltHtml = removeCommentsFromHtml(
         clientSide.html().replaceAll(/\r?\n| |=""/g, ""),
       );
-      expect(removeCommentsFromHtml(rebuiltHtml)).toMatchInlineSnapshot(`"<div><div>1</div><div>2</div><div>counter:0<button>Increment</button></div></div>"`);
+      expect(removeCommentsFromHtml(rebuiltHtml)).toMatchInlineSnapshot(
+        `"<div><div>1</div><div>2</div><div>counter:0<button>Increment</button></div></div>"`,
+      );
       expect(rebuiltHtml).toEqual(
         removeCommentsFromHtml(html).replaceAll(/\r?\n| |=""/g, ""),
       );
