@@ -265,17 +265,18 @@ function serializeSlots(
               : undefined;
         }),
       );
-    } else if(isVNode(slot)) {
+    } else if (isVNode(slot)) {
       promises.push(
-        Promise.resolve(serializeVNode(slot)).then((v) => {
-          if (v) {
-            return unrollServerComponentBufferPromises(v);
-          }
-        }).then((vnode) => {
-          result[key] = vnode ? [vnode] : undefined;
-        }
-        )
-      )
+        Promise.resolve(serializeVNode(slot))
+          .then((v) => {
+            if (v) {
+              return unrollServerComponentBufferPromises(v);
+            }
+          })
+          .then((vnode) => {
+            result[key] = vnode ? [vnode] : undefined;
+          }),
+      );
     } else {
       console.warn(`Unexpected slot type: ${typeof slot} for key: ${key}`);
     }
@@ -320,7 +321,7 @@ function renderComponent(
       if (dirs) {
         vnode.props = applySSRDirectives(vnode, props, dirs);
       }
-      vnode.__slotsResult = instance.__slotsResult
+      vnode.__slotsResult = instance.__slotsResult;
       return vnode;
     });
   }
@@ -330,7 +331,7 @@ function renderComponent(
   if (dirs) {
     child.props = applySSRDirectives(child, props, dirs);
   }
-  child.__slotsResult = instance.__slotsResult
+  child.__slotsResult = instance.__slotsResult;
   return child;
 }
 
