@@ -315,18 +315,23 @@ describe("slots", () => {
             {
               "default": [
                 [
-                  0,
-                  "div",
-                  undefined,
+                  3,
                   [
                     [
                       0,
-                      "p",
+                      "div",
                       undefined,
                       [
                         [
-                          2,
-                          "Slot to Counter: 0",
+                          0,
+                          "p",
+                          undefined,
+                          [
+                            [
+                              2,
+                              "Slot to Counter: 0",
+                            ],
+                          ],
                         ],
                       ],
                     ],

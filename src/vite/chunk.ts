@@ -62,26 +62,10 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
               s.prepend(
                 `import { renderSlot as cryoRenderSlot } from 'vue-onigiri/runtime/render-slot';\n`,
               );
-              parseAndWalk(code, id, {
-                enter(node) {
-                  if (
-                    node.type === "Property" &&
-                    node.value.type === "CallExpression" &&
-                    node.value.callee.type === "Identifier" &&
-                    node.value.callee.name === "_withCtx"
-                  ) {
-                    // should always be an identifier
-                    const slotName = (node.key as Identifier).name;
-                    const callExpression = node.value;
+            
+              // replace renderSlot with vue-onigiri:renderSlot
+              s.replace(/_renderSlot\(/g, "cryoRenderSlot(_ctx,");
 
-                    s.overwrite(
-                      callExpression.start,
-                      callExpression.end,
-                      `cryoRenderSlot(${code.slice(callExpression.start, callExpression.end)}, '${slotName}', _ctx)`,
-                    );
-                  }
-                },
-              });
               return {
                 code: s.toString(),
                 map: s.generateMap({ hires: true }).toString(),
@@ -178,7 +162,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                 return id;
               }
               if (id.endsWith(".vue")) {
-                const resolved = await this.resolve(id, importer);
+                const resolved = await this.resolve(id, importer.replace(VSC_PREFIX_RE, ""));
                 if (resolved) {
                   return VSC_PREFIX + resolved.id;
                 }
@@ -282,7 +266,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
             if (VSC_PREFIX_RE.test(id)) {
               const s = new MagicString(code);
               s.prepend(
-                `import { renderSSRSlot as cryoRenderSlot } from 'vue-onigiri/runtime/render-slot';\n`,
+                `import { renderSlot as cryoRenderSlot } from 'vue-onigiri/runtime/render-slot';\n`,
               );
               // replace renderSlot with vue-onigiri:renderSlot
               s.replace(/_renderSlot\(/g, "cryoRenderSlot(_ctx,");

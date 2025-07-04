@@ -246,7 +246,7 @@ function serializeSlots(
   const promises: Promise<any>[] = [];
   for (const key in slots) {
     const slot = slots[key];
-    // slots should always be an array
+
     if (Array.isArray(slot)) {
       promises.push(
         Promise.all(
@@ -265,6 +265,17 @@ function serializeSlots(
               : undefined;
         }),
       );
+    } else if(isVNode(slot)) {
+      promises.push(
+        Promise.resolve(serializeVNode(slot)).then((v) => {
+          if (v) {
+            return unrollServerComponentBufferPromises(v);
+          }
+        }).then((vnode) => {
+          result[key] = vnode ? [vnode] : undefined;
+        }
+        )
+      )
     } else {
       console.warn(`Unexpected slot type: ${typeof slot} for key: ${key}`);
     }
@@ -309,9 +320,7 @@ function renderComponent(
       if (dirs) {
         vnode.props = applySSRDirectives(vnode, props, dirs);
       }
-      vnode.__slotsResult = import.meta.server
-        ? instance.__slotsResult
-        : instance.parent?.__slotsResult;
+      vnode.__slotsResult = instance.__slotsResult
       return vnode;
     });
   }
@@ -321,9 +330,7 @@ function renderComponent(
   if (dirs) {
     child.props = applySSRDirectives(child, props, dirs);
   }
-  child.__slotsResult = import.meta.server
-    ? instance.__slotsResult
-    : instance.parent?.__slotsResult;
+  child.__slotsResult = instance.__slotsResult
   return child;
 }
 
