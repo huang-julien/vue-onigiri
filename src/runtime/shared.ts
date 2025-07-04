@@ -26,7 +26,10 @@ type VServerComponentComponent = [
 ];
 type VServerComponentText = [VServerComponentType.Text, string];
 type VServerComponentFragment = [VServerComponentType.Fragment, Children[]];
-type VServerComponentSuspense = [VServerComponentType.Suspense, VServerComponent[] | undefined];
+type VServerComponentSuspense = [
+  VServerComponentType.Suspense,
+  VServerComponent[] | undefined,
+];
 
 type MaybePromise<T> = T | Promise<T>;
 

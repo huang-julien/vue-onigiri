@@ -18,7 +18,11 @@ export function renderSSRSlot(
   return result;
 }
 
-export function renderSlot(slotNode: (...args: unknown[]) => VNode, name: string, ctx) {
+export function renderSlot(
+  slotNode: (...args: unknown[]) => VNode,
+  name: string,
+  ctx,
+) {
   return withCtx((...args) => {
     const result = slotNode(...args);
     ctx._.__slotsResult = ctx._.__slotsResult || {};

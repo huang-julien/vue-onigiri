@@ -27,7 +27,6 @@ import {
 } from "./shared";
 import type { MaybePromise } from "rollup";
 
-
 declare module "vue" {
   interface ComponentInternalInstance {
     __slotsResult?: Record<string, VNode>;
@@ -40,7 +39,6 @@ declare global {
     server: boolean;
   }
 }
-
 
 const {
   createComponentInstance,
