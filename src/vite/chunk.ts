@@ -79,7 +79,6 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                       callExpression.end,
                       `cryoRenderSlot(${code.slice(callExpression.start, callExpression.end)}, '${slotName}', _ctx)`,
                     );
-                    console.log(s.toString());
                   }
                 },
               });
