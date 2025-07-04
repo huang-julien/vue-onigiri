@@ -1,6 +1,6 @@
 import { h, type DefineComponent, defineComponent, inject } from "vue";
 import type { VServerComponent } from "./shared";
-import { renderChildren } from "./deserialize";
+import { renderChildren, renderOnigiri } from "./deserialize";
 import { INJECTION_KEY } from "./plugin";
 import { defaultImportFn } from "./utils";
 
@@ -24,8 +24,9 @@ export default defineComponent({
         Object.entries(props.data[3] || {}).map(([key, value]) => {
           return [
             key,
-            () =>
-              renderChildren(value as VServerComponent[] | undefined, importFn),
+            () => {
+              return renderChildren(value as VServerComponent[] | undefined, importFn)
+            },
           ];
         }),
       );

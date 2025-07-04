@@ -48,16 +48,7 @@ const {
 
 export async function serializeComponent(component: Component, props?: any) {
   const input = createApp(component, props);
-  applyDirective(input);
-  const vnode = createVNode(input._component, input._props);
-  vnode.appContext = input._context;
-
-  const child = await renderComponent(vnode, input._instance);
-  return serializeVNode(child).then((result) => {
-    if (result) {
-      return unrollServerComponentBufferPromises(result);
-    }
-  });
+  return serializeApp(input);
 }
 
 export function serializeApp(app: App, context: SSRContext = {}) {
@@ -119,6 +110,10 @@ export function unrollServerComponentBufferPromises(
       return unrollServerComponentBufferPromises(r);
     });
   }
+  if (Array.isArray(buffer) && typeof buffer[0] !== "number") {
+    // This is a VServerComponentBuffered
+    return (buffer as VServerComponentBuffered[]).map((element) => unrollServerComponentBufferPromises(element))
+  }
   const result = [] as unknown as VServerComponent;
   const promises: Promise<any>[] = [];
 
@@ -143,6 +138,8 @@ export function unrollServerComponentBufferPromises(
       result[i] = item as VServerComponent;
     }
   }
+
+ 
   return Promise.all(promises).then(() => result);
 }
 
@@ -163,13 +160,13 @@ export async function serializeVNode(
         (child) => {
           if (child._onigiriLoadClient) {
             // @ts-expect-error
-            if (vnode.type.__chunk) {
+            if (vnode.type.__chunk) { 
               return [
                 VServerComponentType.Component,
                 vnode.props ?? undefined,
                 // @ts-expect-error
                 vnode.type.__chunk as string,
-                serializeSlots(child.ctx?.__slotsResult),
+                serializeSlots((child as any).__slotsResult),
               ];
             }
             console.warn("Component is missing chunk information");
@@ -231,44 +228,37 @@ function serializeChildren(
 }
 
 function serializeSlots(
-  slots: Record<string, VNode> | undefined,
+  slots: Record<string, VNode[]> | undefined,
 ): MaybePromise<Record<string, VServerComponent[] | undefined>> | undefined {
   if (!slots) {
     return {};
   }
   const result:
-    | MaybePromise<Record<string, VServerComponent[] | undefined>>
+    | Record<string, VServerComponent[] | undefined>
     | undefined = {};
   const promises: Promise<any>[] = [];
   for (const key in slots) {
     const slot = slots[key];
+    // slots should always be an array
     if (Array.isArray(slot)) {
-      const r = Promise.all(slot.map((vnode) => serializeVNode(vnode)))
-        .then((vnodes) => vnodes.filter(Boolean) as VServerComponentBuffered)
-        .then((v) => {
-          return unrollServerComponentBufferPromises(v).then((v) => {
-            return (result[key] = [v]);
-          });
-        });
-      promises.push(r);
-    } else if (isVNode(slot)) {
-      const r = serializeVNode(slot);
-      if (r) {
-        promises.push(
-          Promise.resolve(r).then((v) => {
-            if (v) {
-              return unrollServerComponentBufferPromises(v).then((v) => {
-                result[key] = [v];
-              });
+      promises.push(
+        Promise.all(
+          slot.map((vnode) => Promise.resolve(serializeVNode(vnode)).then(v => {
+            if(v) {
+              return unrollServerComponentBufferPromises(v)
             }
-          }),
-        );
-      }
+          }) as Promise<VServerComponentBuffered | undefined>),
+        ).then((vnodes) => { 
+          result[key] = vnodes.length > 0 ? vnodes.filter(Boolean) as VServerComponent[] : undefined;
+        })
+      )
     } else {
       console.warn(`Unexpected slot type: ${typeof slot} for key: ${key}`);
     }
   }
-  return Promise.all(promises).then(() => result);
+  return Promise.all(promises).then(() => {
+    return result
+  });
 }
 
 function renderComponent(
@@ -306,18 +296,18 @@ function renderComponent(
       if (dirs) {
         vnode.props = applySSRDirectives(vnode, props, dirs);
       }
-
+      vnode.__slotsResult = import.meta.server ? instance.__slotsResult : instance.parent?.__slotsResult;
       return vnode;
     });
   }
-  const vnode = renderComponentRoot(instance);
+  const child = renderComponentRoot(instance);
 
-  const { dirs, props } = vnode;
+  const { dirs, props } = child;
   if (dirs) {
-    vnode.props = applySSRDirectives(vnode, props, dirs);
+    child.props = applySSRDirectives(child, props, dirs);
   }
-
-  return vnode;
+  child.__slotsResult = import.meta.server ? instance.__slotsResult : instance.parent?.__slotsResult;
+  return child;
 }
 
 // todo test this
@@ -342,12 +332,18 @@ function applySSRDirectives(
 function applyDirective(app: App) {
   app.directive('load-client', {
     getSSRProps(binding, vnode) {
-      console.log(binding)
       if (binding.value !== false) {
         // @ts-ignore
         vnode._onigiriLoadClient = true;
       }
       return {}
     },
+    created(_, binding, vnode) {
+      if (binding.value !== false) {
+        // @ts-ignore
+        vnode._onigiriLoadClient = true;
+      }
+      return binding
+    }
   })
 }

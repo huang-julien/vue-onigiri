@@ -7,7 +7,7 @@ export const enum VServerComponentType {
 }
 type Tag = string;
 type ChunkPath = string;
-type Children = VServerComponent[] | undefined;
+type Children = VServerComponent | undefined;
 type Props = Record<string, any> | undefined;
 type Attrs = Record<string, any> | undefined;
 type Slots = Record<string, Children> | undefined;
@@ -34,7 +34,7 @@ type VServerComponentElementBuffered = [
   VServerComponentType.Element,
   Tag,
   Attrs,
-  MaybePromise<VServerComponentBuffered[]> | undefined,
+  MaybePromise<(VServerComponentBuffered|undefined)[]> | undefined,
 ];
 
 type VServerComponentComponentBuffered = [

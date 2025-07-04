@@ -49,10 +49,8 @@ export function renderChildren(
   importFn = defaultImportFn,
 ): VNode | undefined {
   if (!data) return;
-  return Array.isArray(data)
-    ? h(
+  return  h(
         Fragment,
         data.map((v) => renderOnigiri(v, importFn)),
       )
-    : renderOnigiri(data, importFn);
 }

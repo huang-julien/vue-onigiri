@@ -8,7 +8,7 @@ import vue from "@vitejs/plugin-vue";
 import { defu } from "defu";
 import type { Options } from "@vitejs/plugin-vue";
 import { glob } from "node:fs/promises";
-
+import { parseAndWalk} from "oxc-walker"
 function normalizePath(path: string): string {
   return normalize(path).replaceAll("\\", "/");
 }
@@ -51,6 +51,40 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
   return {
     client: (opts) => [
       vue(opts),
+      
+      {
+        name: "vue-onigiri:renderSlotReplace",
+        transform: {
+          order: "post",
+          handler(code, id) {
+            if (VSC_PREFIX_RE.test(id)) {
+              const s = new MagicString(code);
+              s.prepend(
+                `import { renderSlot as cryoRenderSlot } from 'vue-onigiri/runtime/render-slot';\n`,
+              );
+              parseAndWalk(code, id, {
+                enter(node) {
+                  if(node.type === 'Property' && node.value.type === 'CallExpression' && node.value.callee.type === 'Identifier' && node.value.callee.name === '_withCtx') {
+                    const slotName = node.key.type === 'Identifier' ? node.key.name : node.key.value;
+                    const callExpression = node.value;
+
+                    s.overwrite(
+                      callExpression.start,
+                      callExpression.end,
+                      `cryoRenderSlot(${code.slice(callExpression.start, callExpression.end)}, '${slotName}', _ctx)`,
+                    )
+                    console.log(s.toString());
+                  }
+                }
+              })
+              return {
+                code: s.toString(),
+                map: s.generateMap({ hires: true }).toString(),
+              };
+            }
+          },
+        },
+      },
       {
         name: "vite:vue-server-components-client",
         configResolved(config) {
@@ -236,17 +270,17 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         },
       },
       {
-        name: "vue-onigiri:renderSlotReplace",
+        name: "vue-onigiri:renderSSRSlotReplace",
         transform: {
           order: "post",
           handler(code, id) {
             if (VSC_PREFIX_RE.test(id)) {
               const s = new MagicString(code);
               s.prepend(
-                `import { renderSlot as cryoRenderSlot } from 'vue-onigiri/runtime/render-slot';\n`,
+                `import { renderSSRSlot as cryoRenderSlot } from 'vue-onigiri/runtime/render-slot';\n`,
               );
               // replace renderSlot with vue-onigiri:renderSlot
-              s.replace(/_renderSlot\(/g, "cryoRenderSlot(_ctx, ");
+              s.replace(/_renderSlot\(/g, "cryoRenderSlot(_ctx,");
               return {
                 code: s.toString(),
                 map: s.generateMap({ hires: true }).toString(),

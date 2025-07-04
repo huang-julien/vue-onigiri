@@ -1,8 +1,8 @@
-import { renderSlot as _renderSlot } from "vue";
-import type { Slots, VNodeArrayChildren } from "vue";
+import { renderSlot as _renderSlot, withCtx, getCurrentInstance } from "vue";
+import type { Slots, VNode, VNodeArrayChildren } from "vue";
 
-export function renderSlot(
-  ctx: any,
+export function renderSSRSlot(
+  ctx:any, 
   slots: Slots,
   name: string,
   props = {},
@@ -13,7 +13,18 @@ export function renderSlot(
 ) {
   const result = _renderSlot(slots, name, props, fallback, noSlotted);
 
-  ctx.$.__slotsResult = ctx.__slotsResult || {};
-  ctx.$.__slotsResult[name] = result;
+  ctx._.__slotsResult = ctx._.__slotsResult || {};
+  ctx._.__slotsResult[name] = result;
   return result;
+}
+
+export function renderSlot(slotNode: VNode, name: string, ctx) {
+  return withCtx(
+    (...args) => { 
+      const result = slotNode(...args)
+      ctx._.__slotsResult = ctx._.__slotsResult || {};
+      ctx._.__slotsResult[name] = result;
+      return result
+    }
+  )
 }

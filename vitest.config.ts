@@ -3,8 +3,9 @@ import { vueOnigiriPluginFactory } from "./src/vite/chunk";
 import type { Plugin } from "vite";
 
 const { client, server } = vueOnigiriPluginFactory();
+const clientPLugin = client();
 export default defineConfig({
-  plugins: [(client() as [Plugin, Plugin])[1], server()],
+  plugins: [clientPLugin[1], clientPLugin[2], ...server()],
   test: {
     environment: "node",
     globals: true,
@@ -16,4 +17,5 @@ export default defineConfig({
     "import.meta.hot.on": "globalThis.mockedFn",
     "import.meta.hot.accept": "globalThis.mockedFn",
   },
+  mode: 'production',
 });
