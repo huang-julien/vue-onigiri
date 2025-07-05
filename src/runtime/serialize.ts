@@ -60,9 +60,9 @@ const {
   };
 } = ssrUtils;
 
-export async function serializeComponent(component: Component, props?: any) {
+export async function serializeComponent(component: Component, props?: any, context: SSRContext = {}) {
   const input = createApp(component, props);
-  return serializeApp(input);
+  return serializeApp(input, context);
 }
 
 export function serializeApp(app: App, context: SSRContext = {}) {
