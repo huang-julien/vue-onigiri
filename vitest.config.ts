@@ -1,6 +1,5 @@
 import { defineConfig } from "vitest/config";
 import { vueOnigiriPluginFactory } from "./src/vite/chunk";
-import type { Plugin } from "vite";
 
 const { client, server } = vueOnigiriPluginFactory();
 const clientPLugin = client();

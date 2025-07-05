@@ -62,8 +62,6 @@
     "estree-walker": "^3.0.3",
     "magic-string": "^0.30.17",
     "ohash": "^2.0.11",
-    "oxc-parser": "^0.75.1",
-    "oxc-walker": "^0.3.0",
     "pathe": "^2.0.3",
     "rollup": "^4.40.1",
     "unplugin": "^2.3.2",

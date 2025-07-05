@@ -8,7 +8,7 @@ import vue from "@vitejs/plugin-vue";
 import { defu } from "defu";
 import type { Options } from "@vitejs/plugin-vue";
 import { glob } from "node:fs/promises";
-import { parseAndWalk, type Identifier } from "oxc-walker";
+
 function normalizePath(path: string): string {
   return normalize(path).replaceAll("\\", "/");
 }
