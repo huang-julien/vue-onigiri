@@ -90,6 +90,8 @@ describe("serialize/deserialize", () => {
         `"<div><div>1</div><div>2</div><div> counter : 0 <button>Increment</button></div></div>"`,
       );
 
+      const { promise, resolve} = Promise.withResolvers();
+
       expect(ast).toMatchInlineSnapshot(`
         [
           0,
@@ -140,7 +142,9 @@ describe("serialize/deserialize", () => {
             return () =>
               h(
                 Suspense,
-                {},
+                {
+                  onResolve: () => resolve(true),
+                },
                 {
                   default: () => renderOnigiri(ast),
                 },
@@ -148,6 +152,7 @@ describe("serialize/deserialize", () => {
           },
         }),
       );
+      await promise;
       await flushPromises();
       await nextTick();
       const rebuiltHtml = removeCommentsFromHtml(
