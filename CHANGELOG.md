@@ -2,7 +2,6 @@
 
 ## v0.1.1
 
-
 ### 🚀 Enhancements
 
 - Serialize + deserialize elements (7eb656b)
@@ -121,7 +120,7 @@
 - Apply automated updates (065ae53)
 - Restrcuture package (890924f)
 - Apply automated updates (31b4bf3)
-- Normalize  paths (901087b)
+- Normalize paths (901087b)
 - Apply automated updates (6040a70)
 - Apply automated updates (56d12c3)
 - Apply automated updates (attempt 2/3) (ce839a3)
