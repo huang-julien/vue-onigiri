@@ -79,7 +79,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
             assetDir = config.build.assetsDir;
           }
           isProduction = config.isProduction;
-          if(!rootDir) {
+          if (!rootDir) {
             options.rootDir = config.root;
           }
         },
