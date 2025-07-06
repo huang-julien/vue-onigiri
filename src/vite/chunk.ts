@@ -42,12 +42,10 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
   client: (opts?: Options) => Plugin[];
   server: (opts?: Options) => Plugin[];
 } {
-  const { serverAssetsDir = "", clientAssetsDir = "" } = options;
+  const { serverAssetsDir = "", clientAssetsDir = "", rootDir = "" } = options;
   const refs: { path: string; id: string }[] = [];
   let assetDir: string = clientAssetsDir;
   let isProduction = false;
-  let rootDir = process.cwd();
-
   return {
     client: (opts) => [
       vue(opts),
@@ -81,7 +79,9 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
             assetDir = config.build.assetsDir;
           }
           isProduction = config.isProduction;
-          rootDir = config.root;
+          if(!rootDir) {
+            options.rootDir = config.root;
+          }
         },
         async buildStart() {
           const chunksToInclude = Array.isArray(options.includeClientChunks)
