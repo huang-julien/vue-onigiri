@@ -246,12 +246,7 @@ pnpm release
 
 <!-- automd:contributors license=MIT -->
 
-Published under the [MIT](https://github.com/unjs/packageName/blob/main/LICENSE) license.
-Made by [community](https://github.com/unjs/packageName/graphs/contributors) 💛
-<br><br>
-<a href="https://github.com/unjs/packageName/graphs/contributors">
-<img src="https://contrib.rocks/image?repo=unjs/packageName" />
-</a>
+<!-- ⚠️  (contributors) `github` is required! -->
 
 <!-- /automd -->
 
