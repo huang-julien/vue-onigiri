@@ -42,13 +42,13 @@ bun add vue-onigiri
 **Serializing a Component:**
 
 ```js
-import { serializeComponent } from 'vue-onigiri/runtime/serialize'
-import MyComponent from './MyComponent.vue'
+import { serializeComponent } from "vue-onigiri/runtime/serialize";
+import MyComponent from "./MyComponent.vue";
 
 // Serialize a component to transferable data
-const serializedData = await serializeComponent(MyComponent, { 
-  message: 'Hello from server!' 
-})
+const serializedData = await serializeComponent(MyComponent, {
+  message: "Hello from server!",
+});
 
 // Send this data to the client...
 ```
@@ -56,17 +56,17 @@ const serializedData = await serializeComponent(MyComponent, {
 **Deserializing and Rendering:**
 
 ```js
-import { renderOnigiri } from 'vue-onigiri/runtime/deserialize'
-import { createApp, h } from 'vue'
+import { renderOnigiri } from "vue-onigiri/runtime/deserialize";
+import { createApp, h } from "vue";
 
 // Receive serialized data from server
 const app = createApp({
   setup() {
-    return () => renderOnigiri(serializedData)
-  }
-})
+    return () => renderOnigiri(serializedData);
+  },
+});
 
-app.mount('#app')
+app.mount("#app");
 ```
 
 ## Vite Integration
@@ -77,32 +77,32 @@ Vue Onigiri provides Vite plugins for both client and server environments:
 
 ```js
 // vite.config.js
-import { defineConfig } from 'vite'
-import { vueOnigiriPluginFactory } from 'vue-onigiri'
+import { defineConfig } from "vite";
+import { vueOnigiriPluginFactory } from "vue-onigiri";
 
 const { client, server } = vueOnigiriPluginFactory({
-  includeClientChunks: ['**/*.vue'], // Components to include as client chunks
-  serverAssetsDir: 'server-chunks',
-  clientAssetsDir: 'client-chunks'
-})
+  includeClientChunks: ["**/*.vue"], // Components to include as client chunks
+  serverAssetsDir: "server-chunks",
+  clientAssetsDir: "client-chunks",
+});
 
 export default defineConfig({
   plugins: [
     // Use client() for client build, server() for server build
-    process.env.BUILD_TARGET === 'server' ? server() : client()
-  ]
-})
+    process.env.BUILD_TARGET === "server" ? server() : client(),
+  ],
+});
 ```
 
 ### Plugin Options
 
 ```typescript
 interface VSCOptions {
-  includeClientChunks: string[]      // Glob patterns for components to chunk
-  rootDir?: string                   // Root directory (default: cwd)
-  vueServerOptions?: Options         // Vue plugin options for server
-  serverAssetsDir?: string           // Server chunks directory
-  clientAssetsDir?: string           // Client chunks directory
+  includeClientChunks: string[]; // Glob patterns for components to chunk
+  rootDir?: string; // Root directory (default: cwd)
+  vueServerOptions?: Options; // Vue plugin options for server
+  serverAssetsDir?: string; // Server chunks directory
+  clientAssetsDir?: string; // Client chunks directory
 }
 ```
 
@@ -115,13 +115,13 @@ interface VSCOptions {
 Serializes a Vue component with optional props and SSR context.
 
 ```js
-import { serializeComponent } from 'vue-onigiri/runtime/serialize'
+import { serializeComponent } from "vue-onigiri/runtime/serialize";
 
 const data = await serializeComponent(
   MyComponent,
-  { title: 'Hello' },        // Props
-  { url: '/current-page' }   // SSR Context
-)
+  { title: "Hello" }, // Props
+  { url: "/current-page" }, // SSR Context
+);
 ```
 
 #### `serializeApp(app, context?)`
@@ -129,11 +129,11 @@ const data = await serializeComponent(
 Serializes an entire Vue application VNode.
 
 ```js
-import { serializeApp } from 'vue-onigiri/runtime/serialize'
-import { createApp } from 'vue'
+import { serializeApp } from "vue-onigiri/runtime/serialize";
+import { createApp } from "vue";
 
-const app = createApp(RootComponent)
-const data = await serializeApp(app, { url: '/current-page' })
+const app = createApp(RootComponent);
+const data = await serializeApp(app, { url: "/current-page" });
 ```
 
 ### Deserialization
@@ -143,14 +143,14 @@ const data = await serializeApp(app, { url: '/current-page' })
 Renders serialized VNode data back into actual VNodes.
 
 ```js
-import { renderOnigiri } from 'vue-onigiri/runtime/deserialize'
+import { renderOnigiri } from "vue-onigiri/runtime/deserialize";
 
 // Custom import function for loading components
 // can be useful server side as client chunks are loaded by default
 // made to be used by Nuxt
-const customImportFn = (chunkPath) => import(chunkPath)
+const customImportFn = (chunkPath) => import(chunkPath);
 
-const vnode = renderOnigiri(serializedData, customImportFn)
+const vnode = renderOnigiri(serializedData, customImportFn);
 ```
 
 ## Component Types
@@ -247,7 +247,7 @@ pnpm release
 <!-- automd:contributors license=MIT -->
 
 Published under the [MIT](https://github.com/unjs/packageName/blob/main/LICENSE) license.
-Made by [Julien Huang](https://github.com/huang-julien) 
+Made by [community](https://github.com/unjs/packageName/graphs/contributors) 💛
 <br><br>
 <a href="https://github.com/unjs/packageName/graphs/contributors">
 <img src="https://contrib.rocks/image?repo=unjs/packageName" />
