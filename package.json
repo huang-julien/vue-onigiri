@@ -1,6 +1,6 @@
 {
   "name": "vue-onigiri",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Serialize and deserialize Vue component trees (VNodes) for Vue Server Components and cross-application component sharing",
   "repository": "vue-onigiri",
   "license": "MIT",
