@@ -122,7 +122,14 @@ describe("serialize/deserialize", () => {
               1,
               undefined,
               "/test/fixtures/components/Counter.vue",
-              {},
+              {
+                "default": [
+                  [
+                    3,
+                    [],
+                  ],
+                ],
+              },
             ],
           ],
         ]
