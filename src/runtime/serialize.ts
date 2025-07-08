@@ -377,7 +377,7 @@ function applyDirective(app: App) {
   });
 }
 
-function filterProps(props: VNodeProps | undefined) {
+function filterProps(props: VNodeProps | undefined | null) {
   if (!props) return undefined;
   
   return Object.fromEntries(
