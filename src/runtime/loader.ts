@@ -1,6 +1,6 @@
 import { h, type DefineComponent, defineComponent, inject } from "vue";
 import type { VServerComponent } from "./shared";
-import { renderChildren, renderOnigiri } from "./deserialize";
+import { renderChildren } from "./deserialize";
 import { INJECTION_KEY } from "./plugin";
 import { defaultImportFn } from "./utils";
 
