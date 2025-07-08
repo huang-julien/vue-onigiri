@@ -165,7 +165,7 @@ export async function serializeVNode(
       return [
         VServerComponentType.Element,
         vnode.type as string,
-        vnode.props ?? undefined,
+        filterProps(vnode.props),
         serializeChildren(vnode.children, parentInstance),
       ];
     } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
@@ -176,7 +176,7 @@ export async function serializeVNode(
             if (vnode.type.__chunk) {
               return [
                 VServerComponentType.Component,
-                vnode.props ?? undefined,
+                filterProps(vnode.props),
                 // @ts-expect-error
                 vnode.type.__chunk as string,
                 serializeSlots((child as any).__slotsResult),
@@ -375,4 +375,14 @@ function applyDirective(app: App) {
       return binding;
     },
   });
+}
+
+function filterProps(props: VNodeProps | undefined) {
+  if (!props) return undefined;
+  
+  return Object.fromEntries(
+    Object.entries(props).filter(
+      ([key, _]) => !(key.startsWith('on') && key[2] && key[2].toUpperCase() === key[2])
+    )
+  )
 }

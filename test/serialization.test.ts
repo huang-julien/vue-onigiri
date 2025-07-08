@@ -321,28 +321,39 @@ describe("slots", () => {
         undefined,
         [
           [
-            1,
-            undefined,
-            "/test/fixtures/components/Counter.vue",
-            {
-              "default": [
+            3,
+            [
+              [
+                2,
+                " counter : 0 ",
+              ],
+              [
+                0,
+                "button",
+                {},
                 [
-                  3,
                   [
+                    2,
+                    "Increment",
+                  ],
+                ],
+              ],
+              [
+                3,
+                [
+                  [
+                    0,
+                    "div",
+                    undefined,
                     [
-                      0,
-                      "div",
-                      undefined,
                       [
+                        0,
+                        "p",
+                        undefined,
                         [
-                          0,
-                          "p",
-                          undefined,
                           [
-                            [
-                              2,
-                              "Slot to Counter: 0",
-                            ],
+                            2,
+                            "Slot to Counter: 0",
                           ],
                         ],
                       ],
@@ -350,15 +361,14 @@ describe("slots", () => {
                   ],
                 ],
               ],
-            },
+            ],
           ],
         ],
       ]
     `);
     const astHtml = await renderToString(renderOnigiri(ast)!);
     expect(removeCommentsFromHtml(astHtml)).toMatchInlineSnapshot(
-      `"<div><div> counter : 0 <button>Increment</button><div><p>Slot to Counter: 0</p></div></div></div>"`,
-    );
+     `"<div> counter : 0 <button>Increment</button><div><p>Slot to Counter: 0</p></div></div>"`);
     const html = await renderToString(h(SlotToCounter));
     expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
       `"<div><div> counter : 0 <button>Increment</button><div><p>Slot to Counter: 0</p></div></div></div>"`,
