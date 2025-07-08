@@ -379,10 +379,11 @@ function applyDirective(app: App) {
 
 function filterProps(props: VNodeProps | undefined | null) {
   if (!props) return undefined;
-  
+
   return Object.fromEntries(
     Object.entries(props).filter(
-      ([key, _]) => !(key.startsWith('on') && key[2] && key[2].toUpperCase() === key[2])
-    )
-  )
+      ([key, _]) =>
+        !(key.startsWith("on") && key[2] && key[2].toUpperCase() === key[2]),
+    ),
+  );
 }

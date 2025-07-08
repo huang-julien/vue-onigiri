@@ -356,7 +356,9 @@ describe("slots", () => {
       ]
     `);
     const astHtml = await renderToString(renderOnigiri(ast)!);
-    expect(removeCommentsFromHtml(astHtml)).toMatchInlineSnapshot(`"<div><div> counter : 0 <button>Increment</button><div><p>Slot to Counter: 0</p></div></div></div>"`)
+    expect(removeCommentsFromHtml(astHtml)).toMatchInlineSnapshot(
+      `"<div><div> counter : 0 <button>Increment</button><div><p>Slot to Counter: 0</p></div></div></div>"`,
+    );
     const html = await renderToString(h(SlotToCounter));
     expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
       `"<div><div> counter : 0 <button>Increment</button><div><p>Slot to Counter: 0</p></div></div></div>"`,
