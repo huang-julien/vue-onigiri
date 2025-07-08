@@ -1,7 +1,10 @@
 import { defineConfig } from "vitest/config";
 import { vueOnigiriPluginFactory } from "./src/vite/chunk";
+import { fileURLToPath } from "url";
 
-const { client, server } = vueOnigiriPluginFactory();
+const { client, server } = vueOnigiriPluginFactory({
+  rootDir: fileURLToPath(new URL('./', import.meta.url)),
+});
 const clientPLugin = client();
 export default defineConfig({
   plugins: [clientPLugin[1], clientPLugin[2], ...server()],
