@@ -50,21 +50,8 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
 
   return {
     clientChunks: clientSideChunks,
-    client: (opts) => [
-      {
-        name: 'remove-vue',
-        enforce: 'pre',
-        config(config) {
-          const vuePluginIndex = config.plugins?.findIndex(p => p && 'name' in p && p.name === 'vite:vue') || -1
-          if (vuePluginIndex > -1) {
-            config.plugins?.splice(vuePluginIndex, 1);
-          }
-          config.plugins?.unshift(
-            vue(opts)
-          )
-          return config
-        }
-      },
+    client: (opts) => [ 
+      vue(opts),
       {
         name: "vue-onigiri:renderSlotReplace",
         transform: {
@@ -146,21 +133,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
     ],
 
     server: (opts) => [
-      {
-        name: 'remove-vue',
-        enforce: 'pre',
-        config(config) {
-          const vuePluginIndex = config.plugins?.findIndex(p => p && 'name' in p && p.name === 'vite:vue') || -1
-          if (vuePluginIndex > -1) {
-            config.plugins?.splice(vuePluginIndex, 1);
-          }
-          config.plugins?.unshift(
-
-            getVuePlugin(opts))
-
-          return config
-        }
-      },
+    getVuePlugin(opts),
       getPatchedServerVue(options?.vueServerOptions) as Plugin,
       {
         enforce: "pre",
