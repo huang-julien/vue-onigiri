@@ -41,15 +41,30 @@ const NOVSC_PREFIX_RE = /^(\/?@id\/)?(?!virtual:vsc:)/;
 export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
   client: (opts?: Options) => Plugin[];
   server: (opts?: Options) => Plugin[];
+  clientChunks: Map<string, { originalPath: string, id: string, filename?: string }>;
 } {
   const { serverAssetsDir = "", clientAssetsDir = "", rootDir = "" } = options;
-  const refs: { path: string; id: string }[] = [];
+  const clientSideChunks = new Map<string, { originalPath: string, id: string, filename?: string }>();
   let assetDir: string = clientAssetsDir;
   let isProduction = false;
-  return {
-    client: (opts) => [
-      vue(opts),
 
+  return {
+    clientChunks: clientSideChunks,
+    client: (opts) => [
+      {
+        name: 'remove-vue',
+        enforce: 'pre',
+        config(config) {
+          const vuePluginIndex = config.plugins?.findIndex(p => p && 'name' in p && p.name === 'vite:vue') || -1
+          if (vuePluginIndex > -1) {
+            config.plugins?.splice(vuePluginIndex, 1);
+          }
+          config.plugins?.unshift(
+            vue(opts)
+          )
+          return config
+        }
+      },
       {
         name: "vue-onigiri:renderSlotReplace",
         transform: {
@@ -96,17 +111,16 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
             if (isProduction) {
               const emitted = this.emitFile({
                 type: "chunk",
-                fileName: normalizePath(join(assetDir, hash(id) + ".mjs")),
                 id: id,
                 preserveSignature: "strict",
               });
-              refs.push({
-                path: normalizePath(id),
-                id: normalizePath(this.getFileName(emitted)),
+              clientSideChunks.set(normalizePath(id), {
+                originalPath: normalizePath(id),
+                id: emitted,
               });
             } else {
-              refs.push({
-                path: normalizePath(id),
+              clientSideChunks.set(normalizePath(id), {
+                originalPath: normalizePath(id),
                 id: normalizePath(join(clientAssetsDir, relative(rootDir, id))),
               });
             }
@@ -116,18 +130,37 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         generateBundle(_, bundle) {
           for (const chunk of Object.values(bundle)) {
             if (chunk.type === "chunk") {
-              const list = refs.map((ref) => ref.id);
+              const list = clientSideChunks.values().map((ref) => ref.id).toArray();
               if (list.includes(chunk.fileName)) {
                 chunk.isEntry = false;
               }
             }
+          }
+
+          for (const [id, data] of clientSideChunks.entries()) {
+            data.filename = this.getFileName(data.id)
+            console.log(`Chunk ${id} emitted with filename: ${data.filename}`);
           }
         },
       },
     ],
 
     server: (opts) => [
-      getVuePlugin(opts),
+      {
+        name: 'remove-vue',
+        enforce: 'pre',
+        config(config) {
+          const vuePluginIndex = config.plugins?.findIndex(p => p && 'name' in p && p.name === 'vite:vue') || -1
+          if (vuePluginIndex > -1) {
+            config.plugins?.splice(vuePluginIndex, 1);
+          }
+          config.plugins?.unshift(
+
+            getVuePlugin(opts))
+
+          return config
+        }
+      },
       getPatchedServerVue(options?.vueServerOptions) as Plugin,
       {
         enforce: "pre",
@@ -137,17 +170,16 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
             ? options.includeClientChunks
             : [options.includeClientChunks || "**/*.vue"];
 
-          const files = glob(chunksToInclude, {
+          const scannedFiles = glob(chunksToInclude, {
             cwd: rootDir,
           });
-          for await (const file of files) {
+
+          for await (const file of scannedFiles) {
             const id = join(rootDir, file);
             if (isProduction) {
+
               this.emitFile({
                 type: "chunk",
-                fileName: normalizePath(
-                  join(serverAssetsDir, hash(id) + ".mjs"),
-                ),
                 id: id,
                 preserveSignature: "strict",
               });
@@ -218,7 +250,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         generateBundle(_, bundle) {
           for (const chunk of Object.values(bundle)) {
             if (chunk.type === "chunk") {
-              const list = refs.map((ref) => ref.id);
+              const list = clientSideChunks.values().map((ref) => ref.id).toArray();
               if (list.includes(chunk.fileName)) {
                 chunk.isEntry = false;
               }
@@ -229,9 +261,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         transform: {
           order: "post",
           handler(code, id) {
-            const ref = refs.find(
-              (ref) => ref.path === id.replace(VSC_PREFIX_RE, ""),
-            );
+            const ref = clientSideChunks.get(id.replace(VSC_PREFIX_RE, ""))
 
             if (ref) {
               const s = new MagicString(code);
@@ -248,7 +278,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                   start,
                   end,
                   `Object.assign(
-                                    { __chunk: "${normalizePath(join("/", isProduction ? normalize(ref.id) : relative(rootDir, normalize(ref.id))))}" },
+                                    { __chunk: "${normalizePath(join("/", isProduction ? join(clientAssetsDir, normalize(ref.id)) : relative(rootDir, normalize(ref.id))))}" },
                                      ${code.slice(start, end)},
                                 )`,
                 );
