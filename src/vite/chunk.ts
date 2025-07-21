@@ -41,16 +41,22 @@ const NOVSC_PREFIX_RE = /^(\/?@id\/)?(?!virtual:vsc:)/;
 export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
   client: (opts?: Options) => Plugin[];
   server: (opts?: Options) => Plugin[];
-  clientChunks: Map<string, { originalPath: string, id: string, filename?: string }>;
+  clientChunks: Map<
+    string,
+    { originalPath: string; id: string; filename?: string }
+  >;
 } {
   const { serverAssetsDir = "", clientAssetsDir = "", rootDir = "" } = options;
-  const clientSideChunks = new Map<string, { originalPath: string, id: string, filename?: string }>();
+  const clientSideChunks = new Map<
+    string,
+    { originalPath: string; id: string; filename?: string }
+  >();
   let assetDir: string = clientAssetsDir;
   let isProduction = false;
 
   return {
     clientChunks: clientSideChunks,
-    client: (opts) => [ 
+    client: (opts) => [
       vue(opts),
       {
         name: "vue-onigiri:renderSlotReplace",
@@ -117,7 +123,10 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         generateBundle(_, bundle) {
           for (const chunk of Object.values(bundle)) {
             if (chunk.type === "chunk") {
-              const list = clientSideChunks.values().map((ref) => ref.id).toArray();
+              const list = clientSideChunks
+                .values()
+                .map((ref) => ref.id)
+                .toArray();
               if (list.includes(chunk.fileName)) {
                 chunk.isEntry = false;
               }
@@ -125,7 +134,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
           }
 
           for (const [id, data] of clientSideChunks.entries()) {
-            data.filename = this.getFileName(data.id)
+            data.filename = this.getFileName(data.id);
             console.log(`Chunk ${id} emitted with filename: ${data.filename}`);
           }
         },
@@ -133,7 +142,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
     ],
 
     server: (opts) => [
-    getVuePlugin(opts),
+      getVuePlugin(opts),
       getPatchedServerVue(options?.vueServerOptions) as Plugin,
       {
         enforce: "pre",
@@ -150,7 +159,6 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
           for await (const file of scannedFiles) {
             const id = join(rootDir, file);
             if (isProduction) {
-
               this.emitFile({
                 type: "chunk",
                 id: id,
@@ -223,7 +231,10 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         generateBundle(_, bundle) {
           for (const chunk of Object.values(bundle)) {
             if (chunk.type === "chunk") {
-              const list = clientSideChunks.values().map((ref) => ref.id).toArray();
+              const list = clientSideChunks
+                .values()
+                .map((ref) => ref.id)
+                .toArray();
               if (list.includes(chunk.fileName)) {
                 chunk.isEntry = false;
               }
@@ -234,7 +245,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         transform: {
           order: "post",
           handler(code, id) {
-            const ref = clientSideChunks.get(id.replace(VSC_PREFIX_RE, ""))
+            const ref = clientSideChunks.get(id.replace(VSC_PREFIX_RE, ""));
 
             if (ref) {
               const s = new MagicString(code);
