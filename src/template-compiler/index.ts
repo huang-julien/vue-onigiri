@@ -10,10 +10,14 @@ import {
   type CompoundExpressionNode,
   type IfNode,
   type ForNode,
-  NodeTypes
+  NodeTypes,
+  type AttributeNode,
+  type DirectiveNode,
+  isStaticExp,
+  isSimpleIdentifier
 } from "@vue/compiler-dom";
 import { VServerComponentType } from "../runtime/shared";
-
+import { genImport } from "knitwork"
 export interface OnigiriCompilerOptions extends CompilerOptions {
   /** Additional compiler options specific to onigiri */
   onigiriSpecific?: boolean;
@@ -33,12 +37,14 @@ interface SimpleCodegenContext {
   indent(): void;
   deindent(): void;
   newline(): void;
+  imports: Set<string>;
 }
 
 function createSimpleContext(): SimpleCodegenContext {
   return {
     code: '',
     indentLevel: 0,
+    imports: new Set<string>(),
     push(code: string) {
       this.code += code;
     },
@@ -103,7 +109,7 @@ export function compileOnigiri(
   context.push('}');
 
   return {
-    code: context.code,
+    code: `${[...context.imports, '\n'].join('\n')}${context.code}`.trim(),
     ast,
     map: undefined
   };
@@ -154,22 +160,24 @@ function genOnigiriElement(node: ElementNode, context: SimpleCodegenContext): vo
   if (isComponent) {
     // Component: [VServerComponentType.Component, props, chunkPath, slots]
     context.push('[');
+    // 1 type
     context.push(VServerComponentType.Component.toString());
     context.push(', ');
+
+    // 2 tag name
+    // ChunkPath - for now, use the component name
+    context.push(tag);
+    context.push(', ');
     
-    // Props
+    // 3 Props
     if (props.length > 0) {
       genOnigiriProps(props, context);
     } else {
       context.push('undefined');
     }
     context.push(', ');
-    
-    // ChunkPath - for now, use the component name
-    context.push(`"${tag}"`);
-    context.push(', ');
-    
-    // Slots - convert children to default slot
+
+    // 4 Slots - convert children to default slot
     if (children.length > 0) {
       context.push('{ default: ');
       if (children.length === 1) {
@@ -191,12 +199,14 @@ function genOnigiriElement(node: ElementNode, context: SimpleCodegenContext): vo
   } else {
     // Element: [VServerComponentType.Element, tag, attrs, children]
     context.push('[');
+    // 1 type
     context.push(VServerComponentType.Element.toString());
     context.push(', ');
+    // 2 tag name
     context.push(`"${tag}"`);
     context.push(', ');
     
-    // Attrs
+    // 3 Attrs
     if (props.length > 0) {
       genOnigiriProps(props, context);
     } else {
@@ -204,7 +214,7 @@ function genOnigiriElement(node: ElementNode, context: SimpleCodegenContext): vo
     }
     context.push(', ');
     
-    // Children
+    // 4 Children
     if (children.length === 0) {
       context.push('undefined');
     } else if (children.length === 1) {
@@ -222,7 +232,80 @@ function genOnigiriElement(node: ElementNode, context: SimpleCodegenContext): vo
   }
 }
 
-function genOnigiriProps(props: any[], context: SimpleCodegenContext): void {
+function genOnigiriProps(props: (AttributeNode | DirectiveNode)[], context: SimpleCodegenContext): void {
+  // Check if we have a v-bind without argument (object spread)
+  const bindDirective = props.find(prop => 
+    prop.type === NodeTypes.DIRECTIVE && 
+    prop.name === 'bind' && 
+    !prop.arg
+  );
+  console.log(props)
+  // Get all other props (not the v-bind object spread)
+  const otherProps = props.filter(prop => 
+    !(prop.type === NodeTypes.DIRECTIVE && prop.name === 'bind' && !prop.arg)
+  );
+  
+  if (bindDirective && typeof bindDirective === 'object' && 'exp' in bindDirective) {
+    if (otherProps.length > 0) {
+      // We have both v-bind object and other props - need to merge
+      context.imports.add(genImport('vue', [{ name: 'mergeProps', as: '_mergeProps' }]));
+      context.push('_mergeProps(');
+      if (bindDirective.exp && typeof bindDirective.exp === 'object' && 'content' in bindDirective.exp) {
+         
+          context.push(`_ctx.${bindDirective.exp.content}`);
+      
+      } else {
+        context.push('undefined');
+      }
+      context.push(', ');
+      
+      // Generate the other props object
+      context.push('{');
+      let first = true;
+      
+      for (const prop of otherProps) {
+        if (prop.type === NodeTypes.ATTRIBUTE) {
+          if (!first) context.push(', ');
+          first = false;
+          
+          context.push(`"${prop.name}": `);
+          if (prop.value) {
+            context.push(`"${prop.value.content}"`);
+          } else {
+            context.push('true');
+          }
+        } else if (prop.type === NodeTypes.DIRECTIVE) {
+          if (!first) context.push(', ');
+          first = false;
+          
+          const attrName = (prop.arg && typeof prop.arg === 'object' && 'content' in prop.arg) 
+            ? prop.arg.content 
+            : prop.name;
+          context.push(`"${attrName}": `);
+          
+          if (prop.exp && typeof prop.exp === 'object' && 'content' in prop.exp) {
+            context.push(`_ctx.${prop.exp.content}`);
+          } else {
+            context.push('true');
+          }
+        }
+      }
+      
+      context.push('}');
+      context.push(')');
+    } else {
+      console.log('Only v-bind object found:', bindDirective);
+      // Only v-bind object, no other props
+      if (bindDirective.exp && typeof bindDirective.exp === 'object' && 'content' in bindDirective.exp) {
+        context.push(`_ctx.${bindDirective.exp.content}`);
+      } else {
+        context.push('undefined');
+      }
+    }
+    return;
+  }
+  
+  // No v-bind object spread - just regular props
   context.push('{');
   let first = true;
   
@@ -241,11 +324,29 @@ function genOnigiriProps(props: any[], context: SimpleCodegenContext): void {
       if (!first) context.push(', ');
       first = false;
       
-      const attrName = prop.arg?.content || prop.name;
+      const attrName = (prop.arg && typeof prop.arg === 'object' && 'content' in prop.arg) 
+        ? prop.arg.content 
+        : prop.name;
       context.push(`"${attrName}": `);
       
       if (prop.exp) {
-        context.push(prop.exp.content);
+        if (prop.exp.type === NodeTypes.SIMPLE_EXPRESSION) {
+          if(isSimpleIdentifier(prop.exp.content)) {
+            context.push(`_ctx.${prop.exp.content}`);
+          } else {
+            context.push(prop.exp.content);
+          }
+        } else if (prop.exp.type === NodeTypes.COMPOUND_EXPRESSION) {
+          // Handle compound expressions
+          context.push(`(${prop.exp.children.map(child => {
+            if (typeof child === 'string') {
+              return `"${child}"`;
+            } else if (typeof child === 'object' && child !== null && 'type' in child && child.type === NodeTypes.SIMPLE_EXPRESSION && 'content' in child) {
+              return `_ctx.${child.content}`;
+            }
+            return '';
+          }).join(' + ')})`);
+        }
       } else {
         context.push('true');
       }
