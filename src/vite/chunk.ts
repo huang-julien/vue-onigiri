@@ -310,20 +310,20 @@ function getVuePlugin(options?: Options) {
   );
   // need to force non-ssr transform to always render vnode
   const oldTransform = plugin.transform;
-  plugin.transform = async function (code, id, _options) {
+  plugin.transform = async function (code, id, options) {
     if (VSC_PREFIX_RE.test(id)) {
       return;
     }
     // @ts-expect-error blabla
-    return await Reflect.apply(oldTransform, this, [code, id, { ssr: false }]);
+    return await Reflect.apply(oldTransform, this, [code, id, options]);
   };
   const oldLoad = plugin.load;
-  plugin.load = async function (id, _options) {
+  plugin.load = async function (id, options) {
     if (VSC_PREFIX_RE.test(id)) {
       return;
     }
     // @ts-expect-error blabla
-    return await Reflect.apply(oldLoad, this, [id, { ssr: false }]);
+    return await Reflect.apply(oldLoad, this, [id, options]);
   };
 
   return plugin;
@@ -331,15 +331,11 @@ function getVuePlugin(options?: Options) {
 
 function getPatchedServerVue(options?: Options): Plugin {
   const plugin = vue(
-    defu(options, {
-      include: [VSC_PREFIX_RE],
-      exclude: [NOVSC_PREFIX_RE],
-    }),
+    defu(options),
   );
   // need to force non-ssr transform to always render vnode
   const oldTransform = plugin.transform;
   plugin.transform = async function (code, id, _options) {
-
     if (!VSC_PREFIX_RE.test(id)) {
       return;
     }
@@ -348,7 +344,6 @@ function getPatchedServerVue(options?: Options): Plugin {
   };
   const oldLoad = plugin.load;
   plugin.load = async function (id, _options) {
-
     if (!VSC_PREFIX_RE.test(id)) {
       return;
     }
