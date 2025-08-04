@@ -339,7 +339,8 @@ function getPatchedServerVue(options?: Options): Plugin {
   // need to force non-ssr transform to always render vnode
   const oldTransform = plugin.transform;
   plugin.transform = async function (code, id, _options) {
-    if (!id.includes(".vue")) {
+
+    if (!VSC_PREFIX_RE.test(id)) {
       return;
     }
     // @ts-expect-error blabla
@@ -347,7 +348,8 @@ function getPatchedServerVue(options?: Options): Plugin {
   };
   const oldLoad = plugin.load;
   plugin.load = async function (id, _options) {
-    if (!id.includes(".vue")) {
+
+    if (!VSC_PREFIX_RE.test(id)) {
       return;
     }
     // @ts-expect-error blabla
