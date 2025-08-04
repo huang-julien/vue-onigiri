@@ -330,9 +330,7 @@ function getVuePlugin(options?: Options) {
 }
 
 function getPatchedServerVue(options?: Options): Plugin {
-  const plugin = vue(
-    defu(options),
-  );
+  const plugin = vue(defu(options));
   // need to force non-ssr transform to always render vnode
   const oldTransform = plugin.transform;
   plugin.transform = async function (code, id, _options) {
