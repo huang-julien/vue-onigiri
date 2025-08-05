@@ -14,7 +14,7 @@ function normalizePath(path: string): string {
 }
 
 export type VSCOptions = {
-  includeClientChunks: string[];
+  includeClientChunks: (string | { path: string, export: string })[];
   /**
    * root directory from which to resolve the files.
    * @default {string} root of the project
@@ -41,18 +41,13 @@ const NOVSC_PREFIX_RE = /^(\/?@id\/)?(?!virtual:vsc:)/;
 export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
   client: (opts?: Options) => Plugin[];
   server: (opts?: Options) => Plugin[];
-  clientChunks: Map<
-    string,
-    { originalPath: string; id: string; filename?: string }
-  >;
+  clientChunks: { originalPath: string; id: string; filename?: string }[]
 } {
   const { serverAssetsDir = "", clientAssetsDir = "", rootDir = "" } = options;
-  const clientSideChunks = new Map<
-    string,
-    { originalPath: string; id: string; filename?: string }
-  >();
+  const clientSideChunks: { originalPath: string; id: string; filename?: string, exports: string[] }[] = [];
   let assetDir: string = clientAssetsDir;
   let isProduction = false;
+
 
   return {
     clientChunks: clientSideChunks,
@@ -92,33 +87,100 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
           }
         },
         async buildStart() {
+          console.log(clientSideChunks)
           const chunksToInclude = Array.isArray(options.includeClientChunks)
             ? options.includeClientChunks
             : [options.includeClientChunks || "**/*.vue"];
 
-          const files = glob(chunksToInclude, {
-            cwd: rootDir,
-          });
-          for await (const file of files) {
-            const id = join(rootDir, file);
-            if (isProduction) {
-              const emitted = this.emitFile({
-                type: "chunk",
-                id: id,
-                preserveSignature: "strict",
-              });
-              clientSideChunks.set(normalizePath(id), {
-                originalPath: normalizePath(id),
-                id: emitted,
-              });
-            } else {
-              clientSideChunks.set(normalizePath(id), {
-                originalPath: normalizePath(id),
-                id: normalizePath(join(clientAssetsDir, relative(rootDir, id))),
-              });
+          await Promise.all(chunksToInclude.map(async (file) => {
+            const path = typeof file === "string" ? file : file.path;
+            const exportName = typeof file === "string" ? 'default' : file.export;
+            const files = glob(path, {
+              cwd: rootDir,
+            });
+            for await (const file of files) {
+              const id = join(rootDir, file);
+
+              const info = clientSideChunks.find((chunk) => chunk.originalPath === normalizePath(id));
+              if (info) {
+                info.exports.push(exportName);
+              } else {
+                if (isProduction) {
+                  const emitted = this.emitFile({
+                    type: "chunk",
+                    id: id,
+                    preserveSignature: "strict",
+                  });
+                  clientSideChunks.push({
+                    originalPath: normalizePath(id),
+                    id: emitted,
+                    exports: [exportName],
+                  });
+                } else {
+                  clientSideChunks.push({
+                    originalPath: normalizePath(id),
+                    id: normalizePath(join(clientAssetsDir, relative(rootDir, id))),
+                    exports: [exportName],
+                  });
+                }
+              }
+            }
+          }))
+        },
+
+        transform: {
+          order: 'post',
+          async handler(code, id) {
+            const shouldTransform = VSC_PREFIX_RE.test(id) || clientSideChunks.some((chunk) => chunk.id === id);
+
+            if (!shouldTransform) {
+              return;
+            }
+
+            const ref = clientSideChunks.find(info => info.originalPath === normalizePath(id) || info.id === id);
+
+            if (!ref) {
+              return;
+            }
+
+            const s = new MagicString(code);
+            const ast = this.parse(code);
+
+            const exportNodes = ref.exports.map((exportName) => {
+              return [
+                exportName,
+                ast.body.find((node) => {
+                  if (exportName === 'default') {
+                    return node.type === "ExportDefaultDeclaration";
+                  }
+                  return node.type === "ExportNamedDeclaration" && node.specifiers.some((specifier) => specifier.exported.type === "Identifier" && specifier.exported.name === exportName);
+                })
+              ]
+            })
+
+            for (const [exportName, exportNode] of exportNodes) {
+              if (exportNode) {
+                const { start, end } = exportNode as ExportDefaultDeclaration & { start: number; end: number };
+                s.overwrite(
+                  start,
+                  end,
+                  `Object.assign(
+                                    { __chunk: "${normalizePath(join("/", isProduction ? join(clientAssetsDir, normalize(ref.id)) : relative(rootDir, normalize(ref.id))))}", __export: ${JSON.stringify(exportName)}  },
+                                     ${code.slice(start, end)},
+                                )`,
+                );
+              }
+            }
+
+            if (s.hasChanged()) {
+              return {
+                code: s.toString(),
+                map: s.generateMap({ hires: true }).toString(),
+              };
             }
           }
         },
+
 
         generateBundle(_, bundle) {
           for (const chunk of Object.values(bundle)) {
@@ -148,23 +210,45 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         enforce: "pre",
         name: "vite:vue-server-components-server",
         async buildStart() {
-          const chunksToInclude = Array.isArray(options.includeClientChunks)
-            ? options.includeClientChunks
-            : [options.includeClientChunks || "**/*.vue"];
+          if (!isProduction) {
+            return
+          }
+          if (options.includeClientChunks) {
 
-          const scannedFiles = glob(chunksToInclude, {
-            cwd: rootDir,
-          });
-
-          for await (const file of scannedFiles) {
-            const id = join(rootDir, file);
-            if (isProduction) {
-              this.emitFile({
-                type: "chunk",
-                id: id,
-                preserveSignature: "strict",
-              });
-            }
+            await Promise.all((Array.isArray(options.includeClientChunks) ? options.includeClientChunks : [options.includeClientChunks]).map(async (file) => {
+              const path = typeof file === "string" ? file : file.path;
+              const exportName = typeof file === "string" ? 'default' : file.export;
+            const files = glob(path, {
+              cwd: rootDir,
+            });           
+            
+            for await (const file of files) {
+                const id = join(rootDir, file);
+                 const info = clientSideChunks.find((chunk) => chunk.originalPath === normalizePath(id));
+                if (info) {
+                  info.exports.push(exportName);
+                } else {
+                  if (isProduction) {
+                    const emitted = this.emitFile({
+                      type: "chunk",
+                      id: VSC_PREFIX + id,
+                      preserveSignature: "strict",
+                    });
+                    clientSideChunks.push({
+                      originalPath: normalizePath(id),
+                      id: emitted,
+                      exports: [exportName],
+                    });
+                  } else {
+                    clientSideChunks.push({
+                      originalPath: normalizePath(id),
+                      id: normalizePath(join(clientAssetsDir, relative(rootDir, id))),
+                      exports: [exportName],
+                    });
+                  }
+                }
+              }
+            }))
           }
         },
         resolveId: {
@@ -245,31 +329,40 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         transform: {
           order: "post",
           handler(code, id) {
-            const ref = clientSideChunks.get(id.replace(VSC_PREFIX_RE, ""));
-
-            if (ref) {
+            const ref = clientSideChunks.find((chunk) => chunk.originalPath === id.replace(VSC_PREFIX_RE, ""));
+          
+            if (id && ref && VSC_PREFIX_RE.test(id)) {
+              console.log(`Transforming chunk: ${id}`);
               const s = new MagicString(code);
               const ast = this.parse(code);
-              const exportDefault = ast.body.find((node) => {
-                return node.type === "ExportDefaultDeclaration";
-              }) as
-                | (ExportDefaultDeclaration & { start: number; end: number })
-                | undefined;
-              const ExportDefaultDeclaration = exportDefault?.declaration;
-              if (ExportDefaultDeclaration) {
-                const { start, end } = ExportDefaultDeclaration;
-                s.overwrite(
-                  start,
-                  end,
-                  `Object.assign(
-                                    { __chunk: "${normalizePath(join("/", isProduction ? join(clientAssetsDir, normalize(ref.id)) : relative(rootDir, normalize(ref.id))))}" },
+
+              for(const exportName of ref.exports) {
+                const exportNode = ast.body.find((node) => {
+                  if (exportName === 'default') {
+                    return node.type === "ExportDefaultDeclaration";
+                  }
+                  return node.type === "ExportNamedDeclaration" && node.specifiers.some((specifier) => specifier.exported.type === "Identifier" && specifier.exported.name === exportName);
+                }) as ExportDefaultDeclaration & { start: number; end: number } | undefined;
+
+                if (exportNode) {
+                  const { start, end } = exportNode;
+                  s.overwrite(
+                    start,
+                    end,
+                    `Object.assign(
+                                    { __chunk: "${normalizePath(join("/", isProduction ? join(clientAssetsDir, normalize(ref.id)) : relative(rootDir, normalize(ref.id))))}", __export: ${JSON.stringify(exportName)} },
                                      ${code.slice(start, end)},
                                 )`,
-                );
+                  );
+                }
+              }
+
+              if (s.hasChanged()) {
+                console.log(s.toString())
                 return {
                   code: s.toString(),
                   map: s.generateMap({ hires: true }).toString(),
-                };
+                }
               }
             }
           },

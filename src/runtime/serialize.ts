@@ -173,12 +173,14 @@ export async function serializeVNode(
         (child) => {
           if (child._onigiriLoadClient) {
             // @ts-expect-error
-            if (vnode.type.__chunk) {
+            if (vnode.type.__chunk && vnode.type.__export) {
               return [
                 VServerComponentType.Component,
                 filterProps(vnode.props),
                 // @ts-expect-error
                 vnode.type.__chunk as string,
+                // @ts-expect-error
+                vnode.type.__export as string,
                 serializeSlots((child as any).__slotsResult),
               ];
             }
