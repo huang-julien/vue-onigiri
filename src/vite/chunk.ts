@@ -197,7 +197,6 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
 
           for (const [id, data] of clientSideChunks.entries()) {
             data.filename = this.getFileName(data.id);
-            console.log(`Chunk ${id} emitted with filename: ${data.filename}`);
           }
         },
       },
@@ -332,7 +331,6 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
             const ref = clientSideChunks.find((chunk) => chunk.originalPath === id.replace(VSC_PREFIX_RE, ""));
           
             if (id && ref && VSC_PREFIX_RE.test(id)) {
-              console.log(`Transforming chunk: ${id}`);
               const s = new MagicString(code);
               const ast = this.parse(code);
 
@@ -358,7 +356,6 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
               }
 
               if (s.hasChanged()) {
-                console.log(s.toString())
                 return {
                   code: s.toString(),
                   map: s.generateMap({ hires: true }).toString(),
