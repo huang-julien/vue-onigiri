@@ -304,7 +304,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                   type: "chunk",
                   fileName,
                   id: VSC_PREFIX + id,
-                  preserveSignature: "strict",
+                  preserveSignature: 'exports-only',
                 });
               }
             }
@@ -343,12 +343,12 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                 }) as ExportDefaultDeclaration & { start: number; end: number } | undefined;
 
                 if (exportNode) {
-                  const { start, end } = exportNode;
+                  const { start, end } = exportNode.declaration;
                   s.overwrite(
                     start,
                     end,
                     `Object.assign(
-                                    { __chunk: "${normalizePath(join("/", isProduction ? join(clientAssetsDir, normalize(ref.id)) : relative(rootDir, normalize(ref.id))))}", __export: ${JSON.stringify(exportName)} },
+                                    { __chunk: "${normalizePath(join("/", isProduction ? normalize(ref.filename!) : relative(rootDir, normalize(ref.id))))}", __export: ${JSON.stringify(exportName)} },
                                      ${code.slice(start, end)},
                                 )`,
                   );
