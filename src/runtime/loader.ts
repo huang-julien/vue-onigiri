@@ -24,7 +24,10 @@ export default defineComponent({
     const importFn = props.importFn;
     const hasComponent = componentMap.has(props.data[2]);
     if (!hasComponent) {
-      const component = await importFn(props.data[2], props.data[3] ?? 'default');
+      const component = await importFn(
+        props.data[2],
+        props.data[3] ?? "default",
+      );
       componentMap.set(props.data[2], component);
     }
     return () => {

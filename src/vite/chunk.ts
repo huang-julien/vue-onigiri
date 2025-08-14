@@ -14,7 +14,7 @@ function normalizePath(path: string): string {
 }
 
 export type VSCOptions = {
-  includeClientChunks: (string | { path: string, export: string })[];
+  includeClientChunks: (string | { path: string; export: string })[];
   /**
    * root directory from which to resolve the files.
    * @default {string} root of the project
@@ -41,13 +41,17 @@ const NOVSC_PREFIX_RE = /^(\/?@id\/)?(?!virtual:vsc:)/;
 export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
   client: (opts?: Options) => Plugin[];
   server: (opts?: Options) => Plugin[];
-  clientChunks: { originalPath: string; id: string; filename?: string }[]
+  clientChunks: { originalPath: string; id: string; filename?: string }[];
 } {
   const { serverAssetsDir = "", clientAssetsDir = "", rootDir = "" } = options;
-  const clientSideChunks: { originalPath: string; id: string; filename?: string, exports: string[] }[] = [];
+  const clientSideChunks: {
+    originalPath: string;
+    id: string;
+    filename?: string;
+    exports: string[];
+  }[] = [];
   let assetDir: string = clientAssetsDir;
   let isProduction = false;
-
 
   return {
     clientChunks: clientSideChunks,
@@ -87,57 +91,69 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
           }
         },
         async buildStart() {
-          console.log(clientSideChunks)
+          console.log(clientSideChunks);
           const chunksToInclude = Array.isArray(options.includeClientChunks)
             ? options.includeClientChunks
             : [options.includeClientChunks || "**/*.vue"];
 
-          await Promise.all(chunksToInclude.map(async (file) => {
-            const path = typeof file === "string" ? file : file.path;
-            const exportName = typeof file === "string" ? 'default' : file.export;
-            const files = glob(path, {
-              cwd: rootDir,
-            });
-            for await (const file of files) {
-              const id = join(rootDir, file);
+          await Promise.all(
+            chunksToInclude.map(async (file) => {
+              const path = typeof file === "string" ? file : file.path;
+              const exportName =
+                typeof file === "string" ? "default" : file.export;
+              const files = glob(path, {
+                cwd: rootDir,
+              });
+              for await (const file of files) {
+                const id = join(rootDir, file);
 
-              const info = clientSideChunks.find((chunk) => chunk.originalPath === normalizePath(id));
-              if (info) {
-                info.exports.push(exportName);
-              } else {
-                if (isProduction) {
-                  const emitted = this.emitFile({
-                    type: "chunk",
-                    id: id,
-                    preserveSignature: "strict",
-                  });
-                  clientSideChunks.push({
-                    originalPath: normalizePath(id),
-                    id: emitted,
-                    exports: [exportName],
-                  });
+                const info = clientSideChunks.find(
+                  (chunk) => chunk.originalPath === normalizePath(id),
+                );
+                if (info) {
+                  info.exports.push(exportName);
                 } else {
-                  clientSideChunks.push({
-                    originalPath: normalizePath(id),
-                    id: normalizePath(join(clientAssetsDir, relative(rootDir, id))),
-                    exports: [exportName],
-                  });
+                  if (isProduction) {
+                    const emitted = this.emitFile({
+                      type: "chunk",
+                      id: id,
+                      preserveSignature: "strict",
+                    });
+                    clientSideChunks.push({
+                      originalPath: normalizePath(id),
+                      id: emitted,
+                      exports: [exportName],
+                    });
+                  } else {
+                    clientSideChunks.push({
+                      originalPath: normalizePath(id),
+                      id: normalizePath(
+                        join(clientAssetsDir, relative(rootDir, id)),
+                      ),
+                      exports: [exportName],
+                    });
+                  }
                 }
               }
-            }
-          }))
+            }),
+          );
         },
 
         transform: {
-          order: 'post',
+          order: "post",
           async handler(code, id) {
-            const shouldTransform = VSC_PREFIX_RE.test(id) || clientSideChunks.some((chunk) => chunk.id === id);
+            const shouldTransform =
+              VSC_PREFIX_RE.test(id) ||
+              clientSideChunks.some((chunk) => chunk.id === id);
 
             if (!shouldTransform) {
               return;
             }
 
-            const ref = clientSideChunks.find(info => info.originalPath === normalizePath(id) || info.id === id);
+            const ref = clientSideChunks.find(
+              (info) =>
+                info.originalPath === normalizePath(id) || info.id === id,
+            );
 
             if (!ref) {
               return;
@@ -150,17 +166,28 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
               return [
                 exportName,
                 ast.body.find((node) => {
-                  if (exportName === 'default') {
+                  if (exportName === "default") {
                     return node.type === "ExportDefaultDeclaration";
                   }
-                  return node.type === "ExportNamedDeclaration" && node.specifiers.some((specifier) => specifier.exported.type === "Identifier" && specifier.exported.name === exportName);
-                })
-              ]
-            })
+                  return (
+                    node.type === "ExportNamedDeclaration" &&
+                    node.specifiers.some(
+                      (specifier) =>
+                        specifier.exported.type === "Identifier" &&
+                        specifier.exported.name === exportName,
+                    )
+                  );
+                }),
+              ];
+            });
 
             for (const [exportName, exportNode] of exportNodes) {
               if (exportNode) {
-                const { start, end } = exportNode as ExportDefaultDeclaration & { start: number; end: number };
+                const { start, end } =
+                  exportNode as ExportDefaultDeclaration & {
+                    start: number;
+                    end: number;
+                  };
                 s.overwrite(
                   start,
                   end,
@@ -178,9 +205,8 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                 map: s.generateMap({ hires: true }).toString(),
               };
             }
-          }
+          },
         },
-
 
         generateBundle(_, bundle) {
           for (const chunk of Object.values(bundle)) {
@@ -210,44 +236,53 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         name: "vite:vue-server-components-server",
         async buildStart() {
           if (!isProduction) {
-            return
+            return;
           }
           if (options.includeClientChunks) {
+            await Promise.all(
+              (Array.isArray(options.includeClientChunks)
+                ? options.includeClientChunks
+                : [options.includeClientChunks]
+              ).map(async (file) => {
+                const path = typeof file === "string" ? file : file.path;
+                const exportName =
+                  typeof file === "string" ? "default" : file.export;
+                const files = glob(path, {
+                  cwd: rootDir,
+                });
 
-            await Promise.all((Array.isArray(options.includeClientChunks) ? options.includeClientChunks : [options.includeClientChunks]).map(async (file) => {
-              const path = typeof file === "string" ? file : file.path;
-              const exportName = typeof file === "string" ? 'default' : file.export;
-            const files = glob(path, {
-              cwd: rootDir,
-            });           
-            
-            for await (const file of files) {
-                const id = join(rootDir, file);
-                 const info = clientSideChunks.find((chunk) => chunk.originalPath === normalizePath(id));
-                if (info) {
-                  info.exports.push(exportName);
-                } else {
-                  if (isProduction) {
-                    const emitted = this.emitFile({
-                      type: "chunk",
-                      id: VSC_PREFIX + id,
-                      preserveSignature: "strict",
-                    });
-                    clientSideChunks.push({
-                      originalPath: normalizePath(id),
-                      id: emitted,
-                      exports: [exportName],
-                    });
+                for await (const file of files) {
+                  const id = join(rootDir, file);
+                  const info = clientSideChunks.find(
+                    (chunk) => chunk.originalPath === normalizePath(id),
+                  );
+                  if (info) {
+                    info.exports.push(exportName);
                   } else {
-                    clientSideChunks.push({
-                      originalPath: normalizePath(id),
-                      id: normalizePath(join(clientAssetsDir, relative(rootDir, id))),
-                      exports: [exportName],
-                    });
+                    if (isProduction) {
+                      const emitted = this.emitFile({
+                        type: "chunk",
+                        id: VSC_PREFIX + id,
+                        preserveSignature: "strict",
+                      });
+                      clientSideChunks.push({
+                        originalPath: normalizePath(id),
+                        id: emitted,
+                        exports: [exportName],
+                      });
+                    } else {
+                      clientSideChunks.push({
+                        originalPath: normalizePath(id),
+                        id: normalizePath(
+                          join(clientAssetsDir, relative(rootDir, id)),
+                        ),
+                        exports: [exportName],
+                      });
+                    }
                   }
                 }
-              }
-            }))
+              }),
+            );
           }
         },
         resolveId: {
@@ -304,7 +339,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                   type: "chunk",
                   fileName,
                   id: VSC_PREFIX + id,
-                  preserveSignature: 'exports-only',
+                  preserveSignature: "exports-only",
                 });
               }
             }
@@ -328,19 +363,30 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         transform: {
           order: "post",
           handler(code, id) {
-            const ref = clientSideChunks.find((chunk) => chunk.originalPath === id.replace(VSC_PREFIX_RE, ""));
-          
+            const ref = clientSideChunks.find(
+              (chunk) => chunk.originalPath === id.replace(VSC_PREFIX_RE, ""),
+            );
+
             if (id && ref && VSC_PREFIX_RE.test(id)) {
               const s = new MagicString(code);
               const ast = this.parse(code);
 
-              for(const exportName of ref.exports) {
+              for (const exportName of ref.exports) {
                 const exportNode = ast.body.find((node) => {
-                  if (exportName === 'default') {
+                  if (exportName === "default") {
                     return node.type === "ExportDefaultDeclaration";
                   }
-                  return node.type === "ExportNamedDeclaration" && node.specifiers.some((specifier) => specifier.exported.type === "Identifier" && specifier.exported.name === exportName);
-                }) as ExportDefaultDeclaration & { start: number; end: number } | undefined;
+                  return (
+                    node.type === "ExportNamedDeclaration" &&
+                    node.specifiers.some(
+                      (specifier) =>
+                        specifier.exported.type === "Identifier" &&
+                        specifier.exported.name === exportName,
+                    )
+                  );
+                }) as
+                  | (ExportDefaultDeclaration & { start: number; end: number })
+                  | undefined;
 
                 if (exportNode) {
                   const { start, end } = exportNode.declaration;
@@ -359,7 +405,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                 return {
                   code: s.toString(),
                   map: s.generateMap({ hires: true }).toString(),
-                }
+                };
               }
             }
           },
