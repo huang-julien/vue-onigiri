@@ -41,16 +41,17 @@ const NOVSC_PREFIX_RE = /^(\/?@id\/)?(?!virtual:vsc:)/;
 export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
   client: (opts?: Options) => Plugin[];
   server: (opts?: Options) => Plugin[];
-  clientChunks: { originalPath: string; id: string; filename?: string }[]
+  clientChunks: { originalPath: string; id: string; filename?: string; }[]
+  serverChunks: { originalPath: string; id: string; filename?: string; clientSideChunk?: string ; serverChunkPath?: string  }[]
 } {
   const { serverAssetsDir = "", clientAssetsDir = "", rootDir = "" } = options;
-  const clientSideChunks: { originalPath: string; id: string; filename?: string, exports: string[] }[] = [];
+  const clientChunks: { originalPath: string; id: string; filename?: string, exports: string[] }[] = [];
+  const serverChunks: { originalPath: string; id: string; filename?: string, exports: string[], clientSideChunk?: string, serverChunkPath?: string }[] = [];
   let assetDir: string = clientAssetsDir;
   let isProduction = false;
-
-
   return {
-    clientChunks: clientSideChunks,
+    clientChunks: clientChunks,
+    serverChunks,
     client: (opts) => [
       vue(opts),
       {
@@ -87,7 +88,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
           }
         },
         async buildStart() {
-          console.log(clientSideChunks)
+          console.log(clientChunks)
           const chunksToInclude = Array.isArray(options.includeClientChunks)
             ? options.includeClientChunks
             : [options.includeClientChunks || "**/*.vue"];
@@ -101,7 +102,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
             for await (const file of files) {
               const id = join(rootDir, file);
 
-              const info = clientSideChunks.find((chunk) => chunk.originalPath === normalizePath(id));
+              const info = clientChunks.find((chunk) => chunk.originalPath === normalizePath(id));
               if (info) {
                 info.exports.push(exportName);
               } else {
@@ -111,13 +112,13 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                     id: id,
                     preserveSignature: "strict",
                   });
-                  clientSideChunks.push({
+                  clientChunks.push({
                     originalPath: normalizePath(id),
                     id: emitted,
                     exports: [exportName],
                   });
                 } else {
-                  clientSideChunks.push({
+                  clientChunks.push({
                     originalPath: normalizePath(id),
                     id: normalizePath(join(clientAssetsDir, relative(rootDir, id))),
                     exports: [exportName],
@@ -131,13 +132,13 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         transform: {
           order: 'post',
           async handler(code, id) {
-            const shouldTransform = VSC_PREFIX_RE.test(id) || clientSideChunks.some((chunk) => chunk.id === id);
+            const shouldTransform = VSC_PREFIX_RE.test(id) || clientChunks.some((chunk) => chunk.id === id);
 
             if (!shouldTransform) {
               return;
             }
 
-            const ref = clientSideChunks.find(info => info.originalPath === normalizePath(id) || info.id === id);
+            const ref = clientChunks.find(info => info.originalPath === normalizePath(id) || info.id === id);
 
             if (!ref) {
               return;
@@ -185,7 +186,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         generateBundle(_, bundle) {
           for (const chunk of Object.values(bundle)) {
             if (chunk.type === "chunk") {
-              const list = clientSideChunks
+              const list = clientChunks
                 .values()
                 .map((ref) => ref.id)
                 .toArray();
@@ -195,7 +196,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
             }
           }
 
-          for (const [id, data] of clientSideChunks.entries()) {
+          for (const [id, data] of clientChunks.entries()) {
             data.filename = this.getFileName(data.id);
           }
         },
@@ -223,31 +224,40 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
             
             for await (const file of files) {
                 const id = join(rootDir, file);
-                 const info = clientSideChunks.find((chunk) => chunk.originalPath === normalizePath(id));
+                 const info = serverChunks.find((chunk) => chunk.originalPath === normalizePath(id));
                 if (info) {
                   info.exports.push(exportName);
                 } else {
+                                      const clientSideChunk = clientChunks.find((chunk) => chunk.originalPath === normalizePath(id));
+
                   if (isProduction) {
                     const emitted = this.emitFile({
                       type: "chunk",
                       id: VSC_PREFIX + id,
                       preserveSignature: "strict",
                     });
-                    clientSideChunks.push({
+                    serverChunks.push({
                       originalPath: normalizePath(id),
                       id: emitted,
                       exports: [exportName],
+                      clientSideChunk: clientSideChunk?.filename
                     });
                   } else {
-                    clientSideChunks.push({
+                    serverChunks.push({
                       originalPath: normalizePath(id),
                       id: normalizePath(join(clientAssetsDir, relative(rootDir, id))),
                       exports: [exportName],
+                      clientSideChunk: clientSideChunk?.filename,
                     });
                   }
                 }
               }
             }))
+          }
+        },
+        generateBundle(){
+          for(const chunk of serverChunks ) {
+            chunk.serverChunkPath = this.getFileName(chunk.id);
           }
         },
         resolveId: {
@@ -314,7 +324,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         generateBundle(_, bundle) {
           for (const chunk of Object.values(bundle)) {
             if (chunk.type === "chunk") {
-              const list = clientSideChunks
+              const list = serverChunks
                 .values()
                 .map((ref) => ref.id)
                 .toArray();
@@ -328,7 +338,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         transform: {
           order: "post",
           handler(code, id) {
-            const ref = clientSideChunks.find((chunk) => chunk.originalPath === id.replace(VSC_PREFIX_RE, ""));
+            const ref = clientChunks.find((chunk) => chunk.originalPath === id.replace(VSC_PREFIX_RE, ""));
           
             if (id && ref && VSC_PREFIX_RE.test(id)) {
               const s = new MagicString(code);
