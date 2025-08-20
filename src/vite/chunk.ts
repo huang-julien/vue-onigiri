@@ -307,9 +307,11 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
           order: "pre",
           async handler(id) {
             const [filename, rawQuery] = id.split(`?`, 2);
-   if (id === "virtual:vue-onigiri") {
-              return `export const serverChunks = new Map( [
-            ${serverChunks.map((chunk) => `[${JSON.stringify("/" + chunk.clientSideChunk)}, import(import.meta.ROLLUP_FILE_URL_${chunk.id})]`).join(",\n")}
+          if (id === "virtual:vue-onigiri") {
+              return `
+              ${serverChunks.map((chunk, index) => `import * as i${index} from '${VSC_PREFIX + chunk.originalPath}'`).join("\n")}
+              export const serverChunks = new Map( [
+            ${serverChunks.map((chunk, index) => `[${JSON.stringify("/" + chunk.clientSideChunk)}, i${index}]`).join(",\n")}
           ] );`;
             }
             if (!rawQuery && VSC_PREFIX_RE.test(id)) {
