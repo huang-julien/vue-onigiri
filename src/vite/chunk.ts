@@ -213,6 +213,8 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
           if (!isProduction) {
             return
           }
+
+        
           if (options.includeClientChunks) {
 
             await Promise.all((Array.isArray(options.includeClientChunks) ? options.includeClientChunks : [options.includeClientChunks]).map(async (file) => {
@@ -254,15 +256,21 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
               }
             }))
           }
-        },
-        generateBundle(){
-          for(const chunk of serverChunks ) {
-            chunk.serverChunkPath = this.getFileName(chunk.id);
-          }
-        },
+          
+          this.emitFile({
+          type: 'chunk',
+          fileName: 'vue-onigiri.mjs',
+          id: 'virtual:vue-onigiri',
+          preserveSignature: 'strict',
+        })
+
+        }, 
         resolveId: {
           order: "pre",
           async handler(id, importer) {
+             if (id === 'virtual:vue-onigiri') {
+          return id
+        }
             if (importer && VSC_PREFIX_RE.test(importer)) {
               if (VSC_PREFIX_RE.test(id)) {
                 return id;
@@ -292,36 +300,29 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                 }
               }
               return id;
-            }
+            } 
           },
         },
         load: {
           order: "pre",
           async handler(id) {
             const [filename, rawQuery] = id.split(`?`, 2);
-
-            if (!rawQuery) {
-              if (VSC_PREFIX_RE.test(id)) {
+   if (id === "virtual:vue-onigiri") {
+              return `export const serverChunks = new Map( [
+            ${serverChunks.map((chunk) => `[${JSON.stringify("/" + chunk.clientSideChunk)}, import(import.meta.ROLLUP_FILE_URL_${chunk.id})]`).join(",\n")}
+          ] );`;
+            }
+            if (!rawQuery && VSC_PREFIX_RE.test(id)) {
                 const file = id.replace(VSC_PREFIX_RE, "");
 
                 return {
                   code: readFileSync(normalizePath(normalize(file)), "utf8"),
                 };
               }
-              if (filename?.endsWith(".vue")) {
-                const fileName = join(serverAssetsDir, hash(id) + ".mjs");
-                this.emitFile({
-                  type: "chunk",
-                  fileName,
-                  id: VSC_PREFIX + id,
-                  preserveSignature: 'exports-only',
-                });
-              }
-            }
           },
         },
 
-        generateBundle(_, bundle) {
+        generateBundle(output, bundle) {
           for (const chunk of Object.values(bundle)) {
             if (chunk.type === "chunk") {
               const list = serverChunks
@@ -330,11 +331,17 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                 .toArray();
               if (list.includes(chunk.fileName)) {
                 chunk.isEntry = false;
+                chunk.isImplicitEntry = true;
+                chunk.isDynamicEntry = true
+
               }
             }
           }
+          for(const chunk of serverChunks ) {
+            chunk.serverChunkPath = this.getFileName(chunk.id);
+          }
         },
-
+ 
         transform: {
           order: "post",
           handler(code, id) {
@@ -395,6 +402,21 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
           },
         },
       },
+      {
+        name: 'nitrofix',
+        enforce: 'post',
+
+        transform: {
+          order: 'post',
+          handler(code, id) {
+          if(id === 'virtual:vue-onigiri') {
+            return {
+              code: code.replaceAll('globalThis._importMeta_.url', 'import.meta.url')
+            }
+          }
+        }
+        }
+      }
     ],
   };
 }
