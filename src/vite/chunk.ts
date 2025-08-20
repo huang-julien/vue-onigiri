@@ -310,7 +310,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
           if (id === "virtual:vue-onigiri") {
               return `
               ${serverChunks.map((chunk, index) => `import * as i${index} from '${VSC_PREFIX + chunk.originalPath}'`).join("\n")}
-              export const serverChunks = new Map( [
+              export default new Map( [
             ${serverChunks.map((chunk, index) => `[${JSON.stringify("/" + chunk.clientSideChunk)}, i${index}]`).join(",\n")}
           ] );`;
             }

@@ -22,6 +22,7 @@ export type VServerComponentComponent = [
   VServerComponentType.Component,
   Props,
   ChunkPath,
+  // export name
   string,
   Slots,
 ];
