@@ -1,5 +1,57 @@
 # Changelog
 
+## v0.2.0
+
+[compare changes](https://undefined/undefined/compare/v0.1.1...v0.2.0)
+
+### 🚀 Enhancements
+
+- Expose emitted client chunks and override vue plugin config hook (696d4f1)
+- ⚠️  Add export name to components serialization (cff3efc)
+- Emit virtual:vue-onigiri for server-client chunk (8666906)
+
+### 🩹 Fixes
+
+- Don't serialize listeners (21877a5)
+- Types (8a74d23)
+- Revert config hook (d964ad5)
+- Patched vue (af191da)
+- Fix vue patch (c5a0a4c)
+- **chunk:** Fix server-side export name (b8f4887)
+- Provide emitted server side chunks (601f69f)
+- Use direct import in virtual:vue-onigiri (5e209dc)
+- Change export name (1c5494d)
+
+### 🏡 Chore
+
+- Apply automated updates (f2c011c)
+- Apply automated updates (821fbb6)
+- Lint (ee6ce65)
+- Apply automated updates (8fdf822)
+- Apply automated updates (de1919c)
+- Apply automated updates (d94ae77)
+- Remove console (f52269a)
+- Remove nitrofix (c360675)
+- Remove console log (a9efa9a)
+
+### ✅ Tests
+
+- Provide rootDir (c4454a6)
+- Remove old impl (1c35e56)
+- Update snapshots (525970f)
+
+### 🤖 CI
+
+- **autofix:** Remove it for now (f40f18f)
+
+#### ⚠️ Breaking Changes
+
+- ⚠️  Add export name to components serialization (cff3efc)
+
+### ❤️ Contributors
+
+- Julien Huang ([@huang-julien](https://github.com/huang-julien))
+
 ## v0.1.1
 
 ### 🚀 Enhancements
