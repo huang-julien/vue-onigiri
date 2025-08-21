@@ -42,7 +42,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
   client: (opts?: Options) => Plugin[];
   server: (opts?: Options) => Plugin[];
   clientChunks: { originalPath: string; id: string; filename?: string; }[]
-  serverChunks: { originalPath: string; id: string; filename?: string; clientSideChunk?: string ; serverChunkPath?: string  }[]
+  serverChunks: { originalPath: string; id: string; filename?: string; clientSideChunk?: string; serverChunkPath?: string }[]
 } {
   const { serverAssetsDir = "", clientAssetsDir = "", rootDir = "" } = options;
   const clientChunks: { originalPath: string; id: string; filename?: string, exports: string[] }[] = [];
@@ -165,9 +165,9 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                 s.overwrite(
                   start,
                   end,
-                  `Object.assign(
+                  `Object.assign(${code.slice(start, end)},
                                     { __chunk: "${normalizePath(join("/", isProduction ? join(clientAssetsDir, normalize(ref.id)) : relative(rootDir, normalize(ref.id))))}", __export: ${JSON.stringify(exportName)}  },
-                                     ${code.slice(start, end)},
+                                     
                                 )`,
                 );
               }
@@ -214,23 +214,23 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
             return
           }
 
-        
+
           if (options.includeClientChunks) {
 
             await Promise.all((Array.isArray(options.includeClientChunks) ? options.includeClientChunks : [options.includeClientChunks]).map(async (file) => {
               const path = typeof file === "string" ? file : file.path;
               const exportName = typeof file === "string" ? 'default' : file.export;
-            const files = glob(path, {
-              cwd: rootDir,
-            });           
-            
-            for await (const file of files) {
+              const files = glob(path, {
+                cwd: rootDir,
+              });
+
+              for await (const file of files) {
                 const id = join(rootDir, file);
-                 const info = serverChunks.find((chunk) => chunk.originalPath === normalizePath(id));
+                const info = serverChunks.find((chunk) => chunk.originalPath === normalizePath(id));
                 if (info) {
                   info.exports.push(exportName);
                 } else {
-                                      const clientSideChunk = clientChunks.find((chunk) => chunk.originalPath === normalizePath(id));
+                  const clientSideChunk = clientChunks.find((chunk) => chunk.originalPath === normalizePath(id));
 
                   if (isProduction) {
                     const emitted = this.emitFile({
@@ -256,21 +256,21 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
               }
             }))
           }
-          
-          this.emitFile({
-          type: 'chunk',
-          fileName: 'vue-onigiri.mjs',
-          id: 'virtual:vue-onigiri',
-          preserveSignature: 'strict',
-        })
 
-        }, 
+          this.emitFile({
+            type: 'chunk',
+            fileName: 'vue-onigiri.mjs',
+            id: 'virtual:vue-onigiri',
+            preserveSignature: 'strict',
+          })
+
+        },
         resolveId: {
           order: "pre",
           async handler(id, importer) {
-             if (id === 'virtual:vue-onigiri') {
-          return id
-        }
+            if (id === 'virtual:vue-onigiri') {
+              return id
+            }
             if (importer && VSC_PREFIX_RE.test(importer)) {
               if (VSC_PREFIX_RE.test(id)) {
                 return id;
@@ -289,6 +289,11 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
               });
             }
 
+            // todo lol
+            if(id.endsWith('.ts') || id.endsWith('.tsx') || id.endsWith('.js') || id.endsWith('.jsx')) {
+              return this.resolve(id.replace(VSC_PREFIX_RE, ""), importer?.replace(VSC_PREFIX_RE, ""));
+            }
+
             if (VSC_PREFIX_RE.test(id)) {
               if (id.replace(VSC_PREFIX_RE, "").startsWith("./")) {
                 const resolved = await this.resolve(
@@ -300,27 +305,20 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                 }
               }
               return id;
-            } 
+            }
           },
         },
         load: {
           order: "pre",
           async handler(id) {
             const [filename, rawQuery] = id.split(`?`, 2);
-          if (id === "virtual:vue-onigiri") {
-              return `
-              ${serverChunks.map((chunk, index) => `import * as i${index} from '${VSC_PREFIX + chunk.originalPath}'`).join("\n")}
-              export default new Map( [
-            ${serverChunks.map((chunk, index) => `[${JSON.stringify("/" + chunk.clientSideChunk)}, i${index}]`).join(",\n")}
-          ] );`;
-            }
-            if (!rawQuery && VSC_PREFIX_RE.test(id)) {
-                const file = id.replace(VSC_PREFIX_RE, "");
+            if (!rawQuery && VSC_PREFIX_RE.test(id) && id.endsWith('.vue')) {
+              const file = id.replace(VSC_PREFIX_RE, "");
 
-                return {
-                  code: readFileSync(normalizePath(normalize(file)), "utf8"),
-                };
-              }
+              return {
+                code: readFileSync(normalizePath(normalize(file)), "utf8"),
+              };
+            }
           },
         },
 
@@ -339,21 +337,21 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
               }
             }
           }
-          for(const chunk of serverChunks ) {
+          for (const chunk of serverChunks) {
             chunk.serverChunkPath = this.getFileName(chunk.id);
           }
         },
- 
+
         transform: {
           order: "post",
           handler(code, id) {
             const ref = clientChunks.find((chunk) => chunk.originalPath === id.replace(VSC_PREFIX_RE, ""));
-          
+
             if (id && ref && VSC_PREFIX_RE.test(id)) {
               const s = new MagicString(code);
               const ast = this.parse(code);
 
-              for(const exportName of ref.exports) {
+              for (const exportName of ref.exports) {
                 const exportNode = ast.body.find((node) => {
                   if (exportName === 'default') {
                     return node.type === "ExportDefaultDeclaration";
@@ -366,9 +364,9 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                   s.overwrite(
                     start,
                     end,
-                    `Object.assign(
+                    `Object.assign( ${code.slice(start, end)},
                                     { __chunk: "${normalizePath(join("/", isProduction ? normalize(ref.filename!) : relative(rootDir, normalize(ref.id))))}", __export: ${JSON.stringify(exportName)} },
-                                     ${code.slice(start, end)},
+                                    
                                 )`,
                   );
                 }
@@ -404,6 +402,18 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
           },
         },
       },
+      {
+        name: 'vue:onigiri:loadvirtual',
+        load(id) {
+          if (id === "virtual:vue-onigiri") {
+            return `
+              ${serverChunks.map((chunk, index) => `import * as i${index} from '${VSC_PREFIX + chunk.originalPath}'`).join("\n")}
+              export default new Map( [
+            ${serverChunks.map((chunk, index) => `[${JSON.stringify("/" + chunk.clientSideChunk)}, i${index}]`).join(",\n")}
+          ] );`;
+          }
+        }
+      }
     ],
   };
 }
