@@ -404,21 +404,6 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
           },
         },
       },
-      {
-        name: 'nitrofix',
-        enforce: 'post',
-
-        transform: {
-          order: 'post',
-          handler(code, id) {
-          if(id === 'virtual:vue-onigiri') {
-            return {
-              code: code.replaceAll('globalThis._importMeta_.url', 'import.meta.url')
-            }
-          }
-        }
-        }
-      }
     ],
   };
 }
