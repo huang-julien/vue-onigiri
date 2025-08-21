@@ -88,7 +88,6 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
           }
         },
         async buildStart() {
-          console.log(clientChunks)
           const chunksToInclude = Array.isArray(options.includeClientChunks)
             ? options.includeClientChunks
             : [options.includeClientChunks || "**/*.vue"];
