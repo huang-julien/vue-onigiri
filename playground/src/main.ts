@@ -1,5 +1,5 @@
 import "./assets/main.css";
-
+import { loadClientDirective} from "vue-onigiri/runtime/utils"
 import { createApp, Suspense, h } from "vue";
 import App from "./App.vue";
 
@@ -11,4 +11,4 @@ createApp({
         }
         )
     }
-}).mount("#app");
+}).directive('load-client', loadClientDirective).mount("#app");

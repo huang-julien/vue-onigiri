@@ -5,7 +5,7 @@ import vueDevTools from "vite-plugin-vue-devtools";
 import { vueOnigiriPluginFactory } from "../src/vite/chunk";
 
 const { client } = vueOnigiriPluginFactory({
-  includeClientChunks: ["./src/components/HelloWorld.vue"],
+  includeClientChunks: ["./src/components/Counter.vue"],
 });
 
 // https://vite.dev/config/

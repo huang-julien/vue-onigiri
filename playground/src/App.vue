@@ -1,14 +1,22 @@
-<script setup lang="ts">
-import { serializeComponent } from "vue-onigiri/runtime/serialize"
+<script setup lang="ts"> 
+import { ref, type VNode } from "vue";
+import AstViewer from "./components/AstViewer.vue";
 import Counter from "./components/Counter.vue";
+import LoadComponent from "./components/LoadComponent.vue";
+const vnode = ref()
 
-const ast = await serializeComponent(Counter);
+function onVnodeUpdated(_vnode: VNode) {
+  vnode.value = _vnode
+}
 </script>
 
 
 <template> 
-  <main> 
-    {{ ast }}
+  <main style="display: grid; grid-template-columns: 1fr 1fr ; gap: 16px;">
+    <Counter ref="counterRef" @vue:mounted="onVnodeUpdated" @vue:updated="onVnodeUpdated"  />
+
+
+    <AstViewer  ref="astViewerRef" :vnode="vnode" />
   </main>
 </template>
  
