@@ -171,6 +171,7 @@ export async function serializeVNode(
     } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
       return Promise.resolve(renderComponent(vnode, parentInstance)).then(
         (child) => {
+            // @ts-expect-error
           if (child._onigiriLoadClient) {
             // @ts-expect-error
             if (vnode.type.__chunk && vnode.type.__export) {
@@ -296,6 +297,9 @@ function renderComponent(
   _vnode: VNode,
   parentInstance?: ComponentInternalInstance | null,
 ) {
+  if(_vnode && _vnode.component && _vnode.component.subTree) {
+    return _vnode.component.subTree
+  }
   const instance = createComponentInstance(
     _vnode,
     parentInstance ?? null,
