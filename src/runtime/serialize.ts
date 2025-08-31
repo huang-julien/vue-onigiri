@@ -190,7 +190,7 @@ export async function serializeVNode(
 
           return [
             VServerComponentType.Fragment,
-            serializeChildren(child.children, parentInstance),
+            serializeChildren(child, parentInstance),
           ];
         },
       );
@@ -332,7 +332,7 @@ function renderComponent(
         vnode.props = applySSRDirectives(vnode, props, dirs);
       }
       vnode.__slotsResult = instance.__slotsResult;
-      return vnode;
+      return vnode.children;
     });
   }
   const child = renderComponentRoot(instance);
@@ -342,7 +342,7 @@ function renderComponent(
     child.props = applySSRDirectives(child, props, dirs);
   }
   child.__slotsResult = instance.__slotsResult;
-  return child;
+  return child.children;
 }
 
 // todo test this
