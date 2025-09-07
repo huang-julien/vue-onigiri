@@ -78,6 +78,7 @@ export function serializeApp(app: App, context: SSRContext = {}) {
   const instance = createComponentInstance(vnode, input._instance, null);
   instance.appContext = input._context;
 
+  instance.provides = /* @__PURE__ */ Object.create(input._context.provides);
   return app.runWithContext(async () => {
     const res = await setupComponent(instance, true);
     return await app.runWithContext(async () => {
@@ -296,7 +297,7 @@ function serializeSlots(
 function renderComponent(
   _vnode: VNode,
   parentInstance?: ComponentInternalInstance | null,
-) {
+): Promise<VNodeNormalizedChildren> | VNodeNormalizedChildren | VNode {
   if(_vnode && _vnode.component && _vnode.component.subTree) {
     return _vnode.component.subTree
   }
@@ -332,6 +333,9 @@ function renderComponent(
         vnode.props = applySSRDirectives(vnode, props, dirs);
       }
       vnode.__slotsResult = instance.__slotsResult;
+      if (child.shapeFlag & ShapeFlags.COMPONENT) {
+        return renderComponent(child, parentInstance);
+      }
       return vnode.children;
     });
   }
@@ -342,6 +346,9 @@ function renderComponent(
     child.props = applySSRDirectives(child, props, dirs);
   }
   child.__slotsResult = instance.__slotsResult;
+  if (child.shapeFlag & ShapeFlags.COMPONENT) {
+    return renderComponent(child, instance);
+  }
   return child.children;
 }
 
