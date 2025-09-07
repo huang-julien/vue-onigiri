@@ -127,7 +127,6 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
             }
           }))
         },
-
         transform: {
           order: 'post',
           async handler(code, id) {
@@ -205,6 +204,28 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
           }
         },
       },
+      {
+        name: 'load:vue-onigiri',
+        resolveId(id) {
+          if(id === 'virtual:vue-onigiri') {
+            return id
+          }
+        },
+        load(id) {          
+            if(id === 'virtual:vue-onigiri') { 
+              return `
+              import { defineAsyncComponent } from "vue";
+              export default {
+                ${clientChunks.map(chunk =>
+                  chunk.exports.map(exportName =>
+                    `"${normalizePath(join("/", isProduction ? normalize(chunk.id) : relative(rootDir, normalize(chunk.id))))}#${exportName}": defineAsyncComponent(() => import("${chunk.originalPath}").then(m => m.${exportName}))`
+                  ).join(",\n")
+                ).join(",\n")}
+              }
+              `
+            }
+        },
+      }
     ],
 
     server: (opts) => [
