@@ -1,5 +1,5 @@
 <template>
-    <code>
+    <code style="white-space: pre;">
         {{ JSON.stringify(ast, null, 2) }}
     </code>
 </template>
