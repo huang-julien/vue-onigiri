@@ -183,7 +183,7 @@ export async function serializeVNode(
                 vnode.type.__chunk as string,
                 // @ts-expect-error
                 vnode.type.__export as string,
-                serializeSlots((child as any).__slotsResult),
+                (child as any).__slotsResult ? serializeSlots((child as any).__slotsResult) : serializeChildren(child!.children || [], parentInstance),
               ];
             }
             console.warn("Component is missing chunk information");
