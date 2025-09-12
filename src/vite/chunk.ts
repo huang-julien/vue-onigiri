@@ -407,26 +407,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
           },
         },
       },
-      {
-        name: "vue-onigiri:renderSSRSlotReplace",
-        transform: {
-          order: "post",
-          handler(code, id) {
-            if (VSC_PREFIX_RE.test(id)) {
-              const s = new MagicString(code);
-              s.prepend(
-                `import { renderSlot as cryoRenderSlot } from 'vue-onigiri/runtime/render-slot';\n`,
-              );
-              // replace renderSlot with vue-onigiri:renderSlot
-              s.replace(/_renderSlot\(/g, "cryoRenderSlot(_ctx,");
-              return {
-                code: s.toString(),
-                map: s.generateMap({ hires: true }).toString(),
-              };
-            }
-          },
-        },
-      },
+       
       {
         name: 'vue:onigiri:loadvirtual',
         load(id) {
