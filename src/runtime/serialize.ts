@@ -112,7 +112,7 @@ export function serializeApp(app: App, context: SSRContext = {}) {
         );
       }
 
-      
+
       return serializeVNode(child, instance).then((result) => {
         if (result) {
           return unrollServerComponentBufferPromises(result);
@@ -312,8 +312,8 @@ for(const key in instance.vnode.children) {
       reconstructedSlots[key] = fn
       continue
    }
-  reconstructedSlots[key] = (ctx, ...args: any[]) => {
-      const result = fn(ctx, ...args);
+  reconstructedSlots[key] = (...args: any[]) => {
+      const result = fn(...args);
   instance.__slotsResult = instance.__slotsResult || {};
   instance.__slotsResult[key] = result;
   return result;
@@ -346,8 +346,8 @@ instance.vnode.children = reconstructedSlots;
         vnode.props = applySSRDirectives(vnode, props, dirs);
       }
       vnode.__slotsResult = instance.__slotsResult;
-      if (child.shapeFlag & ShapeFlags.COMPONENT) {
-        return renderComponent(child, parentInstance);
+      if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
+        return renderComponent(vnode, parentInstance);
       }
       return vnode.children;
     });
