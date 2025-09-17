@@ -184,7 +184,7 @@ export async function serializeVNode(
                 vnode.type.__chunk as string,
                 // @ts-expect-error
                 vnode.type.__export as string,
-                serializeSlots((child as any).__slotsResult)
+                serializeSlots((child as any).__slotsResult, parentInstance)
                 ];
             }
             console.warn("Component is missing chunk information");
@@ -247,6 +247,7 @@ function serializeChildren(
 
 function serializeSlots(
   slots: Record<string, VNode[]> | undefined,
+  parentInstance?: ComponentInternalInstance
 ): MaybePromise<Record<string, VServerComponent[] | undefined>> | undefined {
   if (!slots) {
     return {};
@@ -261,7 +262,7 @@ function serializeSlots(
         Promise.all(
           slot.map(
             (vnode) =>
-              Promise.resolve(serializeVNode(vnode)).then((v) => {
+              Promise.resolve(serializeVNode(vnode, parentInstance)).then((v) => {
                 if (v) {
                   return unrollServerComponentBufferPromises(v);
                 }
@@ -276,7 +277,7 @@ function serializeSlots(
       );
     } else if (isVNode(slot)) {
       promises.push(
-        Promise.resolve(serializeVNode(slot))
+        Promise.resolve(serializeVNode(slot, parentInstance))
           .then((v) => {
             if (v) {
               return unrollServerComponentBufferPromises(v);
