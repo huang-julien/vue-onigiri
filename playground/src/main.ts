@@ -10,5 +10,8 @@ createApp({
             default: () => h(App)
         }
         )
+    },
+    directives: {
+        'load-client': loadClientDirective
     }
-}).directive('load-client', loadClientDirective).mount("#app");
+}).mount("#app");

@@ -13,7 +13,8 @@ function onVnodeUpdated(_vnode: VNode) {
 
 <template> 
   <main style="display: grid; grid-template-columns: 1fr 1fr ; gap: 16px;">
-    <LoadComponent ref="counterRef" @vue:mounted="onVnodeUpdated" @vue:updated="onVnodeUpdated"  />
+    <LoadComponent ref="counterRef" @vue:mounted="onVnodeUpdated" @vue:updated="onVnodeUpdated">
+       </LoadComponent>
     <AstViewer  ref="astViewerRef" :vnode="vnode" />
   </main>
 </template>
