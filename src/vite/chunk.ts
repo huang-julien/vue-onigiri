@@ -1,13 +1,15 @@
 import type { Plugin } from "vite";
 import { hash } from "ohash";
 import MagicString from "magic-string";
-import type { ExportDefaultDeclaration } from "acorn";
-import { join, normalize, relative } from "node:path";
+ import { join, normalize, relative } from "node:path";
 import { readFileSync } from "node:fs";
 import vue from "@vitejs/plugin-vue";
 import { defu } from "defu";
 import type { Options } from "@vitejs/plugin-vue";
 import { glob } from "node:fs/promises";
+import type { Directive } from "vue";
+import type { ExportNamedDeclaration, ExportDefaultDeclaration, Declaration } from "estree";
+import type { AstNodeLocation, ProgramNode, RollupAstNode } from "rollup";
 
 function normalizePath(path: string): string {
   return normalize(path).replaceAll("\\", "/");
@@ -55,28 +57,6 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
     client: (opts) => [
       vue(opts),
       {
-        name: "vue-onigiri:renderSlotReplace",
-        transform: {
-          order: "post",
-          handler(code, id) {
-            if (VSC_PREFIX_RE.test(id)) {
-              const s = new MagicString(code);
-              s.prepend(
-                `import { renderSlot as cryoRenderSlot } from 'vue-onigiri/runtime/render-slot';\n`,
-              );
-
-              // replace renderSlot with vue-onigiri:renderSlot
-              s.replace(/_renderSlot\(/g, "cryoRenderSlot(_ctx,");
-
-              return {
-                code: s.toString(),
-                map: s.generateMap({ hires: true }).toString(),
-              };
-            }
-          },
-        },
-      },
-      {
         name: "vite:vue-server-components-client",
         configResolved(config) {
           if (!assetDir) {
@@ -88,9 +68,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
           }
         },
         async buildStart() {
-          const chunksToInclude = Array.isArray(options.includeClientChunks)
-            ? options.includeClientChunks
-            : [options.includeClientChunks || "**/*.vue"];
+          const chunksToInclude = Array.isArray(options.includeClientChunks) ? options.includeClientChunks : [options.includeClientChunks || "**/*.vue"];
 
           await Promise.all(chunksToInclude.map(async (file) => {
             const path = typeof file === "string" ? file : file.path;
@@ -106,16 +84,12 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                 info.exports.push(exportName);
               } else {
                 if (isProduction) {
-                  const emitted = this.emitFile({
-                    type: "chunk",
-                    id: id,
-                    preserveSignature: "strict",
-                  });
-                  clientChunks.push({
-                    originalPath: normalizePath(id),
-                    id: emitted,
-                    exports: [exportName],
-                  });
+             
+                    clientChunks.push({
+                      originalPath: normalizePath(id),
+                      id: hash(id),
+                      exports: [exportName],
+                    });
                 } else {
                   clientChunks.push({
                     originalPath: normalizePath(id),
@@ -143,39 +117,29 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
             const s = new MagicString(code);
             const ast = this.parse(code);
 
-            const exportNodes = ref.exports.map((exportName) => {
+           const exportNodes = ref.exports.map((exportName) => {
               return [
                 exportName,
-                ast.body.find((node) => {
-                  if (exportName === 'default') {
+                ast.body.find((node): node is ExportDefaultDeclaration | ExportNamedDeclaration => {
+                  if (exportName === "default") {
                     return node.type === "ExportDefaultDeclaration";
                   }
                   return node.type === "ExportNamedDeclaration" && node.specifiers.some((specifier) => specifier.exported.type === "Identifier" && specifier.exported.name === exportName);
                 })
-              ]
-            })
-
-            for (const exportName of ref.exports) {
-                const exportNode = ast.body.find((node) => {
-                  if (exportName === 'default') {
-                    return node.type === "ExportDefaultDeclaration";
-                  }
-                  return node.type === "ExportNamedDeclaration" && node.specifiers.some((specifier) => specifier.exported.type === "Identifier" && specifier.exported.name === exportName);
-                }) as ExportDefaultDeclaration & { start: number; end: number } | undefined;
-
-                if (exportNode) {
-                  const { start, end } = exportNode.declaration;
-                  s.overwrite(
-                    start,
-                    end,
-                    `Object.assign( ${code.slice(start, end)},
-                                    { __chunk: "${normalizePath(join("/", isProduction ? normalize(ref.filename!) : relative(rootDir, normalize(ref.id))))}", __export: ${JSON.stringify(exportName)} },
-                                    
-                                )`,
-                  );
-                }
+              ] as const;
+            });
+            for (const [exportName, exportNode] of exportNodes) {
+              if (exportNode && exportNode.declaration) {
+                const { start, end } = exportNode.declaration as unknown as AstNodeLocation;
+                s.overwrite(
+                  start,
+                  end,
+                  `Object.assign(${code.slice(start, end)},
+                                    { __chunk: "${normalizePath(join("/", isProduction ? ref.id : relative(rootDir, normalize(ref.id))))}", __export: ${JSON.stringify(exportName)}  },
+                                )`
+                );
               }
-
+            }
             if (s.hasChanged()) {
               return {
                 code: s.toString(),
@@ -189,24 +153,20 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         generateBundle(_, bundle) {
           for (const chunk of Object.values(bundle)) {
             if (chunk.type === "chunk") {
-              const list = clientChunks
-                .values()
-                .map((ref) => ref.id)
-                .toArray();
+              const list = clientChunks.values().map((ref) => ref.id).toArray();
               if (list.includes(chunk.fileName)) {
                 chunk.isEntry = false;
               }
             }
-          }
-
-          for (const [id, data] of clientChunks.entries()) {
-            data.filename = this.getFileName(data.id);
-          }
-        },
+          } 
+        }
       },
       {
         name: 'load:vue-onigiri',
-        resolveId(id) {
+        resolveId(id, importer, opts) {
+          if (VSC_PREFIX_RE.test(id) ) {
+            return this.resolve(id.replace(VSC_PREFIX, ""), importer?.replace(VSC_PREFIX_RE, ""), opts);
+          }
           if(id === 'virtual:vue-onigiri') {
             return id
           }
@@ -274,7 +234,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                       originalPath: normalizePath(id),
                       id: normalizePath(join(clientAssetsDir, relative(rootDir, id))),
                       exports: [exportName],
-                      clientSideChunk: clientSideChunk?.filename,
+                      clientSideChunk: clientSideChunk?.filename
                     });
                   }
                 }
@@ -292,9 +252,9 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
         },
         resolveId: {
           order: "pre",
-          async handler(id, importer) {
-            if (id === 'virtual:vue-onigiri') {
-              return id
+          async handler(id, importer, opts) {
+              if (id === "virtual:vue-onigiri") {
+              return id;
             }
             if (importer && VSC_PREFIX_RE.test(importer)) {
               if (VSC_PREFIX_RE.test(id)) {
@@ -304,26 +264,23 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
                 const resolved = await this.resolve(
                   id,
                   importer.replace(VSC_PREFIX_RE, ""),
+                  opts
                 );
                 if (resolved) {
                   return VSC_PREFIX + resolved.id;
                 }
               }
-              return this.resolve(id, importer.replace(VSC_PREFIX_RE, ""), {
-                skipSelf: true,
-              });
+              return this.resolve(id, importer.replace(VSC_PREFIX_RE, ""), opts);
             }
-
-            // todo lol
-            if(id.endsWith('.ts') || id.endsWith('.tsx') || id.endsWith('.js') || id.endsWith('.jsx')) {
-              return this.resolve(id.replace(VSC_PREFIX_RE, ""), importer?.replace(VSC_PREFIX_RE, ""));
+            if (id.endsWith(".ts") || id.endsWith(".tsx") || id.endsWith(".js") || id.endsWith(".jsx")) {
+              return this.resolve(id.replace(VSC_PREFIX_RE, ""), importer?.replace(VSC_PREFIX_RE, ""), opts);
             }
-
             if (VSC_PREFIX_RE.test(id)) {
               if (id.replace(VSC_PREFIX_RE, "").startsWith("./")) {
                 const resolved = await this.resolve(
                   id.replace(VSC_PREFIX_RE, ""),
                   importer?.replace(VSC_PREFIX_RE, ""),
+                  opts
                 );
                 if (resolved) {
                   return VSC_PREFIX + resolved?.id;
@@ -331,7 +288,7 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
               }
               return id;
             }
-          },
+          }
         },
         load: {
           order: "pre",
@@ -347,61 +304,57 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
           },
         },
 
+        
         generateBundle(output, bundle) {
           for (const chunk of Object.values(bundle)) {
             if (chunk.type === "chunk") {
-              const list = serverChunks
-                .values()
-                .map((ref) => ref.id)
-                .toArray();
+              const list = serverChunks.values().map((ref) => ref.id).toArray();
               if (list.includes(chunk.fileName)) {
                 chunk.isEntry = false;
-                chunk.isImplicitEntry = true;
-                chunk.isDynamicEntry = true
-
+                chunk.isImplicitEntry = false;
+                chunk.isDynamicEntry = false;
               }
             }
-          }
-          for (const chunk of serverChunks) {
-            chunk.serverChunkPath = this.getFileName(chunk.id);
-          }
+          } 
         },
 
         transform: {
           order: "post",
           handler(code, id) {
-            const ref = clientChunks.find((chunk) => chunk.originalPath === id.replace(VSC_PREFIX_RE, ""));
+               const ref = clientChunks.find((chunk) => chunk.originalPath === id.replace(VSC_PREFIX_RE, ""));
 
-            if (id && ref && VSC_PREFIX_RE.test(id)) {
+            if (id && ref) {
               const s = new MagicString(code);
-              const ast = this.parse(code);
-
+              const ast = this.parse(code) as RollupAstNode<ProgramNode>;
               for (const exportName of ref.exports) {
-                const exportNode = ast.body.find((node) => {
-                  if (exportName === 'default') {
+                const exportNode = ast.body.find((node): node is (ExportNamedDeclaration | ExportDefaultDeclaration) => {
+                  if (exportName === "default") {
                     return node.type === "ExportDefaultDeclaration";
                   }
                   return node.type === "ExportNamedDeclaration" && node.specifiers.some((specifier) => specifier.exported.type === "Identifier" && specifier.exported.name === exportName);
-                }) as ExportDefaultDeclaration & { start: number; end: number } | undefined;
-
+                });
                 if (exportNode) {
-                  const { start, end } = exportNode.declaration;
-                  s.overwrite(
-                    start,
-                    end,
-                    `Object.assign( ${code.slice(start, end)},
-                                    { __chunk: "${normalizePath(join("/", isProduction ? normalize(ref.filename!) : relative(rootDir, normalize(ref.id))))}", __export: ${JSON.stringify(exportName)} },
-                                    
-                                )`,
-                  );
-                }
+                                  if (exportNode.declaration) {
+                
+                                  const { start, end } = exportNode.declaration as unknown as RollupAstNode<Declaration>; 
+                                    s.overwrite(
+                                      start,
+                                      end,
+                                      `Object.assign( ${code.slice(start, end)},
+                                                      { __chunk: "${normalizePath(join("/", isProduction ? ref.id : relative(rootDir, normalize(id))))}", __export: ${JSON.stringify(exportName)} },
+                                                      
+                                                  )`,
+                                    );
+                                  } else { 
+                                    // todo
+                                  }
+                                }
               }
-
               if (s.hasChanged()) {
                 return {
                   code: s.toString(),
-                  map: s.generateMap({ hires: true }).toString(),
-                }
+                  map: s.generateMap({ hires: true }).toString()
+                };
               }
             }
           },
