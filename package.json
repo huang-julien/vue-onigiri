@@ -50,6 +50,7 @@
   "packageManager": "pnpm@10.7.0",
   "dependencies": {
     "@module-federation/vite": "^1.2.7",
+    "@types/estree": "1.0.7",
     "@vitejs/plugin-vue": "^5.2.3",
     "@vitest/ui": "^3.2.4",
     "@vue/compiler-dom": "^3.5.13",
