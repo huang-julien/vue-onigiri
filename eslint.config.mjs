@@ -7,6 +7,7 @@ export default unjs({
   rules: {
     // rule overrides
     "unicorn/no-null": "off",
+    "unicorn/filename-case": "off",
   },
   markdown: {
     rules: {

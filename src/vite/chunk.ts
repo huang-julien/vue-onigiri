@@ -7,7 +7,6 @@ import vue from "@vitejs/plugin-vue";
 import { defu } from "defu";
 import type { Options } from "@vitejs/plugin-vue";
 import { glob } from "node:fs/promises";
-import type { Directive } from "vue";
 import type { ExportNamedDeclaration, ExportDefaultDeclaration, Declaration } from "estree";
 import type { AstNodeLocation, ProgramNode, RollupAstNode } from "rollup";
 
@@ -27,10 +26,6 @@ export type VSCOptions = {
    */
   vueServerOptions?: Options;
   /**
-   * @default {string} build asset dir to store server chunks.
-   */
-  serverAssetsDir?: string;
-  /**
    * @default {string} build asset dir to store client chunks. Fallbacks to `build.assetsDir` if not provided.
    */
   clientAssetsDir?: string;
@@ -38,7 +33,6 @@ export type VSCOptions = {
 
 const VSC_PREFIX = "virtual:vsc:";
 const VSC_PREFIX_RE = /^(\/?@id\/)?virtual:vsc:/;
-const NOVSC_PREFIX_RE = /^(\/?@id\/)?(?!virtual:vsc:)/;
 
 export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
   client: (opts?: Options) => Plugin[];
@@ -46,7 +40,8 @@ export function vueOnigiriPluginFactory(options: Partial<VSCOptions> = {}): {
   clientChunks: { originalPath: string; id: string; filename?: string; }[]
   serverChunks: { originalPath: string; id: string; filename?: string; clientSideChunk?: string; serverChunkPath?: string }[]
 } {
-  let { serverAssetsDir = "", clientAssetsDir = "", rootDir = "" } = options;
+  const { clientAssetsDir = "" } = options;
+  let { rootDir = "" } = options;
   const clientChunks: { originalPath: string; id: string; filename?: string, exports: string[] }[] = [];
   const serverChunks: { originalPath: string; id: string; filename?: string, exports: string[], clientSideChunk?: string, serverChunkPath?: string }[] = [];
   let assetDir: string = clientAssetsDir;
