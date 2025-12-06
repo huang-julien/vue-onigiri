@@ -1,6 +1,6 @@
 {
   "name": "vue-onigiri",
-  "version": "0.1.1",
+  "version": "0.2.1",
   "description": "Serialize and deserialize Vue component trees (VNodes) for Vue Server Components and cross-application component sharing",
   "repository": "vue-onigiri",
   "license": "MIT",
@@ -40,7 +40,7 @@
     "changelogen": "^0.6.1",
     "eslint": "^9.23.0",
     "eslint-config-unjs": "^0.4.2",
-    "happy-dom": "^17.4.6",
+    "happy-dom": "^20.0.0",
     "prettier": "^3.5.3",
     "typescript": "^5.8.2",
     "unbuild": "^3.5.0",
@@ -50,6 +50,7 @@
   "packageManager": "pnpm@10.7.0",
   "dependencies": {
     "@module-federation/vite": "^1.2.7",
+    "@types/estree": "1.0.7",
     "@vitejs/plugin-vue": "^5.2.3",
     "@vitest/ui": "^3.2.4",
     "@vue/compiler-core": "^3.5.18",

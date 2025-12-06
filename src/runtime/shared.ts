@@ -18,10 +18,12 @@ type VServerComponentElement = [
   Children,
 ];
 
-type VServerComponentComponent = [
+export type VServerComponentComponent = [
   VServerComponentType.Component,
   Props,
   ChunkPath,
+  // export name
+  string,
   Slots,
 ];
 type VServerComponentText = [VServerComponentType.Text, string];
@@ -44,6 +46,8 @@ type VServerComponentComponentBuffered = [
   VServerComponentType.Component,
   Props,
   ChunkPath,
+  // export name
+  string,
   MaybePromise<Record<string, VServerComponent[] | undefined>> | undefined,
 ];
 type VServerComponentTextBuffered = [VServerComponentType.Text, string];

@@ -1,7 +1,7 @@
 import { createTextVNode, type VNode, h, Fragment, Suspense } from "vue";
 import { VServerComponentType, type VServerComponent } from "./shared";
 import loader from "./loader";
-import { defaultImportFn } from "./utils";
+import { defaultImportFn, type ImportFn } from "./utils";
 
 export function renderOnigiri(
   input?: VServerComponent,
@@ -46,7 +46,7 @@ export function renderOnigiri(
 
 export function renderChildren(
   data: VServerComponent[] | undefined,
-  importFn = defaultImportFn,
+  importFn: ImportFn = defaultImportFn,
 ): VNode | undefined {
   if (!data) return;
   return h(
