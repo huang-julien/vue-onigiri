@@ -1,3 +1,12 @@
+import type { InjectionKey } from "vue";
+
+/**
+ * Symbol used to signal that we're in onigiri render mode.
+ * When this symbol is provided, setup should return the onigiri render function
+ * instead of the normal render function.
+ */
+export const ONIGIRI_RENDER_SYMBOL: InjectionKey<true> = Symbol("onigiri-render");
+
 export const enum VServerComponentType {
   Element,
   Component,
@@ -73,3 +82,21 @@ export type VServerComponent =
   | VServerComponentText
   | VServerComponentFragment
   | VServerComponentSuspense;
+
+/**
+ * The render function signature for onigiri components.
+ * When ONIGIRI_RENDER_SYMBOL is provided, setup returns this function.
+ * It has direct access to setup bindings and returns serialized VNode structures.
+ */
+export type RenderOnigiriFunction = () => VServerComponentBuffered | null;
+
+/**
+ * A component that can be used with renderToSerializedVNode.
+ * When compiled with ?onigiri, setup checks for ONIGIRI_RENDER_SYMBOL
+ * and returns a RenderOnigiriFunction if present.
+ */
+export interface OnigiriComponent {
+  setup?: (...args: any[]) => any;
+  props?: any;
+  [key: string]: any;
+}

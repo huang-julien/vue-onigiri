@@ -115,6 +115,54 @@ export function compileOnigiri(
   };
 }
 
+/**
+ * Compile Vue template to an inline expression that returns VServerComponent.
+ * This is used by the Vite plugin to inject directly into setup() without
+ * an extra function wrapper - maximum performance.
+ *
+ * @param template - The Vue template string
+ * @param options - Compiler options including binding metadata
+ * @returns An object with the inline expression (no function wrapper)
+ */
+export function compileOnigiriInline(
+  template: string,
+  options: OnigiriCompilerOptions = {}
+): { expression: string; ast: RootNode } {
+  // Parse the template
+  const ast = baseParse(template, options);
+
+  // Transform the AST (minimal transforms for basic functionality)
+  transform(ast, {
+    ...options,
+    nodeTransforms: [],
+    directiveTransforms: {}
+  });
+
+  // Generate just the expression, no function wrapper
+  const context = createSimpleContext();
+
+  if (ast.children.length === 0) {
+    context.push('null');
+  } else if (ast.children.length === 1) {
+    genOnigiriNode(ast.children[0], context);
+  } else {
+    // Multiple root nodes - wrap in fragment
+    context.push('[');
+    context.push(VServerComponentType.Fragment.toString());
+    context.push(', [');
+    for (let i = 0; i < ast.children.length; i++) {
+      if (i > 0) context.push(', ');
+      genOnigiriNode(ast.children[i], context);
+    }
+    context.push(']]');
+  }
+
+  return {
+    expression: context.code,
+    ast
+  };
+}
+
 function genOnigiriNode(node: any, context: SimpleCodegenContext): void {
   switch (node.type) {
     case NodeTypes.ELEMENT: {

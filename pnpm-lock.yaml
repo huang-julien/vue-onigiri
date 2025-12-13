@@ -26,6 +26,9 @@ importers:
       '@vue/compiler-dom':
         specifier: ^3.5.13
         version: 3.5.13
+      '@vue/compiler-sfc':
+        specifier: ^3.5.13
+        version: 3.5.13
       '@vue/compiler-ssr':
         specifier: ^3.5.13
         version: 3.5.13
@@ -2896,7 +2899,7 @@ snapshots:
       '@babel/helper-compilation-targets': 7.27.2
       '@babel/helper-module-transforms': 7.27.1(@babel/core@7.27.1)
       '@babel/helpers': 7.27.1
-      '@babel/parser': 7.27.2
+      '@babel/parser': 7.28.0
       '@babel/template': 7.27.2
       '@babel/traverse': 7.27.1
       '@babel/types': 7.27.1
@@ -2910,7 +2913,7 @@ snapshots:
 
   '@babel/generator@7.27.1':
     dependencies:
-      '@babel/parser': 7.27.2
+      '@babel/parser': 7.28.0
       '@babel/types': 7.27.1
       '@jridgewell/gen-mapping': 0.3.8
       '@jridgewell/trace-mapping': 0.3.25
@@ -3061,14 +3064,14 @@ snapshots:
   '@babel/template@7.27.2':
     dependencies:
       '@babel/code-frame': 7.27.1
-      '@babel/parser': 7.27.2
+      '@babel/parser': 7.28.0
       '@babel/types': 7.27.1
 
   '@babel/traverse@7.27.1':
     dependencies:
       '@babel/code-frame': 7.27.1
       '@babel/generator': 7.27.1
-      '@babel/parser': 7.27.2
+      '@babel/parser': 7.28.0
       '@babel/template': 7.27.2
       '@babel/types': 7.27.1
       debug: 4.4.0
@@ -3686,7 +3689,7 @@ snapshots:
       '@babel/types': 7.27.1
       '@vue/babel-helper-vue-transform-on': 1.4.0
       '@vue/babel-plugin-resolve-type': 1.4.0(@babel/core@7.27.1)
-      '@vue/shared': 3.5.13
+      '@vue/shared': 3.5.18
     optionalDependencies:
       '@babel/core': 7.27.1
     transitivePeerDependencies:
@@ -3698,14 +3701,14 @@ snapshots:
       '@babel/core': 7.27.1
       '@babel/helper-module-imports': 7.27.1
       '@babel/helper-plugin-utils': 7.27.1
-      '@babel/parser': 7.27.2
+      '@babel/parser': 7.28.0
       '@vue/compiler-sfc': 3.5.13
     transitivePeerDependencies:
       - supports-color
 
   '@vue/compiler-core@3.5.13':
     dependencies:
-      '@babel/parser': 7.27.2
+      '@babel/parser': 7.28.0
       '@vue/shared': 3.5.13
       entities: 4.5.0
       estree-walker: 2.0.2
@@ -3726,7 +3729,7 @@ snapshots:
 
   '@vue/compiler-sfc@3.5.13':
     dependencies:
-      '@babel/parser': 7.27.2
+      '@babel/parser': 7.28.0
       '@vue/compiler-core': 3.5.13
       '@vue/compiler-dom': 3.5.13
       '@vue/compiler-ssr': 3.5.13

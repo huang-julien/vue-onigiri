@@ -1,5 +1,5 @@
 import { SourceMapGenerator } from 'source-map-js'
-import { advancePositionWithMutation, CodegenContext, CodegenOptions, CodegenSourceMapGenerator, helperNameMap, isSimpleIdentifier, locStub, NodeTypes, Position, RootNode,  } from "@vue/compiler-core"
+import { advancePositionWithMutation, type CodegenContext, type CodegenOptions, type CodegenSourceMapGenerator, helperNameMap, isSimpleIdentifier, locStub, NodeTypes, type Position, type RootNode,  } from "@vue/compiler-core"
 
 const enum NewlineType {
   Start = 0,
