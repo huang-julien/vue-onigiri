@@ -8,6 +8,7 @@
 import { 
   baseParse, 
   transform,
+  transformExpression,
   type CompilerOptions, 
   type RootNode,
 } from "@vue/compiler-dom";
@@ -35,10 +36,11 @@ export function compileOnigiri(
   // Parse the template
   const ast = baseParse(template, options);
   
-  // Transform the AST (minimal transforms for basic functionality)
+  // Transform the AST with expression prefixing
   transform(ast, {
     ...options,
-    nodeTransforms: [],
+    prefixIdentifiers: true,
+    nodeTransforms: [transformExpression],
     directiveTransforms: {}
   });
 
@@ -92,14 +94,15 @@ export function compileOnigiri(
 export function compileOnigiriInline(
   template: string,
   options: OnigiriCompilerOptions = {}
-): { expression: string; ast: RootNode } {
+): { expression: string; imports: Set<string>; ast: RootNode } {
   // Parse the template
   const ast = baseParse(template, options);
 
-  // Transform the AST (minimal transforms for basic functionality)
+  // Transform the AST with expression prefixing
   transform(ast, {
     ...options,
-    nodeTransforms: [],
+    prefixIdentifiers: true,
+    nodeTransforms: [transformExpression],
     directiveTransforms: {}
   });
 
@@ -124,6 +127,7 @@ export function compileOnigiriInline(
 
   return {
     expression: context.code,
+    imports: context.imports,
     ast
   };
 }

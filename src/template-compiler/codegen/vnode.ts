@@ -14,12 +14,103 @@ import {
   type ForNode,
   type AttributeNode,
   type DirectiveNode,
+  type ExpressionNode,
+  type SimpleExpressionNode,
   NodeTypes,
-  isSimpleIdentifier
 } from "@vue/compiler-dom";
 import { genImport } from "knitwork";
 import { VServerComponentType } from "../../runtime/shared";
 import type { CodegenContext } from "./context";
+
+/**
+ * Prefix identifiers in a simple expression with _ctx.
+ * This is a fallback for expressions not processed by transformExpression (e.g., v-on handlers).
+ * 
+ * Uses a simple regex-based approach to find and prefix identifiers.
+ * Handles common cases like: foo, foo.bar, foo = 'value', foo === bar
+ */
+function prefixIdentifiers(content: string): string {
+  // Keywords that should not be prefixed
+  const jsKeywords = new Set([
+    'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
+    'this', 'arguments', 'window', 'document', 'console',
+    'Array', 'Object', 'String', 'Number', 'Boolean', 'Date', 'Math', 'JSON', 'RegExp',
+    'parseInt', 'parseFloat', 'isNaN', 'isFinite',
+    'typeof', 'instanceof', 'in', 'new', 'delete', 'void',
+    'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break', 'continue', 'return',
+    'function', 'class', 'const', 'let', 'var',
+    '$event', '_ctx', '_slots'
+  ]);
+  
+  // First, temporarily replace string literals to avoid matching inside them
+  const stringPlaceholders: string[] = [];
+  const contentWithPlaceholders = content.replace(/(['"`])(?:(?!\1|\\).|\\.)*\1/g, (match) => {
+    stringPlaceholders.push(match);
+    return `__STRING_PLACEHOLDER_${stringPlaceholders.length - 1}__`;
+  });
+  
+  // Match identifiers: word boundaries, must start with letter or _ or $
+  // Negative lookbehind for . to avoid prefixing property access
+  const prefixed = contentWithPlaceholders.replace(/(?<![.\w$])([a-zA-Z_$][a-zA-Z0-9_$]*)(?!\s*:(?!:))/g, (match, ident, offset) => {
+    // Check if this is a keyword
+    if (jsKeywords.has(ident)) {
+      return match;
+    }
+    // Check if preceded by a dot (property access)
+    if (offset > 0 && contentWithPlaceholders[offset - 1] === '.') {
+      return match;
+    }
+    // Check if it's a placeholder
+    if (ident.startsWith('__STRING_PLACEHOLDER_')) {
+      return match;
+    }
+    return `_ctx.${ident}`;
+  });
+  
+  // Restore string literals
+  return prefixed.replace(/__STRING_PLACEHOLDER_(\d+)__/g, (_, index) => {
+    return stringPlaceholders[Number.parseInt(index, 10)] ?? '';
+  });
+}
+
+/**
+ * Generate code for an expression node.
+ * Handles both simple expressions and compound expressions (from transformExpression).
+ */
+function genExpressionAsValue(node: ExpressionNode | undefined, context: CodegenContext): void {
+  if (!node) {
+    context.push('undefined');
+    return;
+  }
+  
+  if (node.type === NodeTypes.SIMPLE_EXPRESSION) {
+    const simpleNode = node as SimpleExpressionNode;
+    // If the expression is static (like string literals), output as-is
+    // If it's dynamic and wasn't transformed to compound, we need to prefix identifiers
+    if (simpleNode.isStatic) {
+      context.push(simpleNode.content);
+    } else {
+      // Dynamic expression that wasn't transformed - prefix identifiers manually
+      context.push(prefixIdentifiers(simpleNode.content));
+    }
+  } else if (node.type === NodeTypes.COMPOUND_EXPRESSION) {
+    // Compound expression from transformExpression - concatenate all parts
+    const compound = node as CompoundExpressionNode;
+    for (const child of compound.children) {
+      if (typeof child === 'string') {
+        context.push(child);
+      } else if (typeof child === 'symbol') {
+        // Skip symbols (used for internal markers)
+      } else if (child && typeof child === 'object' && 'type' in child) {
+        if (child.type === NodeTypes.SIMPLE_EXPRESSION) {
+          context.push((child as SimpleExpressionNode).content);
+        } else {
+          genExpressionAsValue(child as ExpressionNode, context);
+        }
+      }
+    }
+  }
+}
 
 /**
  * Generate code for any AST node
@@ -299,20 +390,20 @@ export function genProps(props: (AttributeNode | DirectiveNode)[], context: Code
     prop.type === NodeTypes.DIRECTIVE && 
     prop.name === 'bind' && 
     !prop.arg
-  );
+  ) as DirectiveNode | undefined;
   
   // Get all other props (not the v-bind object spread)
   const otherProps = props.filter(prop => 
     !(prop.type === NodeTypes.DIRECTIVE && prop.name === 'bind' && !prop.arg)
   );
   
-  if (bindDirective && typeof bindDirective === 'object' && 'exp' in bindDirective) {
+  if (bindDirective) {
     if (otherProps.length > 0) {
       // We have both v-bind object and other props - need to merge
       context.imports.add(genImport('vue', [{ name: 'mergeProps', as: '_mergeProps' }]));
       context.push('_mergeProps(');
-      if (bindDirective.exp && typeof bindDirective.exp === 'object' && 'content' in bindDirective.exp) {
-        context.push(`_ctx.${bindDirective.exp.content}`);
+      if (bindDirective.exp) {
+        genExpressionAsValue(bindDirective.exp, context);
       } else {
         context.push('undefined');
       }
@@ -323,8 +414,8 @@ export function genProps(props: (AttributeNode | DirectiveNode)[], context: Code
       context.push(')');
     } else {
       // Only v-bind object, no other props
-      if (bindDirective.exp && typeof bindDirective.exp === 'object' && 'content' in bindDirective.exp) {
-        context.push(`_ctx.${bindDirective.exp.content}`);
+      if (bindDirective.exp) {
+        genExpressionAsValue(bindDirective.exp, context);
       } else {
         context.push('undefined');
       }
@@ -359,28 +450,12 @@ function genPropsObject(props: (AttributeNode | DirectiveNode)[], context: Codeg
       first = false;
       
       const attrName = (prop.arg && typeof prop.arg === 'object' && 'content' in prop.arg) 
-        ? prop.arg.content 
+        ? (prop.arg as SimpleExpressionNode).content 
         : prop.name;
       context.push(`"${attrName}": `);
       
       if (prop.exp) {
-        if (prop.exp.type === NodeTypes.SIMPLE_EXPRESSION) {
-          if (isSimpleIdentifier(prop.exp.content)) {
-            context.push(`_ctx.${prop.exp.content}`);
-          } else {
-            context.push(prop.exp.content);
-          }
-        } else if (prop.exp.type === NodeTypes.COMPOUND_EXPRESSION) {
-          // Handle compound expressions
-          context.push(`(${prop.exp.children.map(child => {
-            if (typeof child === 'string') {
-              return `"${child}"`;
-            } else if (typeof child === 'object' && child !== null && 'type' in child && child.type === NodeTypes.SIMPLE_EXPRESSION && 'content' in child) {
-              return `_ctx.${child.content}`;
-            }
-            return '';
-          }).join(' + ')})`);
-        }
+        genExpressionAsValue(prop.exp, context);
       } else {
         context.push('true');
       }
@@ -410,11 +485,7 @@ export function genInterpolation(node: InterpolationNode, context: CodegenContex
   context.push('[');
   context.push(VServerComponentType.Text.toString());
   context.push(', ');
-  if (node.content.type === NodeTypes.SIMPLE_EXPRESSION) {
-    context.push((node.content as any).content);
-  } else {
-    context.push(`String(${(node.content as any).content})`);
-  }
+  genExpressionAsValue(node.content, context);
   context.push(']');
 }
 
@@ -431,22 +502,17 @@ export function genCompoundExpression(node: CompoundExpressionNode, context: Cod
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];
     if (typeof child === 'string') {
-      context.push(`"${child}"`);
+      context.push(child);
+    } else if (typeof child === 'symbol') {
+      // Skip symbols
     } else if (child && typeof child === 'object' && 'type' in child) {
       if (child.type === NodeTypes.INTERPOLATION) {
-        const content = (child as any).content;
-        if (content.type === NodeTypes.SIMPLE_EXPRESSION) {
-          context.push(content.content);
-        } else {
-          context.push(`String(${content.content})`);
-        }
+        genExpressionAsValue((child as InterpolationNode).content, context);
       } else if (child.type === NodeTypes.SIMPLE_EXPRESSION) {
-        context.push((child as any).content);
+        context.push((child as SimpleExpressionNode).content);
+      } else if (child.type === NodeTypes.COMPOUND_EXPRESSION) {
+        genExpressionAsValue(child as ExpressionNode, context);
       }
-    }
-    
-    if (i < node.children.length - 1) {
-      context.push(' + ');
     }
   }
   
@@ -467,12 +533,7 @@ export function genIf(node: IfNode, context: CodegenContext): void {
 
   context.push('(');
   if (firstBranch.condition) {
-    const condition = (firstBranch.condition as any);
-    if (condition.type === NodeTypes.SIMPLE_EXPRESSION) {
-      context.push(condition.content);
-    } else {
-      context.push('true');
-    }
+    genExpressionAsValue(firstBranch.condition, context);
   } else {
     context.push('true');
   }
@@ -531,16 +592,16 @@ export function genFor(node: ForNode, context: CodegenContext): void {
   const { source, value, key, index } = node.parseResult;
   
   context.push('(');
-  context.push((source as any).content);
+  genExpressionAsValue(source, context);
   context.push('.map((');
-  context.push((value as any)?.content || 'item');
+  context.push((value as SimpleExpressionNode)?.content || 'item');
   if (key) {
     context.push(', ');
-    context.push((key as any).content);
+    context.push((key as SimpleExpressionNode).content);
   }
   if (index) {
     context.push(', ');
-    context.push((index as any).content);
+    context.push((index as SimpleExpressionNode).content);
   }
   context.push(') => ');
   

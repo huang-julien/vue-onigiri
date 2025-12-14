@@ -1,16 +1,19 @@
 import { fileURLToPath, URL } from "node:url";
-
+import { ViteMcp } from 'vite-plugin-mcp'
 import { defineConfig } from "vite";
 import vueDevTools from "vite-plugin-vue-devtools";
-import { vueOnigiriPluginFactory } from "../src/vite/chunk";
-
-const { client } = vueOnigiriPluginFactory({
-  includeClientChunks: ["./src/components/Counter.vue", "./src/components/TsSlot.ts"],
-});
+ import { onigiriCompilerPlugin } from "../src/vite/compiler";
+import vue from "@vitejs/plugin-vue";
+ 
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [client(), vueDevTools()],
+  plugins: [    
+    vue(),onigiriCompilerPlugin(), // Attach __onigiriRender to SFC exports
+
+    vueDevTools(),
+    ViteMcp()
+  ],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("src", import.meta.url)),

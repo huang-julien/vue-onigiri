@@ -1,16 +1,11 @@
 import type { Plugin } from "vite";
-import {
-  parse,
-  compileScript,
-  type SFCDescriptor,
-  type SFCScriptBlock,
-} from "@vue/compiler-sfc";
+import { parse } from "@vue/compiler-sfc";
 import { compileOnigiriInline } from "../template-compiler";
-import { createHash } from "node:crypto";
 import MagicString from "magic-string";
 
-const ONIGIRI_QUERY = "onigiri";
-const ONIGIRI_QUERY_RE = /[?&]onigiri(?:&|$)/;
+// Virtual module prefix
+const ONIGIRI_PREFIX = "virtual:onigiri:";
+const RESOLVED_ONIGIRI_PREFIX = "\0" + ONIGIRI_PREFIX;
 
 /**
  * Options for the onigiri compiler plugin
@@ -24,13 +19,18 @@ export interface OnigiriCompilerOptions {
 }
 
 /**
- * Vite plugin that handles .vue?onigiri imports.
+ * Vite plugin that provides onigiri serialization for Vue SFCs.
  *
- * Uses the load() hook to generate a new module that includes
- * onigiri serialization support injected into setup.
+ * Two modes of operation:
  *
- * When ONIGIRI_RENDER_SYMBOL is provided, setup returns the
- * serialized VServerComponent directly instead of VNodes.
+ * 1. **virtual:onigiri/ import**: Returns just the onigiri render function
+ *    ```ts
+ *    import __onigiriRender from "virtual:onigiri/path/to/Component.vue"
+ *    ```
+ *
+ * 2. **Transform hook**: Injects onigiri support into compiled SFCs
+ *    - Build (inline template): Injects `if (inject(ONIGIRI_RENDER_SYMBOL))` into setup
+ *    - Dev (no inline): Imports onigiri render and attaches as `__onigiriRender` property
  */
 export function onigiriCompilerPlugin(
   options: OnigiriCompilerOptions = {}
@@ -39,35 +39,43 @@ export function onigiriCompilerPlugin(
 
   return {
     name: "vite:vue-onigiri-compiler",
-    enforce: "pre",
+  
+    resolveId: {
+      order: "pre",
+      async handler(id, importer) {
+        // Handle virtual:onigiri/ prefix - convert to resolved virtual module
+        if (id.startsWith(ONIGIRI_PREFIX)) {
+          return "\0" + id;
+        }
 
-    resolveId(id) {
-      // Handle ?onigiri query - mark it as a virtual module
-      if (ONIGIRI_QUERY_RE.test(id)) {
-        const cleanId = id.replace(ONIGIRI_QUERY_RE, "").replace(/\?$/, "");
-        return `\0${cleanId}?${ONIGIRI_QUERY}`;
-      }
-      return null;
-    },
+        // If the importer is a virtual onigiri module, resolve relative to the original file
+        if (importer?.startsWith(RESOLVED_ONIGIRI_PREFIX)) {
+          const originalFilePath = importer.slice(RESOLVED_ONIGIRI_PREFIX.length);
+          const resolved = await this.resolve(id, originalFilePath, { skipSelf: true });
+          return resolved;
+        }
 
-    async load(id) {
-      // Only handle our virtual onigiri modules (prefixed with \0)
-      if (!id.startsWith("\0") || !ONIGIRI_QUERY_RE.test(id)) {
         return null;
       }
+    },
 
-      // Extract the real file path (remove \0 prefix and query)
-      const filePath = id.slice(1).replace(ONIGIRI_QUERY_RE, "").replace(/\?$/, "");
-
-      let source: string;
-      try {
-        const fs = await import("node:fs/promises");
-        source = await fs.readFile(filePath, "utf8");
-      } catch {
-        this.error(`Failed to read file: ${filePath}`);
+    /**
+     * Load virtual:onigiri/ modules - exports only the render function
+     */
+    async load(id) {
+       if(id.includes('devtools')) {
+        return null;
       }
+      // Check for resolved virtual:onigiri/ prefix
+      if (!id.startsWith(RESOLVED_ONIGIRI_PREFIX)) {
+        return null;
+      }
+      
+      // Extract file path: \0virtual:onigiri/path/to/file.vue -> /path/to/file.vue
+      const filePath = id.slice(RESOLVED_ONIGIRI_PREFIX.length,);
+        const fs = await import("node:fs/promises");
+      const source = await fs.readFile(filePath, "utf8");
 
-      // Parse the SFC
       const { descriptor, errors } = parse(source, {
         filename: filePath,
         sourceMap,
@@ -75,130 +83,244 @@ export function onigiriCompilerPlugin(
 
       if (errors.length > 0) {
         for (const error of errors) {
-          this.error(error);
+          this.error(error.message);
         }
         return null;
       }
 
-      // Generate a scope ID for the component
-      const scopeId = `data-v-${createHash("md5").update(filePath).digest("hex").slice(0, 8)}`;
-
-      // Compile the script WITH inlineTemplate (Vue's default for production)
-      let scriptResult: SFCScriptBlock | null = null;
-      let scriptBindings: Record<string, any> = {};
-
-      if (descriptor.script || descriptor.scriptSetup) {
-        scriptResult = compileScript(descriptor, {
-          id: scopeId,
-          inlineTemplate: true, // Keep Vue's default - template inlined in setup
-          sourceMap,
-        });
-
-        scriptBindings = scriptResult.bindings || {};
+      if (!descriptor.template) {
+        return `export default function __onigiriRender(_ctx, _slots) { return null; }`;
       }
 
-      // Compile the template with onigiri compiler for serialization
-      // This returns an inline expression, not a full function
-      let onigiriExpression = "null";
-      if (descriptor.template) {
-        const onigiriResult = compileOnigiriInline(descriptor.template.content, {
-          filename: filePath,
-          sourceMap,
-          bindingMetadata: scriptBindings,
-        });
-        onigiriExpression = onigiriResult.expression;
+      // Extract imports from the script block
+      let scriptImports = '';
+      const scriptContent = descriptor.scriptSetup?.content || descriptor.script?.content || '';
+      if (scriptContent) {
+        // Match all import statements
+        const importRegex = /^import\s+.+?from\s+['"].+?['"];?\s*$/gm;
+        const imports = scriptContent.match(importRegex);
+        if (imports) {
+          // Filter and clean imports:
+          // 1. Skip type-only imports (import type { ... })
+          // 2. Remove inline type imports (import { type Foo, Bar })
+          const cleanedImports = imports
+            .filter(imp => !/^import\s+type\s+/.test(imp))
+            .map(imp => {
+              // Remove "type" keyword from named imports: { type Foo, Bar } -> { Bar }
+              return imp.replace(/\{([^}]*)\}/g, (match, inner) => {
+                const cleaned = inner
+                  .split(',')
+                  .map((s: string) => s.trim())
+                  .filter((s: string) => !s.startsWith('type '))
+                  .join(', ');
+                return cleaned ? `{ ${cleaned} }` : '';
+              });
+            })
+            // Filter out imports that became empty after removing types
+            .filter(imp => !/^import\s+\{\s*\}\s+from/.test(imp) && !/^import\s+from/.test(imp));
+          
+          if (cleanedImports.length > 0) {
+            scriptImports = cleanedImports.join('\n') + '\n';
+          }
+        }
       }
 
-      // Generate the final module
-      const output = generateOnigiriModule({
-        filePath,
-        scopeId,
-        scriptResult,
-        onigiriExpression,
-        descriptor,
-        scriptBindings,
+      const onigiriResult = compileOnigiriInline(descriptor.template.content, {
+        filename: filePath,
+        sourceMap,
       });
 
+      // Build imports string from collected codegen imports
+      const codegenImports = [...onigiriResult.imports].join('\n');
+
+      // Export only the render function with required imports
       return {
-        code: output,
-        map: null, // TODO: generate proper source map
+        code: `${scriptImports}${codegenImports}
+export default function __onigiriRender(_ctx, _slots) {
+  return ${onigiriResult.expression};
+}`,
+        map: null,
       };
+    },
+
+    /**
+     * Transform hook to inject onigiri support into compiled SFCs
+     * Using order: "post" to run AFTER vue plugin
+     */
+    transform: {
+       async handler(code, id) {
+        const [filePath, query] = id.split("?");
+
+        // Only handle .vue files
+        if (!filePath.endsWith(".vue") || filePath?.startsWith(ONIGIRI_PREFIX) || filePath?.startsWith(RESOLVED_ONIGIRI_PREFIX)) {
+          return null;
+        }
+
+        // For .vue file (no query) - this is the final combined output from Vue (dev mode)
+        if (!query) {
+          if (code.includes("export default")) {
+            // Use plain virtual: prefix - Vite will handle encoding after resolveId
+            const onigiriImport = `${ONIGIRI_PREFIX}${filePath}`;
+             return attachAsProperty(code, filePath, onigiriImport, sourceMap);
+          }
+          return null;
+        }
+
+        // Handle compiled script module with type=script query (build mode with inline template)
+        if (query.includes("type=script")) {
+          // Check if this has inline template (build mode)
+          const hasInlineTemplate = code.includes("_createElementVNode") || 
+                                     code.includes("_createVNode") ||
+                                     code.includes("_createBlock");
+
+          if (hasInlineTemplate) {
+            // Build mode: inject into setup - need to read template from disk
+            return injectIntoSetupAsync(code, filePath, sourceMap);
+          }
+          // Dev mode with type=script query - skip, we handle main .vue file
+          return null;
+        }
+
+        return null;
+      },
     },
   };
 }
 
-interface GenerateModuleOptions {
-  filePath: string;
-  scopeId: string;
-  scriptResult: SFCScriptBlock | null;
-  onigiriExpression: string;
-  descriptor: SFCDescriptor;
-  scriptBindings: Record<string, any>;
-}
-
 /**
- * Generate the final module code with onigiri support injected into setup.
- * 
- * The key optimization here is that we inline the serialized VServerComponent
- * expression directly in setup's return, avoiding any extra function calls
- * or object allocations. The template is compiled to a literal expression
- * that produces the serialized structure directly.
+ * Build mode: Inject onigiri check into setup function (async - reads template from disk)
  */
-function generateOnigiriModule(options: GenerateModuleOptions): string {
-  const { scriptResult, onigiriExpression, scriptBindings } = options;
-
-  if (!scriptResult) {
-    // No script - just export a component with inline onigiri return
-    return `
-import { inject } from "vue";
-import { ONIGIRI_RENDER_SYMBOL } from "vue-onigiri/runtime/shared";
-
-export default {
-  setup() {
-    if (inject(ONIGIRI_RENDER_SYMBOL, null)) {
-      return () => ${onigiriExpression};
-    }
-    return () => null;
-  }
-};
-`;
-  }
-
-  // Parse the compiled script and inject onigiri support
-  const s = new MagicString(scriptResult.content);
-
-  // Add our imports at the top
-  const imports = `
-import { inject as __inject } from "vue";
-import { ONIGIRI_RENDER_SYMBOL as __ONIGIRI_SYMBOL } from "vue-onigiri/runtime/shared";
-`;
-
-  // Find the setup function and inject our check
-  // The compiled output typically has: setup(__props, { expose: __expose }) {
-  const setupMatch = scriptResult.content.match(
+async function injectIntoSetupAsync(
+  code: string,
+  filePath: string,
+  sourceMap: boolean
+): Promise<{ code: string; map: any } | null> {
+  // Must have setup function
+  const setupMatch = code.match(
     /setup\s*\(\s*([^,)]*?)(?:,\s*\{[^}]*\})?\s*\)\s*\{/
   );
 
-  if (setupMatch && setupMatch.index !== undefined) {
-    const setupBodyStart = setupMatch.index + setupMatch[0].length;
+  if (!setupMatch || setupMatch.index === undefined) {
+    return null;
+  }
 
-    // The injection code that checks for the symbol and returns the 
-    // serialized VServerComponent expression directly - no function call overhead!
-    const injectionCode = `
-  // Onigiri: Return serialized VNode directly (compile-time optimized)
-  if (__inject(__ONIGIRI_SYMBOL, null)) {
-    return () => ${onigiriExpression};
+  // Read and parse the SFC to get template
+  const fs = await import("node:fs/promises");
+  const source = await fs.readFile(filePath, "utf8");
+  const { descriptor } = parse(source, { filename: filePath });
+
+  if (!descriptor.template) {
+    return null;
+  }
+
+  // Compile template to onigiri expression
+  const onigiriResult = compileOnigiriInline(descriptor.template.content, {
+    filename: filePath,
+    sourceMap,
+  });
+
+  const s = new MagicString(code);
+
+  // Add imports
+  const imports = `import { inject as __onigiri_inject } from "vue";
+import { ONIGIRI_RENDER_SYMBOL as __ONIGIRI_SYMBOL } from "vue-onigiri/runtime/shared";
+`;
+
+  // Injection code
+  const injectionCode = `
+  if (__onigiri_inject(__ONIGIRI_SYMBOL, null)) {
+    return () => ${onigiriResult.expression};
   }
 `;
 
-    // Insert the injection code at the start of setup body
-    s.prependLeft(setupBodyStart, injectionCode);
-  }
-
-  // Add our imports at the very beginning
+  const setupBodyStart = setupMatch.index + setupMatch[0].length;
+  s.appendLeft(setupBodyStart, injectionCode);
   s.prepend(imports);
 
-  return s.toString();
+  return {
+    code: s.toString(),
+    map: sourceMap ? s.generateMap({ hires: true }) : null,
+  };
+}
+
+/**
+ * Dev mode: Import onigiri render and attach as component property
+ */
+function attachAsProperty(
+  code: string,
+  filePath: string,
+  resolvedOnigiriId: string,
+  sourceMap: boolean
+): { code: string; map: any } | null {
+  // Must have a default export
+  if (!code.includes("export default")) {
+    return null;
+  }
+
+  const s = new MagicString(code);
+
+  // Import the onigiri render function using resolved virtual module ID
+  const importStatement = `import __onigiriRender from "${resolvedOnigiriId}";\n`;
+
+  // Handle Vue's _export_sfc pattern: export default _export_sfc(_sfc_main, [...])
+  // This is the common dev mode pattern
+  const exportSfcMatch = code.match(
+    /export\s+default\s+(?:\/\*[^*]*\*\/\s*)?_export_sfc\s*\(\s*(_sfc_main|_sfc_component)/
+  );
+
+  if (exportSfcMatch && exportSfcMatch[1] && exportSfcMatch.index !== undefined) {
+    const componentVar = exportSfcMatch[1];
+    s.prepend(importStatement);
+    // Attach before the export
+    s.appendLeft(exportSfcMatch.index, `${componentVar}.__onigiriRender = __onigiriRender;\n`);
+
+    return {
+      code: s.toString(),
+      map: sourceMap ? s.generateMap({ hires: true }) : null,
+    };
+  }
+
+  // Handle: export default _sfc_main
+  const varExportMatch = code.match(
+    /export\s+default\s+(_sfc_main|__default__|_sfc_component)\s*;?\s*$/m
+  );
+
+  if (varExportMatch && varExportMatch[1] && varExportMatch.index !== undefined) {
+    const componentVar = varExportMatch[1];
+    s.prepend(importStatement);
+    s.appendLeft(varExportMatch.index, `${componentVar}.__onigiriRender = __onigiriRender;\n`);
+
+    return {
+      code: s.toString(),
+      map: sourceMap ? s.generateMap({ hires: true }) : null,
+    };
+  }
+
+  // Handle inline export: export default /*...*/ _defineComponent({...})
+  const inlineExportMatch = code.match(
+    /export\s+default\s+(?:\/\*[^*]*\*\/\s*)?/
+  );
+
+  if (inlineExportMatch && inlineExportMatch.index !== undefined) {
+    s.prepend(importStatement);
+
+    const exportStart = inlineExportMatch.index;
+    const exportPrefix = inlineExportMatch[0];
+
+    s.overwrite(
+      exportStart,
+      exportStart + exportPrefix.length,
+      "const __sfc_with_onigiri = "
+    );
+    s.append(`\n__sfc_with_onigiri.__onigiriRender = __onigiriRender;\nexport default __sfc_with_onigiri;`);
+
+    return {
+      code: s.toString(),
+      map: sourceMap ? s.generateMap({ hires: true }) : null,
+    };
+  }
+
+  return null;
 }
 
 export default onigiriCompilerPlugin;
