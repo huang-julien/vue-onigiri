@@ -22,7 +22,7 @@ describe('props', () => {
         expect(result).toBeDefined();
         expect(result.code).toMatchInlineSnapshot( `
           "export function renderOnigiri(_ctx) {
-          return [1, MyComponent, {"prop": _ctx.value}, undefined];
+          return __serializeComponent(MyComponent, {"prop": _ctx.value}, undefined);
           }"
         `);
     });
@@ -32,7 +32,7 @@ describe('props', () => {
         expect(result).toBeDefined();
         expect(result.code).toMatchInlineSnapshot( `
           "export function renderOnigiri(_ctx) {
-          return [1, MyComponent, {"prop": "value"}, undefined];
+          return __serializeComponent(MyComponent, {"prop": "value"}, undefined);
           }"
         `);
     });
@@ -42,7 +42,7 @@ describe('props', () => {
         expect(result).toBeDefined();
         expect(result.code).toMatchInlineSnapshot( `
           "export function renderOnigiri(_ctx) {
-          return [1, MyComponent, {"prop": 'value'}, undefined];
+          return __serializeComponent(MyComponent, {"prop": 'value'}, undefined);
           }"
         `);
     });
@@ -52,7 +52,7 @@ describe('props', () => {
         expect(result).toBeDefined();
         expect(result.code).toMatchInlineSnapshot( `
           "export function renderOnigiri(_ctx) {
-          return [1, MyComponent, {"prop": _ctx.value}, undefined];
+          return __serializeComponent(MyComponent, {"prop": _ctx.value}, undefined);
           }"
         `);
     });
@@ -64,7 +64,7 @@ describe('props', () => {
         expect(result).toBeDefined();
         expect(result.code).toMatchInlineSnapshot( `
           "export function renderOnigiri(_ctx) {
-          return [1, MyComponent, _ctx.value, undefined];
+          return __serializeComponent(MyComponent, _ctx.value, undefined);
           }"
         `);
     });
@@ -77,7 +77,7 @@ describe('props', () => {
           "import { mergeProps as _mergeProps } from "vue";
 
           export function renderOnigiri(_ctx) {
-          return [1, MyComponent, _mergeProps(_ctx.value, {"class": "test"}), undefined];
+          return __serializeComponent(MyComponent, _mergeProps(_ctx.value, {"class": "test"}), undefined);
           }"
         `);
     });
