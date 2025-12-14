@@ -66,6 +66,12 @@ export function genNode(node: any, context: CodegenContext): void {
 export function genElement(node: ElementNode, context: CodegenContext): void {
   const { tag, props, children } = node;
   
+  // Handle <slot> outlets specially
+  if (tag === 'slot') {
+    genSlotOutlet(node, context);
+    return;
+  }
+  
   // Check if it's a component (starts with uppercase or has hyphen like web components)
   const isComponent = /^[A-Z]/.test(tag) || tag.includes('-');
   
@@ -179,6 +185,64 @@ function genServerRenderedComponent(
       genNode(child, context);
     }
     context.push('] }');
+  } else {
+    context.push('undefined');
+  }
+  
+  context.push(')');
+}
+
+/**
+ * Generate code for <slot> outlets.
+ * Slot outlets render content passed from parent components.
+ * Format: __renderSlot(_ctx, _slots, name, props, fallback)
+ * 
+ * The __renderSlot helper will:
+ * 1. Look up the slot by name in _slots
+ * 2. Call the slot function with props if it exists
+ * 3. Return the fallback content if no slot is provided
+ */
+function genSlotOutlet(node: ElementNode, context: CodegenContext): void {
+  const { props, children } = node;
+  
+  // Find the slot name from props (default is "default")
+  let slotName = '"default"';
+  const slotProps: (AttributeNode | DirectiveNode)[] = [];
+  
+  for (const prop of props) {
+    if (prop.type === NodeTypes.ATTRIBUTE && prop.name === 'name') {
+      slotName = prop.value ? `"${prop.value.content}"` : '"default"';
+    } else {
+      // All other props are passed to the slot
+      slotProps.push(prop);
+    }
+  }
+  
+  context.push('__renderSlot(_ctx, _slots, ');
+  context.push(slotName);
+  context.push(', ');
+  
+  // Slot props (passed to scoped slots)
+  if (slotProps.length > 0) {
+    genProps(slotProps, context);
+  } else {
+    context.push('undefined');
+  }
+  context.push(', ');
+  
+  // Fallback content (children of the <slot> element)
+  if (children.length > 0) {
+    context.push('() => ');
+    if (children.length === 1) {
+      genNode(children[0], context);
+    } else {
+      context.push('[');
+      for (const [i, child] of children.entries()) {
+        if (i > 0) context.push(', ');
+        genNode(child, context);
+      }
+      context.push(']');
+    }
   } else {
     context.push('undefined');
   }

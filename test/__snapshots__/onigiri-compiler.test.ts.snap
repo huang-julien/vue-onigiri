@@ -218,7 +218,7 @@ return [0, "span", undefined, [2, active ? 'Yes' : 'No']];
 
 exports[`onigiri compiler > snapshots > real-world examples > card component 1`] = `
 "export function renderOnigiri(_ctx) {
-return [0, "article", {"class": "card", "class": [variant, { featured: isFeatured }]}, [[0, "img", {"if": _ctx.image, "src": _ctx.image, "alt": _ctx.title, "class": "card-image"}, undefined], [0, "div", {"class": "card-content"}, [[0, "h3", {"class": "card-title"}, [2, title]], [0, "p", {"class": "card-description"}, [2, description]], [0, "slot", {"name": "actions"}, undefined]]]]];
+return [0, "article", {"class": "card", "class": [variant, { featured: isFeatured }]}, [[0, "img", {"if": _ctx.image, "src": _ctx.image, "alt": _ctx.title, "class": "card-image"}, undefined], [0, "div", {"class": "card-content"}, [[0, "h3", {"class": "card-title"}, [2, title]], [0, "p", {"class": "card-description"}, [2, description]], __renderSlot(_ctx, _slots, "actions", undefined, undefined)]]]];
 }"
 `;
 
@@ -230,7 +230,7 @@ return [0, "form", {"submit": _ctx.onSubmit, "class": "form"}, [[0, "div", {"cla
 
 exports[`onigiri compiler > snapshots > real-world examples > modal dialog 1`] = `
 "export function renderOnigiri(_ctx) {
-return [0, "div", {"if": _ctx.isOpen, "class": "modal-overlay", "click": _ctx.close}, [0, "div", {"class": "modal", "role": "dialog", "aria-labelledby": _ctx.titleId}, [[0, "header", {"class": "modal-header"}, [[0, "h2", {"id": _ctx.titleId}, [2, title]], [0, "button", {"click": _ctx.close, "aria-label": "Close"}, [2, "×"]]]], [0, "div", {"class": "modal-body"}, [0, "slot", undefined, undefined]], [0, "footer", {"class": "modal-footer"}, [0, "slot", {"name": "footer"}, [0, "button", {"click": _ctx.close}, [2, "Close"]]]]]]];
+return [0, "div", {"if": _ctx.isOpen, "class": "modal-overlay", "click": _ctx.close}, [0, "div", {"class": "modal", "role": "dialog", "aria-labelledby": _ctx.titleId}, [[0, "header", {"class": "modal-header"}, [[0, "h2", {"id": _ctx.titleId}, [2, title]], [0, "button", {"click": _ctx.close, "aria-label": "Close"}, [2, "×"]]]], [0, "div", {"class": "modal-body"}, __renderSlot(_ctx, _slots, "default", undefined, undefined)], [0, "footer", {"class": "modal-footer"}, __renderSlot(_ctx, _slots, "footer", undefined, () => [0, "button", {"click": _ctx.close}, [2, "Close"]])]]]];
 }"
 `;
 
@@ -248,24 +248,24 @@ return [0, "li", {"class": "todo-item", "class": { completed: todo.done }}, [[0,
 
 exports[`onigiri compiler > snapshots > slots > default slot outlet 1`] = `
 "export function renderOnigiri(_ctx) {
-return [0, "slot", undefined, undefined];
+return __renderSlot(_ctx, _slots, "default", undefined, undefined);
 }"
 `;
 
 exports[`onigiri compiler > snapshots > slots > named slot outlet 1`] = `
 "export function renderOnigiri(_ctx) {
-return [0, "slot", {"name": "header"}, undefined];
+return __renderSlot(_ctx, _slots, "header", undefined, undefined);
 }"
 `;
 
 exports[`onigiri compiler > snapshots > slots > scoped slot outlet 1`] = `
 "export function renderOnigiri(_ctx) {
-return [0, "slot", {"item": _ctx.item, "index": _ctx.index}, undefined];
+return __renderSlot(_ctx, _slots, "default", {"item": _ctx.item, "index": _ctx.index}, undefined);
 }"
 `;
 
 exports[`onigiri compiler > snapshots > slots > slot with fallback 1`] = `
 "export function renderOnigiri(_ctx) {
-return [0, "slot", undefined, [2, "Fallback content"]];
+return __renderSlot(_ctx, _slots, "default", undefined, () => [2, "Fallback content"]);
 }"
 `;
