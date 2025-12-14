@@ -2,15 +2,15 @@ import { fileURLToPath, URL } from "node:url";
 import { ViteMcp } from 'vite-plugin-mcp'
 import { defineConfig } from "vite";
 import vueDevTools from "vite-plugin-vue-devtools";
- import { onigiriCompilerPlugin } from "../src/vite/compiler";
-import vue from "@vitejs/plugin-vue";
+import { onigiriCompilerPlugin } from "../src/vite/compiler";
+import { onigiriClientPlugin } from "../src/vite/chunk";
  
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [    
-    vue(),onigiriCompilerPlugin(), // Attach __onigiriRender to SFC exports
-
+    ...onigiriClientPlugin(), // Attach __chunk to SFC exports
+    onigiriCompilerPlugin(), // Attach __onigiriRender to SFC exports
     vueDevTools(),
     ViteMcp()
   ],
