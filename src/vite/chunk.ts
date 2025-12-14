@@ -2,8 +2,7 @@ import type { Plugin, Manifest } from "vite";
 import MagicString from "magic-string";
 import { join, normalize, relative } from "node:path";
 import { readFileSync, existsSync } from "node:fs";
-import vue from "@vitejs/plugin-vue";
-import type { Options } from "@vitejs/plugin-vue";
+ import type { Options } from "@vitejs/plugin-vue";
 import type { ExportDefaultDeclaration, ExportNamedDeclaration, Declaration, Identifier } from "estree";
 import type { ProgramNode, RollupAstNode } from "rollup";
 
@@ -34,14 +33,12 @@ export interface OnigiriChunkOptions {
  * })
  * ```
  */
-export function onigiriClientPlugin(_options: OnigiriChunkOptions = {}, vueOptions?: Options): Plugin[] {
+export function onigiriClientPlugin(_options: OnigiriChunkOptions = {}): Plugin {
   let root = "";
   let isProduction = false;
   const emittedChunks = new Map<string, string>(); // componentId -> referenceId
 
-  return [
-    vue(vueOptions),
-    {
+  return    {
       name: "vite:vue-onigiri-client",
       
       configResolved(config) {
@@ -136,8 +133,8 @@ export function onigiriClientPlugin(_options: OnigiriChunkOptions = {}, vueOptio
           }
         },
       },
-    },
-  ];
+    }
+
 }
 
 /**
@@ -158,15 +155,12 @@ export function onigiriClientPlugin(_options: OnigiriChunkOptions = {}, vueOptio
  */
 export function onigiriServerPlugin(
   options: OnigiriChunkOptions = {},
-  vueOptions?: Options
-): Plugin[] {
+ ): Plugin {
   let root = "";
   let isProduction = false;
   let clientManifest: Manifest | null = null;
 
-  return [
-    vue(vueOptions),
-    {
+  return      {
       name: "vite:vue-onigiri-server",
 
       configResolved(config) {
@@ -257,8 +251,7 @@ export function onigiriServerPlugin(
           }
         },
       },
-    },
-  ];
+    }
 }
 
 /**
@@ -415,16 +408,14 @@ export function createOnigiriPlugins(options: {
      * Standalone client plugin (for separate client config)
      */
     client: (vueOpts?: Options) => onigiriClientPlugin(
-      { clientManifestPath: join(clientOutDir, ".vite/manifest.json") },
-      vueOpts
+      { clientManifestPath: join(clientOutDir, ".vite/manifest.json") }
     ),
 
     /**
      * Standalone server plugin (for separate server config)
      */
     server: (vueOpts?: Options) => onigiriServerPlugin(
-      { clientManifestPath: join(clientOutDir, ".vite/manifest.json") },
-      vueOpts
+      { clientManifestPath: join(clientOutDir, ".vite/manifest.json") }
     ),
   };
 }

@@ -24,8 +24,6 @@ import {
   type VServerComponentBuffered,
   VServerComponentType,
   type VServerComponent,
-  type OnigiriComponent,
-  ONIGIRI_RENDER_SYMBOL,
 } from "./shared";
 import type { MaybePromise } from "rollup";
 
@@ -173,6 +171,75 @@ export async function serializeVNode(
         serializeChildren(vnode.children, parentInstance),
       ];
     } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
+      const componentType = vnode.type as Component & { 
+        __onigiriRender?: (ctx: any, slots: any) => VServerComponentBuffered;
+        __chunk?: string;
+        __export?: string;
+      };
+      
+      // Check if component has pre-compiled onigiri render function
+      if (typeof componentType.__onigiriRender === "function") {
+        // Create instance to run setup and get reactive context
+        const instance = createComponentInstance(vnode, parentInstance ?? null, null);
+        const res = setupComponent(instance, true);
+        
+        const runOnigiriRender = () => {
+          // Call the pre-compiled render with the instance proxy as context
+          // and the slots from the vnode
+          const slots = vnode.children as Record<string, (...args: any[]) => VNodeChild> | null;
+          const serializedSlots: Record<string, VServerComponentBuffered[] | undefined> = {};
+          
+          // Pre-serialize slots for the onigiri render
+          if (slots) {
+            for (const key in slots) {
+              const slotFn = slots[key];
+              if (typeof slotFn === "function") {
+                // For now, call the slot with no args and serialize
+                // The onigiri render will receive already-serialized slot content
+                const slotContent = slotFn();
+                if (slotContent) {
+                  // This is async but we need sync for now - mark as promise
+                  serializedSlots[key] = Promise.all(
+                    (Array.isArray(slotContent) ? slotContent : [slotContent]).map(
+                      (child) => serializeVNode(child, parentInstance).then((v) => 
+                        v ? unrollServerComponentBufferPromises(v) : undefined
+                      )
+                    )
+                  ).then((results) => results.filter(Boolean) as VServerComponent[]) as any;
+                }
+              }
+            }
+          }
+          
+          return componentType.__onigiriRender!(instance.proxy, serializedSlots);
+        };
+        
+        // Handle async setup
+        if (isPromise(res)) {
+          return res.then(() => {
+            // @ts-expect-error internal API
+            const prefetches = instance.sp as unknown as Promise[] | undefined;
+            if (prefetches) {
+              return Promise.all(
+                prefetches.map((prefetch) => prefetch.call(instance.proxy))
+              ).then(runOnigiriRender);
+            }
+            return runOnigiriRender();
+          });
+        }
+        
+        // @ts-expect-error internal API
+        const prefetches = instance.sp as unknown as Promise[] | undefined;
+        if (prefetches) {
+          return Promise.all(
+            prefetches.map((prefetch) => prefetch.call(instance.proxy))
+          ).then(runOnigiriRender);
+        }
+        
+        return runOnigiriRender();
+      }
+      
+      // Fallback to runtime VNode serialization
       return Promise.resolve(renderComponent(vnode, parentInstance)).then(
         (child) => {
             // @ts-expect-error
@@ -415,87 +482,4 @@ function filterProps(props: VNodeProps | undefined | null) {
         !(key.startsWith("on") && key[2] && key[2].toUpperCase() === key[2]),
     ),
   );
-}
-
-/**
- * Renders a component with a compiled `renderOnigiri` function to a serialized VNode.
- * This is the equivalent of Vue's `renderToString` but produces serialized VNode structures.
- */
-export async function renderToSerializedVNode(
-  component: OnigiriComponent,
-  props?: Record<string, any>,
-  context: SSRContext = {},
-): Promise<VServerComponent | undefined> {
-  const app = createApp(component as Component, props);
-  app.provide(ssrContextKey, context);
-  
-  // Provide the onigiri render symbol - this tells setup to return
-  // the onigiri render function instead of the normal render function
-  app.provide(ONIGIRI_RENDER_SYMBOL, true);
-  
-  applyDirective(app);
-
-  const vnode = createVNode(app._component, app._props);
-  const instance = createComponentInstance(vnode, app._instance, null);
-  instance.appContext = app._context;
-  // @ts-expect-error internal API
-  instance.provides = Object.create(app._context.provides);
-
-  return app.runWithContext(async () => {
-    const res = await setupComponent(instance, true);
-
-    return await app.runWithContext(async () => {
-      const hasAsyncSetup = isPromise(res);
-
-      let prefetches =
-        // @ts-expect-error internal API
-        instance.sp as unknown as Promise[];
-
-      // Handle async setup and prefetches
-      if (hasAsyncSetup || prefetches) {
-        await Promise.resolve(res).then(() => {
-          if (hasAsyncSetup) {
-            // @ts-expect-error internal API
-            prefetches = instance.sp;
-          }
-          if (prefetches) {
-            return Promise.all(
-              prefetches.map((prefetch) => prefetch.call(instance.proxy)),
-            );
-          }
-        });
-      }
-
-      // After setup, check if we have an onigiri render function
-      // The onigiri render returns an array [VServerComponentType, ...], 
-      // while normal render returns a VNode object
-      // @ts-expect-error internal API - render is set by setupComponent
-      const renderFn = instance.render as (() => unknown) | undefined;
-      if (typeof renderFn === "function") {
-        const result = renderFn();
-        
-        // Check if result is a VServerComponentBuffered (array with type as first element)
-        if (Array.isArray(result) && typeof result[0] === "number") {
-          return unrollServerComponentBufferPromises(result as VServerComponentBuffered);
-        }
-        
-        // If result is a promise (async onigiri render), await and check
-        if (result && typeof (result as Promise<unknown>).then === "function") {
-          const awaited = await result;
-          if (Array.isArray(awaited) && typeof awaited[0] === "number") {
-            return unrollServerComponentBufferPromises(awaited as VServerComponentBuffered);
-          }
-        }
-      }
-
-      // Fallback: use runtime serialization (for non-onigiri components)
-      const child = renderComponentRoot(instance);
-      const serialized = await serializeVNode(child, instance);
-      if (serialized) {
-        return unrollServerComponentBufferPromises(serialized);
-      }
-
-      return undefined;
-    });
-  });
 }
