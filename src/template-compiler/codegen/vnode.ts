@@ -23,6 +23,127 @@ import { VServerComponentType } from "../../runtime/shared";
 import type { CodegenContext } from "./context";
 
 /**
+ * Set of HTML void elements that cannot have children.
+ * These elements are self-closing and should not have an end tag.
+ */
+const VOID_ELEMENTS = new Set([
+  'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+  'link', 'meta', 'param', 'source', 'track', 'wbr'
+]);
+
+/**
+ * Represents a parsed slot from component children.
+ */
+interface ParsedSlot {
+  name: string;
+  slotProps: string | null; // The scoped slot parameter (e.g., "scoped" from #test="scoped")
+  children: any[];
+}
+
+/**
+ * Parse children of a component to extract named and default slots.
+ * Handles <template #slotName="slotProps"> syntax.
+ */
+function parseSlots(children: any[]): ParsedSlot[] {
+  const slots: ParsedSlot[] = [];
+  const defaultChildren: any[] = [];
+  
+  for (const child of children) {
+    // Check if this is a <template> with v-slot directive
+    if (child.type === NodeTypes.ELEMENT && child.tag === 'template') {
+      const slotDirective = child.props?.find(
+        (p: any) => p.type === NodeTypes.DIRECTIVE && p.name === 'slot'
+      ) as DirectiveNode | undefined;
+      
+      if (slotDirective) {
+        // Extract slot name from the directive argument
+        let slotName = 'default';
+        if (slotDirective.arg && slotDirective.arg.type === NodeTypes.SIMPLE_EXPRESSION) {
+          slotName = (slotDirective.arg as SimpleExpressionNode).content;
+        }
+        
+        // Extract slot props (scoped slot parameter)
+        let slotProps: string | null = null;
+        if (slotDirective.exp && slotDirective.exp.type === NodeTypes.SIMPLE_EXPRESSION) {
+          slotProps = (slotDirective.exp as SimpleExpressionNode).content;
+        }
+        
+        slots.push({
+          name: slotName,
+          slotProps,
+          children: child.children || []
+        });
+        continue;
+      }
+    }
+    
+    // Not a named slot template - goes to default slot
+    defaultChildren.push(child);
+  }
+  
+  // Add default slot if there are any non-template children
+  if (defaultChildren.length > 0) {
+    slots.push({
+      name: 'default',
+      slotProps: null,
+      children: defaultChildren
+    });
+  }
+  
+  return slots;
+}
+
+/**
+ * Generate the slots object for a component.
+ * Handles both named slots and scoped slots.
+ */
+function genSlotsObject(children: any[], context: CodegenContext, asFunction: boolean): void {
+  const slots = parseSlots(children);
+  
+  if (slots.length === 0) {
+    context.push('undefined');
+    return;
+  }
+  
+  context.push('{ ');
+  
+  for (const [i, slot] of slots.entries()) {
+    if (i > 0) context.push(', ');
+    
+    context.push(`"${slot.name}": `);
+    
+    if (asFunction) {
+      // Server-side: slots are functions that return arrays
+      if (slot.slotProps) {
+        context.push(`(${slot.slotProps}) => `);
+      } else {
+        context.push('() => ');
+      }
+      context.push('[');
+      for (const [j, child] of slot.children.entries()) {
+        if (j > 0) context.push(', ');
+        genNode(child, context);
+      }
+      context.push(']');
+    } else {
+      // Client-side: slots are serialized VNodes (not functions)
+      if (slot.children.length === 1) {
+        genNode(slot.children[0], context);
+      } else {
+        context.push('[');
+        for (const [j, child] of slot.children.entries()) {
+          if (j > 0) context.push(', ');
+          genNode(child, context);
+        }
+        context.push(']');
+      }
+    }
+  }
+  
+  context.push(' }');
+}
+
+/**
  * Prefix identifiers in a simple expression with _ctx.
  * This is a fallback for expressions not processed by transformExpression (e.g., v-on handlers).
  * 
@@ -51,7 +172,8 @@ function prefixIdentifiers(content: string): string {
   
   // Match identifiers: word boundaries, must start with letter or _ or $
   // Negative lookbehind for . to avoid prefixing property access
-  const prefixed = contentWithPlaceholders.replace(/(?<![.\w$])([a-zA-Z_$][a-zA-Z0-9_$]*)(?!\s*:(?!:))/g, (match, ident, offset) => {
+  // Negative lookahead for : to avoid prefixing object keys (but allow ::)
+  const prefixed = contentWithPlaceholders.replace(/(?<![.\w$])([a-zA-Z_$][a-zA-Z0-9_$]*)(?![\w$])(?!\s*:(?!:))/g, (match, ident, offset) => {
     // Check if this is a keyword
     if (jsKeywords.has(ident)) {
       return match;
@@ -112,6 +234,11 @@ function genExpressionAsValue(node: ExpressionNode | undefined, context: Codegen
   }
 }
 
+// Additional node types from Vue's transform phase
+const TEXT_CALL = 12;
+const VNODE_CALL = 13;
+const JS_CALL_EXPRESSION = 14;
+
 /**
  * Generate code for any AST node
  */
@@ -145,6 +272,22 @@ export function genNode(node: any, context: CodegenContext): void {
       // Skip comments in onigiri output
       break;
     }
+    case TEXT_CALL: {
+      // TEXT_CALL wraps transformed text - extract and generate its content
+      genTextCall(node, context);
+      break;
+    }
+    case VNODE_CALL:
+    case JS_CALL_EXPRESSION: {
+      // These are generated by transformElement - we need to handle them
+      // For now, fall back to the original node if available
+      if (node.tag) {
+        genElement(node, context);
+      } else {
+        context.push('null');
+      }
+      break;
+    }
     default: {
       context.push('null');
     }
@@ -152,10 +295,23 @@ export function genNode(node: any, context: CodegenContext): void {
 }
 
 /**
+ * Generate code for TEXT_CALL nodes (created by transformText).
+ * These wrap compound expressions for text content.
+ */
+function genTextCall(node: any, context: CodegenContext): void {
+  if (node.content) {
+    // TEXT_CALL has a content property which is usually a COMPOUND_EXPRESSION
+    genNode(node.content, context);
+  } else {
+    context.push('null');
+  }
+}
+
+/**
  * Generate code for element and component nodes
  */
 export function genElement(node: ElementNode, context: CodegenContext): void {
-  const { tag, props, children } = node;
+  const { tag } = node;
   
   // Handle <slot> outlets specially
   if (tag === 'slot') {
@@ -163,7 +319,10 @@ export function genElement(node: ElementNode, context: CodegenContext): void {
     return;
   }
   
-  // Check if it's a component (starts with uppercase or has hyphen like web components)
+  // Check if it's a component:
+  // - Starts with uppercase (PascalCase components)
+  // - Contains hyphen (kebab-case components like my-component)
+  // Note: Web components also use hyphens but Vue treats them the same
   const isComponent = /^[A-Z]/.test(tag) || tag.includes('-');
   
   if (isComponent) {
@@ -192,6 +351,40 @@ function genComponent(node: ElementNode, context: CodegenContext): void {
 }
 
 /**
+ * Check if a component needs resolveComponent() call.
+ * Components are resolved if they're not in the binding metadata (not imported).
+ * Returns the variable/reference name to use for the component.
+ */
+function getComponentRef(tag: string, context: CodegenContext): string {
+  // Convert tag to possible binding names (PascalCase and camelCase)
+  const pascalName = tag.replace(/-./g, x => x[1]?.toUpperCase() ?? '').replace(/^./, x => x.toUpperCase());
+  const camelName = pascalName.replace(/^./, x => x.toLowerCase());
+  
+  // Check if component is imported (in binding metadata)
+  const isImported = context.bindingMetadata[tag] || 
+                     context.bindingMetadata[pascalName] || 
+                     context.bindingMetadata[camelName];
+  
+  if (isImported) {
+    // Use the imported name directly
+    return context.bindingMetadata[tag] ? tag : 
+           context.bindingMetadata[pascalName] ? pascalName : camelName;
+  }
+  
+  // Not imported - need resolveComponent
+  // Generate variable name: _component_MyComponent or _component_my_component
+  const varName = '_component_' + tag.replace(/-/g, '_');
+  
+  // Register for declaration if not already registered
+  if (!context.components.has(tag)) {
+    context.components.set(tag, varName);
+    context.imports.add(genImport('vue', [{ name: 'resolveComponent', as: '_resolveComponent' }]));
+  }
+  
+  return varName;
+}
+
+/**
  * Generate code for component with v-load-client directive.
  * These are serialized as Component type and loaded on the client.
  * Format: [VServerComponentType.Component, Props, ChunkPath, ExportName, Slots]
@@ -202,6 +395,8 @@ function genClientLoadedComponent(
   children: any[],
   context: CodegenContext
 ): void {
+  const componentRef = getComponentRef(tag, context);
+  
   context.push('[');
   // 1. Type
   context.push(VServerComponentType.Component.toString());
@@ -219,30 +414,15 @@ function genClientLoadedComponent(
   context.push(', ');
 
   // 3. ChunkPath - access from component's __chunk property (set by build plugin)
-  context.push(`${tag}.__chunk`);
+  context.push(`${componentRef}.__chunk`);
   context.push(', ');
 
   // 4. ExportName - access from component's __export property (set by build plugin)  
-  context.push(`${tag}.__export`);
+  context.push(`${componentRef}.__export`);
   context.push(', ');
 
-  // 5. Slots - convert children to default slot
-  if (children.length > 0) {
-    context.push('{ default: ');
-    if (children.length === 1) {
-      genNode(children[0], context);
-    } else {
-      context.push('[');
-      for (const [i, child] of children.entries()) {
-        if (i > 0) context.push(', ');
-        genNode(child, context);
-      }
-      context.push(']');
-    }
-    context.push(' }');
-  } else {
-    context.push('undefined');
-  }
+  // 5. Slots - parse named slots from children
+  genSlotsObject(children, context, false); // false = not as functions for client hydration
   
   context.push(']');
 }
@@ -258,7 +438,9 @@ function genServerRenderedComponent(
   children: any[],
   context: CodegenContext
 ): void {
-  context.push(`__serializeComponent(${tag}, `);
+  const componentRef = getComponentRef(tag, context);
+  
+  context.push(`__serializeComponent(${componentRef}, `);
   
   // Props
   if (props.length > 0) {
@@ -268,17 +450,8 @@ function genServerRenderedComponent(
   }
   context.push(', ');
   
-  // Slots as children
-  if (children.length > 0) {
-    context.push('{ default: () => [');
-    for (const [i, child] of children.entries()) {
-      if (i > 0) context.push(', ');
-      genNode(child, context);
-    }
-    context.push('] }');
-  } else {
-    context.push('undefined');
-  }
+  // Slots - parse named slots from children (as functions for SSR)
+  genSlotsObject(children, context, true); // true = as functions for server-side rendering
   
   context.push(')');
 }
@@ -348,6 +521,9 @@ function genSlotOutlet(node: ElementNode, context: CodegenContext): void {
 function genHtmlElement(node: ElementNode, context: CodegenContext): void {
   const { tag, props, children } = node;
   
+  // Check if this is a void element (self-closing, no children allowed)
+  const isVoidElement = VOID_ELEMENTS.has(tag);
+  
   context.push('[');
   // 1. Type
   context.push(VServerComponentType.Element.toString());
@@ -362,20 +538,22 @@ function genHtmlElement(node: ElementNode, context: CodegenContext): void {
   } else {
     context.push('undefined');
   }
-  context.push(', ');
   
-  // 4. Children
-  if (children.length === 0) {
-    context.push('undefined');
-  } else if (children.length === 1) {
-    genNode(children[0], context);
-  } else {
-    context.push('[');
-    for (const [i, child] of children.entries()) {
-      if (i > 0) context.push(', ');
-      genNode(child, context);
+  // 4. Children (void elements don't have children)
+  if (!isVoidElement) {
+    context.push(', ');
+    if (children.length === 0) {
+      context.push('undefined');
+    } else if (children.length === 1) {
+      genNode(children[0], context);
+    } else {
+      context.push('[');
+      for (const [i, child] of children.entries()) {
+        if (i > 0) context.push(', ');
+        genNode(child, context);
+      }
+      context.push(']');
     }
-    context.push(']');
   }
   
   context.push(']');
@@ -441,14 +619,53 @@ function genPropsObject(props: (AttributeNode | DirectiveNode)[], context: Codeg
       
       context.push(`"${prop.name}": `);
       if (prop.value) {
-        context.push(`"${prop.value.content}"`);
+        context.push(JSON.stringify(prop.value.content));
       } else {
         context.push('true');
       }
     } else if (prop.type === NodeTypes.DIRECTIVE) {
+      // Skip structural directives - they're handled at node level
+      if (prop.name === 'if' || prop.name === 'else' || prop.name === 'else-if' || 
+          prop.name === 'for' || prop.name === 'slot') {
+        continue;
+      }
+      
       if (!first) context.push(', ');
       first = false;
       
+      // Handle v-on (events) - convert to onXxx format
+      if (prop.name === 'on') {
+        const eventName = (prop.arg && typeof prop.arg === 'object' && 'content' in prop.arg) 
+          ? (prop.arg as SimpleExpressionNode).content 
+          : '';
+        // Convert event name to onXxx format (e.g., click -> onClick)
+        const onEventName = 'on' + eventName.charAt(0).toUpperCase() + eventName.slice(1);
+        context.push(`"${onEventName}": `);
+        
+        if (prop.exp) {
+          genExpressionAsValue(prop.exp, context);
+        } else {
+          context.push('true');
+        }
+        continue;
+      }
+      
+      // Handle v-bind with argument (:prop="value")
+      if (prop.name === 'bind' && prop.arg) {
+        const attrName = (typeof prop.arg === 'object' && 'content' in prop.arg) 
+          ? (prop.arg as SimpleExpressionNode).content 
+          : '';
+        context.push(`"${attrName}": `);
+        
+        if (prop.exp) {
+          genExpressionAsValue(prop.exp, context);
+        } else {
+          context.push('true');
+        }
+        continue;
+      }
+      
+      // Other directives (v-show, v-model, custom directives)
       const attrName = (prop.arg && typeof prop.arg === 'object' && 'content' in prop.arg) 
         ? (prop.arg as SimpleExpressionNode).content 
         : prop.name;
@@ -473,7 +690,8 @@ export function genText(node: TextNode, context: CodegenContext): void {
   context.push('[');
   context.push(VServerComponentType.Text.toString());
   context.push(', ');
-  context.push(`"${node.content}"`);
+  // Use JSON.stringify to properly escape special characters
+  context.push(JSON.stringify(node.content));
   context.push(']');
 }
 
@@ -499,19 +717,35 @@ export function genCompoundExpression(node: CompoundExpressionNode, context: Cod
   context.push(', ');
   context.push('(');
   
-  for (let i = 0; i < node.children.length; i++) {
-    const child = node.children[i];
+  for (const child of node.children) {
     if (typeof child === 'string') {
+      // Operator strings like " + "
       context.push(child);
     } else if (typeof child === 'symbol') {
       // Skip symbols
     } else if (child && typeof child === 'object' && 'type' in child) {
-      if (child.type === NodeTypes.INTERPOLATION) {
+      if (child.type === NodeTypes.TEXT) {
+        // Text node - output as a quoted string
+        context.push(JSON.stringify((child as TextNode).content));
+      } else if (child.type === NodeTypes.INTERPOLATION) {
         genExpressionAsValue((child as InterpolationNode).content, context);
       } else if (child.type === NodeTypes.SIMPLE_EXPRESSION) {
         context.push((child as SimpleExpressionNode).content);
       } else if (child.type === NodeTypes.COMPOUND_EXPRESSION) {
-        genExpressionAsValue(child as ExpressionNode, context);
+        // Nested compound - generate just the inner expression
+        context.push('(');
+        for (const innerChild of (child as CompoundExpressionNode).children) {
+          if (typeof innerChild === 'string') {
+            context.push(innerChild);
+          } else if (innerChild && typeof innerChild === 'object' && 'type' in innerChild) {
+            if (innerChild.type === NodeTypes.TEXT) {
+              context.push(JSON.stringify((innerChild as TextNode).content));
+            } else if (innerChild.type === NodeTypes.SIMPLE_EXPRESSION) {
+              context.push((innerChild as SimpleExpressionNode).content);
+            }
+          }
+        }
+        context.push(')');
       }
     }
   }

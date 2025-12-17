@@ -8,12 +8,16 @@
 import { 
   baseParse, 
   transform,
-  transformExpression,
+  getBaseTransformPreset,
   type CompilerOptions, 
   type RootNode,
 } from "@vue/compiler-dom";
+import { isVoidTag } from "@vue/shared";
 import { VServerComponentType } from "../runtime/shared";
 import { createCodegenContext, genNode } from "./codegen";
+
+// Get Vue's default transforms (includes v-if, v-for, etc.)
+const [baseNodeTransforms] = getBaseTransformPreset(true);
 
 export interface OnigiriCompilerOptions extends CompilerOptions {
   /** Additional compiler options specific to onigiri */
@@ -33,43 +37,61 @@ export function compileOnigiri(
   template: string,
   options: OnigiriCompilerOptions = {}
 ): OnigiriCodegenResult {
-  // Parse the template
-  const ast = baseParse(template, options);
+  // Parse the template with HTML void tag recognition
+  const ast = baseParse(template, {
+    ...options,
+    isVoidTag,
+  });
   
-  // Transform the AST with expression prefixing
+  // Transform the AST with Vue's default transforms (v-if, v-for, expressions, etc.)
   transform(ast, {
     ...options,
     prefixIdentifiers: true,
-    nodeTransforms: [transformExpression],
+    nodeTransforms: baseNodeTransforms,
     directiveTransforms: {}
   });
 
   // Generate the onigiri code
-  const context = createCodegenContext();
+  const context = createCodegenContext(options.bindingMetadata);
 
-  // Generate the function preamble
+  // First, generate the return expression to collect component references
+  const bodyContext = createCodegenContext(options.bindingMetadata);
+  if (ast.children.length === 0) {
+    bodyContext.push('null');
+  } else if (ast.children.length === 1) {
+    genNode(ast.children[0], bodyContext);
+  } else {
+    // Multiple root nodes - wrap in fragment
+    bodyContext.push('[');
+    bodyContext.push(VServerComponentType.Fragment.toString());
+    bodyContext.push(', [');
+    for (let i = 0; i < ast.children.length; i++) {
+      if (i > 0) bodyContext.push(', ');
+      genNode(ast.children[i], bodyContext);
+    }
+    bodyContext.push(']]');
+  }
+
+  // Merge imports from body context
+  for (const imp of bodyContext.imports) {
+    context.imports.add(imp);
+  }
+
+  // Generate the function with component declarations
   context.push('export function renderOnigiri(_ctx) {');
   context.newline();
   context.indent();
 
-  // Generate the main render logic
-  if (ast.children.length === 0) {
-    context.push('return null;');
-  } else if (ast.children.length === 1) {
-    context.push('return ');
-    genNode(ast.children[0], context);
-    context.push(';');
-  } else {
-    // Multiple root nodes - wrap in fragment
-    context.push('return [');
-    context.push(VServerComponentType.Fragment.toString());
-    context.push(', [');
-    for (let i = 0; i < ast.children.length; i++) {
-      if (i > 0) context.push(', ');
-      genNode(ast.children[i], context);
-    }
-    context.push(']];');
+  // Inject component declarations
+  for (const [tag, varName] of bodyContext.components) {
+    context.push(`const ${varName} = _resolveComponent("${tag}")`);
+    context.newline();
   }
+
+  // Add the return statement
+  context.push('return ');
+  context.push(bodyContext.code);
+  context.push(';');
 
   context.deindent();
   context.newline();
@@ -89,25 +111,28 @@ export function compileOnigiri(
  *
  * @param template - The Vue template string
  * @param options - Compiler options including binding metadata
- * @returns An object with the inline expression (no function wrapper)
+ * @returns An object with the inline expression, imports, and component declarations
  */
 export function compileOnigiriInline(
   template: string,
   options: OnigiriCompilerOptions = {}
-): { expression: string; imports: Set<string>; ast: RootNode } {
-  // Parse the template
-  const ast = baseParse(template, options);
+): { expression: string; imports: Set<string>; components: Map<string, string>; ast: RootNode } {
+  // Parse the template with HTML void tag recognition
+  const ast = baseParse(template, {
+    ...options,
+    isVoidTag,
+  });
 
-  // Transform the AST with expression prefixing
+  // Transform the AST with Vue's default transforms
   transform(ast, {
     ...options,
     prefixIdentifiers: true,
-    nodeTransforms: [transformExpression],
+    nodeTransforms: baseNodeTransforms,
     directiveTransforms: {}
   });
 
   // Generate just the expression, no function wrapper
-  const context = createCodegenContext();
+  const context = createCodegenContext(options.bindingMetadata);
 
   if (ast.children.length === 0) {
     context.push('null');
@@ -128,6 +153,7 @@ export function compileOnigiriInline(
   return {
     expression: context.code,
     imports: context.imports,
+    components: context.components, // Map of tag -> varName for resolveComponent declarations
     ast
   };
 }

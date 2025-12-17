@@ -423,3 +423,4 @@ export function createOnigiriPlugins(options: {
 // Legacy exports for backwards compatibility
 export { onigiriClientPlugin as vueOnigiriClient };
 export { onigiriServerPlugin as vueOnigiriServer };
+export { createOnigiriPlugins as vueOnigiriPluginFactory };

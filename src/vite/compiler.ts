@@ -133,10 +133,16 @@ export function onigiriCompilerPlugin(
       // Build imports string from collected codegen imports
       const codegenImports = [...onigiriResult.imports].join('\n');
 
+      // Build component declarations for resolveComponent calls
+      const componentDeclarations = [...onigiriResult.components.entries()]
+        .map(([tag, varName]) => `  const ${varName} = _resolveComponent("${tag}")`)
+        .join('\n');
+
       // Export only the render function with required imports
       return {
         code: `${scriptImports}${codegenImports}
 export default function __onigiriRender(_ctx, _slots) {
+${componentDeclarations}
   return ${onigiriResult.expression};
 }`,
         map: null,
