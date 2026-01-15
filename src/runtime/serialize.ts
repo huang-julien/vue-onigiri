@@ -74,25 +74,26 @@ export function serializeApp(app: App, context: SSRContext = {}) {
   app.provide(ssrContextKey, context);
   applyDirective(app);
   const vnode = createVNode(input._component, input._props);
-  // vnode.appContext = input._context
   const instance = createComponentInstance(vnode, input._instance, null);
   instance.appContext = input._context;
-
   instance.provides = /* @__PURE__ */ Object.create(input._context.provides);
+
+  const componentType = input._component as Component & {
+    __onigiriRender?: (ctx: any, slots: any) => VServerComponentBuffered;
+  };
+  
   return app.runWithContext(async () => {
     const res = await setupComponent(instance, true);
+    
     return await app.runWithContext(async () => {
       const hasAsyncSetup = isPromise(res);
-
       let prefetches =
         // @ts-expect-error internal API
-        instance.sp as unknown as Promise[]; /* LifecycleHooks.SERVER_PREFETCH */
+        instance.sp as unknown as Promise[] | undefined;
 
-      const child = renderComponentRoot(instance);
-
+      // Wait for async setup and prefetches
       if (hasAsyncSetup || prefetches) {
-        const p: Promise<unknown> = Promise.resolve(res).then(() => {
-          // instance.sp may be null until an async setup resolves, so evaluate it here
+        await Promise.resolve(res).then(() => {
           if (hasAsyncSetup) {
             // @ts-expect-error internal API
             prefetches = instance.sp;
@@ -103,21 +104,22 @@ export function serializeApp(app: App, context: SSRContext = {}) {
             );
           }
         });
-        return p.then(() =>
-          serializeVNode(child, instance).then((result) => {
-            if (result) {
-              return unrollServerComponentBufferPromises(result);
-            }
-          }),
-        );
       }
 
+      // If component has __onigiriRender, use it directly
+      if (typeof componentType.__onigiriRender === "function") {
+        console.log("Using __onigiriRender for serialization", componentType.__onigiriRender.toString()); 
+        const slots = vnode.children as Record<string, (...args: any[]) => VNodeChild> | null;
+        const result = app.runWithContext(() => componentType.__onigiriRender!(instance.proxy, slots ?? {}));
+        return unrollServerComponentBufferPromises(result);
+      }
 
-      return serializeVNode(child, instance).then((result) => {
-        if (result) {
-          return unrollServerComponentBufferPromises(result);
-        }
-      });
+      // Fallback: render the component and serialize the vnode tree
+      const child = renderComponentRoot(instance);
+      const result = await app.runWithContext(() => serializeVNode(child, instance));
+      if (result) {
+        return unrollServerComponentBufferPromises(result);
+      }
     });
   });
 }
@@ -176,7 +178,7 @@ export async function serializeVNode(
         __chunk?: string;
         __export?: string;
       };
-      
+      console.log( componentType)
       // Check if component has pre-compiled onigiri render function
       if (typeof componentType.__onigiriRender === "function") {
         // Create instance to run setup and get reactive context
@@ -184,45 +186,19 @@ export async function serializeVNode(
         const res = setupComponent(instance, true);
         
         const runOnigiriRender = () => {
-          // Call the pre-compiled render with the instance proxy as context
-          // and the slots from the vnode
           const slots = vnode.children as Record<string, (...args: any[]) => VNodeChild> | null;
-          const serializedSlots: Record<string, VServerComponentBuffered[] | undefined> = {};
-          
-          // Pre-serialize slots for the onigiri render
-          if (slots) {
-            for (const key in slots) {
-              const slotFn = slots[key];
-              if (typeof slotFn === "function") {
-                // For now, call the slot with no args and serialize
-                // The onigiri render will receive already-serialized slot content
-                const slotContent = slotFn();
-                if (slotContent) {
-                  // This is async but we need sync for now - mark as promise
-                  serializedSlots[key] = Promise.all(
-                    (Array.isArray(slotContent) ? slotContent : [slotContent]).map(
-                      (child) => serializeVNode(child, parentInstance).then((v) => 
-                        v ? unrollServerComponentBufferPromises(v) : undefined
-                      )
-                    )
-                  ).then((results) => results.filter(Boolean) as VServerComponent[]) as any;
-                }
-              }
-            }
-          }
-          
-          return componentType.__onigiriRender!(instance.proxy, serializedSlots);
+          return componentType.__onigiriRender!(instance.proxy, slots ?? {});
         };
         
         // Handle async setup
         if (isPromise(res)) {
-          return res.then(() => {
+          return res.then(async () => {
             // @ts-expect-error internal API
             const prefetches = instance.sp as unknown as Promise[] | undefined;
             if (prefetches) {
-              return Promise.all(
+              await Promise.all(
                 prefetches.map((prefetch) => prefetch.call(instance.proxy))
-              ).then(runOnigiriRender);
+              );
             }
             return runOnigiriRender();
           });
@@ -231,9 +207,9 @@ export async function serializeVNode(
         // @ts-expect-error internal API
         const prefetches = instance.sp as unknown as Promise[] | undefined;
         if (prefetches) {
-          return Promise.all(
+          await Promise.all(
             prefetches.map((prefetch) => prefetch.call(instance.proxy))
-          ).then(runOnigiriRender);
+          );
         }
         
         return runOnigiriRender();

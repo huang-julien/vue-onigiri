@@ -144,6 +144,178 @@ function genSlotsObject(children: any[], context: CodegenContext, asFunction: bo
 }
 
 /**
+ * Check if an expression is a member expression (like `foo`, `obj.method`, `a['b']`).
+ * Member expressions are used as-is for event handlers since they reference functions.
+ * 
+ * This is a simplified check - it uses regex-based detection similar to Vue's browser mode.
+ */
+function isMemberExpression(content: string): boolean {
+  const trimmed = content.trim();
+  if (!trimmed) return false;
+  
+  // Check for function calls with arguments: foo() or foo(a, b)
+  // But allow method chains: foo().bar or foo()['baz']
+  const fnCallMatch = trimmed.match(/\([^)]*\)\s*$/);
+  if (fnCallMatch && !trimmed.endsWith(']')) {
+    // Ends with function call but not property access after
+    const beforeCall = trimmed.slice(0, trimmed.lastIndexOf('('));
+    // Check if this is a simple identifier or member access followed by ()
+    if (/^[\w$][\w$\d]*$/.test(beforeCall.trim()) || 
+        /[.\]]\s*$/.test(beforeCall.trim())) {
+      // This is a function call like foo() or obj.method() - which counts as member expression
+      return true;
+    }
+  }
+  
+  // Simple identifier: foo, _bar, $baz
+  if (/^[\w$][\w$\d]*$/.test(trimmed)) {
+    return true;
+  }
+  
+  // Member expression with dots: foo.bar, obj.method
+  // Or with brackets: foo['bar'], obj[key]
+  // Or optional chaining: foo?.bar
+  // Use a simple state machine to validate
+  let state: 'start' | 'ident' | 'dot' | 'bracket' | 'string' = 'start';
+  let bracketDepth = 0;
+  let parenDepth = 0;
+  let stringChar: string | null = null;
+  
+  for (let i = 0; i < trimmed.length; i++) {
+    const char = trimmed[i];
+    
+    if (stringChar) {
+      if (char === stringChar && trimmed[i - 1] !== '\\') {
+        stringChar = null;
+        state = 'ident';
+      }
+      continue;
+    }
+    
+    if (char === '"' || char === "'" || char === '`') {
+      if (state !== 'bracket' && state !== 'start') return false;
+      stringChar = char;
+      continue;
+    }
+    
+    if (char === '(') {
+      parenDepth++;
+      continue;
+    }
+    if (char === ')') {
+      parenDepth--;
+      if (parenDepth < 0) return false;
+      state = 'ident';
+      continue;
+    }
+    
+    if (parenDepth > 0) continue; // Inside function call - skip
+    
+    if (char === '[') {
+      if (state !== 'ident' && state !== 'start') return false;
+      bracketDepth++;
+      state = 'bracket';
+      continue;
+    }
+    if (char === ']') {
+      bracketDepth--;
+      if (bracketDepth < 0) return false;
+      if (bracketDepth === 0) state = 'ident';
+      continue;
+    }
+    
+    if (bracketDepth > 0) continue; // Inside brackets - skip
+    
+    if (char === '.' || (char === '?' && trimmed[i + 1] === '.')) {
+      if (state !== 'ident') return false;
+      state = 'dot';
+      if (char === '?') i++; // Skip the '.' in '?.'
+      continue;
+    }
+    
+    if (/[\w$]/.test(char)) {
+      if (state === 'dot' || state === 'start') {
+        state = 'ident';
+      } else if (state !== 'ident') {
+        return false;
+      }
+      continue;
+    }
+    
+    if (/\s/.test(char)) continue; // Whitespace is ok
+    
+    // Any other character means it's not a simple member expression
+    return false;
+  }
+  
+  return state === 'ident' && bracketDepth === 0 && parenDepth === 0;
+}
+
+/**
+ * Check if an expression is already a function expression.
+ * Function expressions include arrow functions and function declarations.
+ */
+function isFnExpression(content: string): boolean {
+  const trimmed = content.trim();
+  
+  // Arrow function patterns:
+  // () => ...
+  // x => ...
+  // (x) => ...
+  // (x, y) => ...
+  // async () => ...
+  // async x => ...
+  const arrowFnRE = /^\s*(?:async\s*)?(?:\([^)]*?\)|[\w$_]+)\s*(?::[^=]+)?=>/;
+  if (arrowFnRE.test(trimmed)) {
+    return true;
+  }
+  
+  // Function expression patterns:
+  // function() { ... }
+  // function foo() { ... }
+  // async function() { ... }
+  const fnExprRE = /^\s*(?:async\s+)?function(?:\s+[\w$]+)?\s*\(/;
+  if (fnExprRE.test(trimmed)) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Wrap an event handler expression if it's an inline statement.
+ * - Member expressions (e.g., `handleClick`, `obj.method`) are used as-is
+ * - Function expressions (e.g., `() => {}`, `$event => foo($event)`) are used as-is
+ * - Inline statements (e.g., `count++`, `foo()`) are wrapped in `$event => (expr)`
+ * - Multiple statements (containing `;`) are wrapped in `$event => { expr }`
+ */
+function wrapEventHandler(content: string, context: CodegenContext): string {
+  const trimmed = content.trim();
+  
+  // If it's a member expression, use as-is (it's a function reference)
+  if (isMemberExpression(trimmed)) {
+    return prefixIdentifiers(trimmed);
+  }
+  
+  // If it's already a function expression, use as-is
+  if (isFnExpression(trimmed)) {
+    return prefixIdentifiers(trimmed);
+  }
+  
+  // It's an inline statement - wrap it
+  const hasMultipleStatements = trimmed.includes(';');
+  const prefixed = prefixIdentifiers(trimmed);
+  
+  if (hasMultipleStatements) {
+    // Multiple statements: wrap with braces
+    return `$event => { ${prefixed} }`;
+  } else {
+    // Single expression: wrap with parens
+    return `$event => (${prefixed})`;
+  }
+}
+
+/**
  * Prefix identifiers in a simple expression with _ctx.
  * This is a fallback for expressions not processed by transformExpression (e.g., v-on handlers).
  * 
@@ -231,6 +403,48 @@ function genExpressionAsValue(node: ExpressionNode | undefined, context: Codegen
         }
       }
     }
+  }
+}
+
+/**
+ * Generate code for an event handler expression.
+ * Wraps inline statements in arrow functions, just like Vue does.
+ * - Member expressions (handleClick, obj.method) are used as-is
+ * - Function expressions (() => {}, $event => foo()) are used as-is  
+ * - Inline statements (count++, foo()) are wrapped: $event => (count++)
+ * - Multiple statements (foo(); bar()) are wrapped: $event => { foo(); bar() }
+ */
+function genEventHandler(node: ExpressionNode | undefined, context: CodegenContext): void {
+  if (!node) {
+    context.push('() => {}');
+    return;
+  }
+  
+  if (node.type === NodeTypes.SIMPLE_EXPRESSION) {
+    const simpleNode = node as SimpleExpressionNode;
+    if (simpleNode.isStatic) {
+      // Static expression - shouldn't happen for event handlers, but handle it
+      context.push(simpleNode.content);
+    } else {
+      // Dynamic expression - use wrapEventHandler to properly handle it
+      context.push(wrapEventHandler(simpleNode.content, context));
+    }
+  } else if (node.type === NodeTypes.COMPOUND_EXPRESSION) {
+    // Compound expression - extract the content and wrap if needed
+    const compound = node as CompoundExpressionNode;
+    const content = compound.children
+      .map(child => {
+        if (typeof child === 'string') {
+          return child;
+        } else if (child && typeof child === 'object' && 'type' in child) {
+          if (child.type === NodeTypes.SIMPLE_EXPRESSION) {
+            return (child as SimpleExpressionNode).content;
+          }
+        }
+        return '';
+      })
+      .join('');
+    context.push(wrapEventHandler(content, context));
   }
 }
 
@@ -440,6 +654,9 @@ function genServerRenderedComponent(
 ): void {
   const componentRef = getComponentRef(tag, context);
   
+  // Add import for __serializeComponent
+  context.imports.add(genImport('vue-onigiri/runtime/serialize', [{ name: 'serializeComponent', as: '__serializeComponent' }]));
+  
   context.push(`__serializeComponent(${componentRef}, `);
   
   // Props
@@ -468,6 +685,9 @@ function genServerRenderedComponent(
  */
 function genSlotOutlet(node: ElementNode, context: CodegenContext): void {
   const { props, children } = node;
+  
+  // Add import for __renderSlot
+  context.imports.add(genImport('vue-onigiri/runtime/render-slot', [{ name: 'renderSlot', as: '__renderSlot' }]));
   
   // Find the slot name from props (default is "default")
   let slotName = '"default"';
@@ -643,9 +863,9 @@ function genPropsObject(props: (AttributeNode | DirectiveNode)[], context: Codeg
         context.push(`"${onEventName}": `);
         
         if (prop.exp) {
-          genExpressionAsValue(prop.exp, context);
+          genEventHandler(prop.exp, context);
         } else {
-          context.push('true');
+          context.push('() => {}');
         }
         continue;
       }
@@ -819,14 +1039,42 @@ export function genIf(node: IfNode, context: CodegenContext): void {
 }
 
 /**
+ * Check if an expression node is a numeric literal.
+ * Vue's v-for supports iterating over a number: `v-for="n in 3"` iterates 1, 2, 3
+ */
+function isNumericLiteral(node: ExpressionNode | undefined): boolean {
+  if (!node) return false;
+  if (node.type === NodeTypes.SIMPLE_EXPRESSION) {
+    const content = (node as SimpleExpressionNode).content.trim();
+    // Check if it's a valid numeric literal (integer or float)
+    return /^-?\d+(\.\d+)?$/.test(content);
+  }
+  return false;
+}
+
+/**
  * Generate code for v-for nodes.
  * Outputs .map() array operations.
+ * 
+ * For numeric sources (e.g., `v-for="n in 3"`), wraps with Array.from
+ * to create an iterable array [1, 2, 3].
  */
 export function genFor(node: ForNode, context: CodegenContext): void {
   const { source, value, key, index } = node.parseResult;
   
+  // Check if source is a numeric literal - needs special handling
+  const isNumeric = isNumericLiteral(source);
+  
   context.push('(');
-  genExpressionAsValue(source, context);
+  if (isNumeric) {
+    // For numeric sources like `v-for="n in 3"`, create array [1, 2, ..., n]
+    // Vue iterates from 1 to n (inclusive), so we use Array.from with 1-based values
+    context.push('Array.from({length: ');
+    genExpressionAsValue(source, context);
+    context.push('}, (_, __i) => __i + 1)');
+  } else {
+    genExpressionAsValue(source, context);
+  }
   context.push('.map((');
   context.push((value as SimpleExpressionNode)?.content || 'item');
   if (key) {
