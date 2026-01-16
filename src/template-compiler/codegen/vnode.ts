@@ -764,15 +764,77 @@ function genSlotOutlet(node: ElementNode, context: CodegenContext): void {
 }
 
 /**
- * Generate code for HTML elements.
- * Format: [VServerComponentType.Element, tag, attrs, children]
+ * Directives that should be completely stripped (not serialized at all).
+ * These are either client-only or handled structurally.
  */
+const STRIPPED_DIRECTIVES = new Set([
+  'if', 'else', 'else-if', 'for', 'slot', 'once', 'memo', 'cloak',
+]);
+
+/**
+ * Check if a directive should use the __withDirective wrapper
+ */
+function shouldWrapDirective(name: string): boolean {
+  // v-on and v-bind with arg are handled specially in genPropsObject
+  if (name === 'on' || name === 'bind') return false;
+  // Structural/stripped directives
+  if (STRIPPED_DIRECTIVES.has(name)) return false;
+  // All other directives (including custom) should be wrapped
+  return true;
+}
+
+/**
+ * Extract directives that need wrapping from props
+ */
+function extractWrappedDirectives(props: (AttributeNode | DirectiveNode)[]): DirectiveNode[] {
+  return props.filter(
+    (prop): prop is DirectiveNode => 
+      prop.type === NodeTypes.DIRECTIVE && shouldWrapDirective(prop.name)
+  );
+}
+
+/**
+ * Filter out directives that will be wrapped (not serialized as props)
+ */
+function filterPropsForSerialization(props: (AttributeNode | DirectiveNode)[]): (AttributeNode | DirectiveNode)[] {
+  return props.filter(prop => {
+    if (prop.type === NodeTypes.DIRECTIVE) {
+      return !shouldWrapDirective(prop.name);
+    }
+    return true;
+  });
+}
+
 function genHtmlElement(node: ElementNode, context: CodegenContext): void {
   const { tag, props, children } = node;
   
   // Check if this is a void element (self-closing, no children allowed)
   const isVoidElement = VOID_ELEMENTS.has(tag);
   
+  // Extract directives that need __withDirective wrapping
+  const wrappedDirectives = extractWrappedDirectives(props);
+  const filteredProps = filterPropsForSerialization(props);
+  
+  // If there are directives to wrap, we need to wrap the element
+  if (wrappedDirectives.length > 0) {
+    // Add import for __withDirective
+    context.imports.add(genImport('vue-onigiri/runtime/with-directive', [{ name: 'withDirective', as: '__withDirective' }]));
+    
+    // Wrap with __withDirective calls (innermost first, then outer)
+    // Generate from last to first so nesting is correct
+    for (let i = wrappedDirectives.length - 1; i >= 0; i--) {
+      const dir = wrappedDirectives[i];
+      context.push('__withDirective(');
+      
+      // Directive reference - check if it's imported/local or needs string lookup
+      const dirName = dir.name;
+      const resolvedDir = getDirectiveRef(dirName, context);
+      context.push(resolvedDir);
+      context.push(', ');
+    }
+  }
+  
+  // Generate the element itself
   context.push('[');
   // 1. Type
   context.push(VServerComponentType.Element.toString());
@@ -781,9 +843,9 @@ function genHtmlElement(node: ElementNode, context: CodegenContext): void {
   context.push(`"${tag}"`);
   context.push(', ');
   
-  // 3. Attrs
-  if (props.length > 0) {
-    genProps(props, context);
+  // 3. Attrs (filtered to exclude wrapped directives)
+  if (filteredProps.length > 0) {
+    genProps(filteredProps, context);
   } else {
     context.push('undefined');
   }
@@ -806,6 +868,74 @@ function genHtmlElement(node: ElementNode, context: CodegenContext): void {
   }
   
   context.push(']');
+  
+  // Close the __withDirective calls and add bindings
+  if (wrappedDirectives.length > 0) {
+    for (const dir of wrappedDirectives) {
+      context.push(', ');
+      genDirectiveBinding(dir, context);
+      context.push(')');
+    }
+  }
+}
+
+/**
+ * Get directive reference - either the imported variable or a string name
+ */
+function getDirectiveRef(name: string, context: CodegenContext): string {
+  // Check if directive is in binding metadata (imported or local)
+  const vName = 'v' + name.charAt(0).toUpperCase() + name.slice(1);
+  if (context.bindingMetadata?.[vName]) {
+    return `_ctx.${vName}`;
+  }
+  // Check common variations
+  const camelName = 'v' + name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+  if (context.bindingMetadata?.[camelName]) {
+    return `_ctx.${camelName}`;
+  }
+  // Fall back to string name for global directive resolution
+  return JSON.stringify(name);
+}
+
+/**
+ * Generate directive binding object: { value, arg, modifiers }
+ */
+function genDirectiveBinding(dir: DirectiveNode, context: CodegenContext): void {
+  context.push('{');
+  
+  let first = true;
+  
+  // value
+  if (dir.exp) {
+    context.push('"value": ');
+    genExpressionAsValue(dir.exp, context);
+    first = false;
+  }
+  
+  // arg
+  if (dir.arg) {
+    if (!first) context.push(', ');
+    context.push('"arg": ');
+    if (typeof dir.arg === 'object' && 'isStatic' in dir.arg && dir.arg.isStatic) {
+      context.push(JSON.stringify((dir.arg as SimpleExpressionNode).content));
+    } else {
+      genExpressionAsValue(dir.arg as ExpressionNode, context);
+    }
+    first = false;
+  }
+  
+  // modifiers
+  if (dir.modifiers && dir.modifiers.length > 0) {
+    if (!first) context.push(', ');
+    context.push('"modifiers": {');
+    for (let i = 0; i < dir.modifiers.length; i++) {
+      if (i > 0) context.push(', ');
+      context.push(`"${dir.modifiers[i]}": true`);
+    }
+    context.push('}');
+  }
+  
+  context.push('}');
 }
 
 /**
@@ -874,8 +1004,12 @@ function genPropsObject(props: (AttributeNode | DirectiveNode)[], context: Codeg
       }
     } else if (prop.type === NodeTypes.DIRECTIVE) {
       // Skip structural directives - they're handled at node level
-      if (prop.name === 'if' || prop.name === 'else' || prop.name === 'else-if' || 
-          prop.name === 'for' || prop.name === 'slot') {
+      if (STRIPPED_DIRECTIVES.has(prop.name)) {
+        continue;
+      }
+      
+      // Skip wrapped directives - they're handled by __withDirective
+      if (shouldWrapDirective(prop.name)) {
         continue;
       }
       
@@ -914,17 +1048,8 @@ function genPropsObject(props: (AttributeNode | DirectiveNode)[], context: Codeg
         continue;
       }
       
-      // Other directives (v-show, v-model, custom directives)
-      const attrName = (prop.arg && typeof prop.arg === 'object' && 'content' in prop.arg) 
-        ? (prop.arg as SimpleExpressionNode).content 
-        : prop.name;
-      context.push(`"${attrName}": `);
-      
-      if (prop.exp) {
-        genExpressionAsValue(prop.exp, context);
-      } else {
-        context.push('true');
-      }
+      // Note: Other directives (v-show, v-model, v-html, custom directives)
+      // are handled by __withDirective wrapper, not serialized as props
     }
   }
   

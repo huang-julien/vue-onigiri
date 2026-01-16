@@ -20,6 +20,8 @@ export const enum VServerComponentType {
   Text,
   Fragment,
   Suspense,
+  /** Raw HTML string - rendered using createStaticVNode */
+  StaticHtml,
 }
 type Tag = string;
 type ChunkPath = string;
@@ -49,6 +51,18 @@ type VServerComponentSuspense = [
   VServerComponent[] | undefined,
 ];
 
+/**
+ * Static HTML content - rendered as raw HTML using createStaticVNode.
+ * Used by v-html directive.
+ * Format: [type, htmlString, nodeCount]
+ * nodeCount is needed by Vue's createStaticVNode for hydration.
+ */
+type VServerComponentStaticHtml = [
+  VServerComponentType.StaticHtml,
+  string, // HTML string
+  number, // Number of root nodes (for createStaticVNode)
+];
+
 type MaybePromise<T> = T | Promise<T>;
 
 type VServerComponentElementBuffered = [
@@ -76,19 +90,27 @@ type VServerComponentSuspenseBuffered = [
   MaybePromise<VServerComponentBuffered[]> | undefined,
 ];
 
+type VServerComponentStaticHtmlBuffered = [
+  VServerComponentType.StaticHtml,
+  string,
+  number,
+];
+
 export type VServerComponentBuffered =
   | VServerComponentElementBuffered
   | VServerComponentComponentBuffered
   | VServerComponentTextBuffered
   | VServerComponentFragmentBuffered
-  | VServerComponentSuspenseBuffered;
+  | VServerComponentSuspenseBuffered
+  | VServerComponentStaticHtmlBuffered;
 
 export type VServerComponent =
   | VServerComponentElement
   | VServerComponentComponent
   | VServerComponentText
   | VServerComponentFragment
-  | VServerComponentSuspense;
+  | VServerComponentSuspense
+  | VServerComponentStaticHtml;
 
 /**
  * The render function signature for onigiri components.

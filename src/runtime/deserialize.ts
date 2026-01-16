@@ -1,4 +1,4 @@
-import { createTextVNode, type VNode, h, Fragment, Suspense } from "vue";
+import { createTextVNode, createStaticVNode, type VNode, h, Fragment, Suspense } from "vue";
 import { VServerComponentType, type VServerComponent } from "./shared";
 import loader from "./loader";
 import { defaultImportFn, type ImportFn } from "./utils";
@@ -41,6 +41,9 @@ export function renderOnigiri(
         default: () => renderChildren(input[1], importFn),
       },
     );
+  }
+  if (input[0] === VServerComponentType.StaticHtml) {
+    return createStaticVNode(input[1], input[2]);
   }
 }
 
