@@ -1,5 +1,5 @@
 import type { Plugin } from "vite";
-import { parse } from "@vue/compiler-sfc";
+import { parse, compileScript } from "@vue/compiler-sfc";
 import { compileOnigiriInline } from "../template-compiler";
 import MagicString from "magic-string";
 
@@ -89,7 +89,20 @@ export function onigiriCompilerPlugin(
       }
 
       if (!descriptor.template) {
-        return `export default function __onigiriRender(_ctx, _slots) { return null; }`;
+        return `export default function __onigiriRender(_ctx, _cache, $props, $setup, $data, $options) { return null; }`;
+      }
+
+      let bindingMetadata: Record<string, string> = {};
+      if (descriptor.scriptSetup || descriptor.script) {
+        try {
+          const scriptResult = compileScript(descriptor, {
+            id: filePath,
+            sourceMap,
+          });
+          bindingMetadata = scriptResult.bindings || {};
+        } catch (e) {
+          console.warn(`[vue-onigiri] Failed to compile script for ${filePath}:`, e);
+        }
       }
 
       // Extract imports from the script block
@@ -128,6 +141,7 @@ export function onigiriCompilerPlugin(
       const onigiriResult = compileOnigiriInline(descriptor.template.content, {
         filename: filePath,
         sourceMap,
+        bindingMetadata,
       });
 
       // Build imports string from collected codegen imports
@@ -141,7 +155,7 @@ export function onigiriCompilerPlugin(
       // Export only the render function with required imports
       return {
         code: `${scriptImports}${codegenImports}
-export default function __onigiriRender(_ctx, _slots) {
+export default function __onigiriRender(_ctx, _cache, $props, $setup, $data, $options) {
 ${componentDeclarations}
   return ${onigiriResult.expression};
 }`,
@@ -218,11 +232,25 @@ async function injectIntoSetupAsync(
   if (!descriptor.template) {
     return null;
   }
+ 
+  let bindingMetadata: Record<string, string> = {};
+  if (descriptor.scriptSetup || descriptor.script) {
+    try {
+      const scriptResult = compileScript(descriptor, {
+        id: filePath,
+        sourceMap,
+      });
+      bindingMetadata = scriptResult.bindings || {};
+    } catch (e) {
+      console.warn(`[vue-onigiri] Failed to compile script for ${filePath}:`, e);
+    }
+  }
 
   // Compile template to onigiri expression
   const onigiriResult = compileOnigiriInline(descriptor.template.content, {
     filename: filePath,
     sourceMap,
+    bindingMetadata,
   });
 
   const s = new MagicString(code);

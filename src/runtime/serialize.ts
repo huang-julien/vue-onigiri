@@ -24,6 +24,7 @@ import {
   type VServerComponentBuffered,
   VServerComponentType,
   type VServerComponent,
+  __ONIGIRI_DEV__,
 } from "./shared";
 import type { MaybePromise } from "rollup";
 
@@ -108,9 +109,24 @@ export function serializeApp(app: App, context: SSRContext = {}) {
 
       // If component has __onigiriRender, use it directly
       if (typeof componentType.__onigiriRender === "function") {
-        console.log("Using __onigiriRender for serialization", componentType.__onigiriRender.toString()); 
-        const slots = vnode.children as Record<string, (...args: any[]) => VNodeChild> | null;
-        const result = app.runWithContext(() => componentType.__onigiriRender!(instance.proxy, slots ?? {}));
+        const result = app.runWithContext(() => {
+          // todo fix types
+          if (__ONIGIRI_DEV__) {
+            return componentType.__onigiriRender!(
+              instance.proxy,
+              instance.accessCache,
+              instance.props,
+              instance.setupState,
+              instance.data,
+              instance.ctx
+            );
+          } else {
+            return componentType.__onigiriRender!(
+              instance.proxy,
+              instance.accessCache
+            );
+          }
+        });
         return unrollServerComponentBufferPromises(result);
       }
 
@@ -178,7 +194,6 @@ export async function serializeVNode(
         __chunk?: string;
         __export?: string;
       };
-      console.log( componentType)
       // Check if component has pre-compiled onigiri render function
       if (typeof componentType.__onigiriRender === "function") {
         // Create instance to run setup and get reactive context
@@ -186,8 +201,21 @@ export async function serializeVNode(
         const res = setupComponent(instance, true);
         
         const runOnigiriRender = () => {
-          const slots = vnode.children as Record<string, (...args: any[]) => VNodeChild> | null;
-          return componentType.__onigiriRender!(instance.proxy, slots ?? {});
+          if (__ONIGIRI_DEV__) {
+            return componentType.__onigiriRender!(
+              instance.proxy,
+              instance.accessCache,
+              instance.props,
+              instance.setupState,
+              instance.data,
+              instance.ctx
+            );
+          } else {
+            return componentType.__onigiriRender!(
+              instance.proxy,
+              instance.accessCache
+            );
+          }
         };
         
         // Handle async setup

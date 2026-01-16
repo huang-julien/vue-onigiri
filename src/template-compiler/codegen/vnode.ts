@@ -16,7 +16,9 @@ import {
   type DirectiveNode,
   type ExpressionNode,
   type SimpleExpressionNode,
+  type BindingMetadata,
   NodeTypes,
+  BindingTypes,
 } from "@vue/compiler-dom";
 import { genImport } from "knitwork";
 import { VServerComponentType } from "../../runtime/shared";
@@ -291,38 +293,65 @@ function isFnExpression(content: string): boolean {
  */
 function wrapEventHandler(content: string, context: CodegenContext): string {
   const trimmed = content.trim();
-  
-  // If it's a member expression, use as-is (it's a function reference)
+   
   if (isMemberExpression(trimmed)) {
-    return prefixIdentifiers(trimmed);
+    return prefixIdentifiers(trimmed, context.bindingMetadata);
   }
   
-  // If it's already a function expression, use as-is
   if (isFnExpression(trimmed)) {
-    return prefixIdentifiers(trimmed);
+    return prefixIdentifiers(trimmed, context.bindingMetadata);
   }
-  
-  // It's an inline statement - wrap it
   const hasMultipleStatements = trimmed.includes(';');
-  const prefixed = prefixIdentifiers(trimmed);
+  const prefixed = prefixIdentifiers(trimmed, context.bindingMetadata);
   
-  if (hasMultipleStatements) {
-    // Multiple statements: wrap with braces
-    return `$event => { ${prefixed} }`;
-  } else {
-    // Single expression: wrap with parens
-    return `$event => (${prefixed})`;
+  return hasMultipleStatements
+    ? `$event => { ${prefixed} }`
+    : `$event => (${prefixed})`;
+}
+
+/**
+ * get the correct prefix for an identifier based on its binding type.
+ * matches how Vue generates render function code.
+ */
+function getIdentifierPrefix(ident: string, bindingMetadata: BindingMetadata = {}): string {
+  const bindingType = bindingMetadata[ident];
+  
+  switch (bindingType) {
+    case BindingTypes.SETUP_CONST:
+    case BindingTypes.SETUP_REACTIVE_CONST:
+    case BindingTypes.SETUP_LET:
+    case BindingTypes.SETUP_REF:
+    case BindingTypes.SETUP_MAYBE_REF:
+    case BindingTypes.LITERAL_CONST: {
+      return '$setup.';
+    }
+    case BindingTypes.PROPS: {
+      return '$props.';
+    }
+    case BindingTypes.PROPS_ALIASED: {
+      return '$props.';
+    }
+    case BindingTypes.DATA: {
+      return '$data.';
+    }
+    case BindingTypes.OPTIONS: {
+      return '_ctx.';
+    }
+    default: {
+      // Unknown binding or no binding - use _ctx
+      return '_ctx.';
+    }
   }
 }
 
 /**
- * Prefix identifiers in a simple expression with _ctx.
+ * Prefix identifiers in a simple expression with the appropriate prefix based on binding metadata.
  * This is a fallback for expressions not processed by transformExpression (e.g., v-on handlers).
  * 
  * Uses a simple regex-based approach to find and prefix identifiers.
  * Handles common cases like: foo, foo.bar, foo = 'value', foo === bar
  */
-function prefixIdentifiers(content: string): string {
+function prefixIdentifiers(content: string, bindingMetadata: BindingMetadata = {}): string {
   // Keywords that should not be prefixed
   const jsKeywords = new Set([
     'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
@@ -332,7 +361,7 @@ function prefixIdentifiers(content: string): string {
     'typeof', 'instanceof', 'in', 'new', 'delete', 'void',
     'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break', 'continue', 'return',
     'function', 'class', 'const', 'let', 'var',
-    '$event', '_ctx', '_slots'
+    '$event', '_ctx', '_cache', '_slots', '$props', '$setup', '$data', '$options'
   ]);
   
   // First, temporarily replace string literals to avoid matching inside them
@@ -358,7 +387,7 @@ function prefixIdentifiers(content: string): string {
     if (ident.startsWith('__STRING_PLACEHOLDER_')) {
       return match;
     }
-    return `_ctx.${ident}`;
+    return `${getIdentifierPrefix(ident, bindingMetadata)}${ident}`;
   });
   
   // Restore string literals
@@ -385,7 +414,7 @@ function genExpressionAsValue(node: ExpressionNode | undefined, context: Codegen
       context.push(simpleNode.content);
     } else {
       // Dynamic expression that wasn't transformed - prefix identifiers manually
-      context.push(prefixIdentifiers(simpleNode.content));
+      context.push(prefixIdentifiers(simpleNode.content, context.bindingMetadata));
     }
   } else if (node.type === NodeTypes.COMPOUND_EXPRESSION) {
     // Compound expression from transformExpression - concatenate all parts
