@@ -407,14 +407,14 @@ export function createOnigiriPlugins(options: {
     /**
      * Standalone client plugin (for separate client config)
      */
-    client: (vueOpts?: Options) => onigiriClientPlugin(
+    client: () => onigiriClientPlugin(
       { clientManifestPath: join(clientOutDir, ".vite/manifest.json") }
     ),
 
     /**
      * Standalone server plugin (for separate server config)
      */
-    server: (vueOpts?: Options) => onigiriServerPlugin(
+    server: () => onigiriServerPlugin(
       { clientManifestPath: join(clientOutDir, ".vite/manifest.json") }
     ),
   };

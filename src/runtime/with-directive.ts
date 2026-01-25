@@ -2,39 +2,17 @@ import type { ObjectDirective } from 'vue';
 import type { VServerComponentBuffered, VServerComponent } from './shared';
 import { VServerComponentType } from './shared';
 
-export interface OnigiriDirectiveBinding<V = any> {
+export interface ObjectDirectiveBinding<V = any> {
   value: V;
   arg?: string;
   modifiers: Record<string, boolean>;
 }
-
-export interface OnigiriDirective<T = any, V = any> extends ObjectDirective<T, V> {
-  /**
-   * Transform the serialized onigiri AST node.
-   */
-  transformOnigiri?: (
-    node: VServerComponent,
-    binding: OnigiriDirectiveBinding<V>
-  ) => VServerComponent;
-}
-
-declare module 'vue' {
-  interface ObjectDirective<T = any, V = any> {
-    /**
-     * Transform the serialized onigiri AST node.
-     */
-    transformOnigiri?: (
-      node: VServerComponent,
-      binding: OnigiriDirectiveBinding<V>
-    ) => VServerComponent;
-  }
-}
-
+ 
 /**
  * Directive resolver function type.
  * Used to resolve string directive names to directive objects.
  */
-export type DirectiveResolver = (name: string) => OnigiriDirective | undefined;
+export type DirectiveResolver = (name: string) => ObjectDirective | undefined;
 
 // todo better way to do this?
 // better to avoid global
@@ -65,18 +43,20 @@ export function getDirectiveResolver(): DirectiveResolver | undefined {
  * ```
  */
 export function withDirective(
-  directive: string | OnigiriDirective,
+  directive: string | ObjectDirective,
   node: VServerComponentBuffered,
-  binding: Partial<OnigiriDirectiveBinding> = {}
+  binding: Partial<ObjectDirectiveBinding> = {}
 ): VServerComponentBuffered {
-  let dir: OnigiriDirective | undefined;
+  let dir: ObjectDirective | undefined;
+  // disable for clarity
+  //eslint-disable-next-line unicorn/prefer-ternary
   if (typeof directive === 'string') {
     dir = builtInDirectives[directive] ?? globalDirectiveResolver?.(directive);
   } else {
     dir = directive;
   }
 
-  const normalizedBinding: OnigiriDirectiveBinding = {
+  const normalizedBinding: ObjectDirectiveBinding = {
     value: binding.value,
     arg: binding.arg,
     modifiers: binding.modifiers ?? {},
@@ -106,7 +86,8 @@ function countHtmlRootNodes(html: string): number {
   let i = 0;
   
   while (i < html.length) {
-    if (depth === 0 && /\s/.test(html[i])) {
+    const char = html[i];
+    if (depth === 0 && char && /\s/.test(char)) {
       i++;
       continue;
     }
@@ -117,6 +98,7 @@ function countHtmlRootNodes(html: string): number {
         i = html.indexOf('>', i) + 1;
       } else if (html[i + 1] === '!') {
         // Comment or DOCTYPE - skip
+        // eslint-disable-next-line unicorn/prefer-ternary
         if (html.slice(i, i + 4) === '<!--') {
           i = html.indexOf('-->', i) + 3;
         } else {
@@ -156,7 +138,7 @@ function countHtmlRootNodes(html: string): number {
  * Replaces the element's children with a StaticHtml node.
  * Uses createStaticVNode for efficient hydration on the client.
  */
-export const vHtml: OnigiriDirective<HTMLElement, string> = {
+export const vHtml: ObjectDirective<HTMLElement, string> = {
   transformOnigiri(node, binding) {
     if (node[0] !== VServerComponentType.Element) return node;
     const [type, tag, props, _children] = node as [number, string, Record<string, any> | undefined, any];
@@ -175,7 +157,7 @@ export const vHtml: OnigiriDirective<HTMLElement, string> = {
 };
 
  
-export const vText: OnigiriDirective<HTMLElement, string> = {
+export const vText: ObjectDirective<HTMLElement, string> = {
   transformOnigiri(node, binding) {
     if (node[0] !== VServerComponentType.Element) return node;
     const [type, tag, props, _children] = node as [number, string, Record<string, any> | undefined, any];
@@ -184,7 +166,7 @@ export const vText: OnigiriDirective<HTMLElement, string> = {
   },
 };
  
-export const vShow: OnigiriDirective<HTMLElement, boolean> = {
+export const vShow: ObjectDirective<HTMLElement, boolean> = {
   transformOnigiri(node, binding) {
     if (node[0] !== VServerComponentType.Element) return node;
     const [type, tag, props, children] = node as [number, string, Record<string, any> | undefined, any];
@@ -203,7 +185,7 @@ export const vShow: OnigiriDirective<HTMLElement, boolean> = {
   },
 };
 
-export const vModel: OnigiriDirective<HTMLElement, any> = {
+export const vModel: ObjectDirective<HTMLElement, any> = {
   transformOnigiri(node, binding) {
     if (node[0] !== VServerComponentType.Element) return node;
     const [type, tag, props, children] = node as [number, string, Record<string, any> | undefined, any];
@@ -217,7 +199,7 @@ export const vModel: OnigiriDirective<HTMLElement, any> = {
   },
 };
  
-const builtInDirectives: Record<string, OnigiriDirective> = {
+const builtInDirectives: Record<string, ObjectDirective> = {
   html: vHtml,
   text: vText,
   show: vShow,

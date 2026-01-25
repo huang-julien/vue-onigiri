@@ -1270,14 +1270,24 @@ export function genCompoundExpression(node: CompoundExpressionNode, context: Cod
     } else if (typeof child === 'symbol') {
       // Skip symbols
     } else if (child && typeof child === 'object' && 'type' in child) {
-      if (child.type === NodeTypes.TEXT) {
+      switch (child.type) {
+      case NodeTypes.TEXT: {
         // Text node - output as a quoted string
         context.push(JSON.stringify((child as TextNode).content));
-      } else if (child.type === NodeTypes.INTERPOLATION) {
+      
+      break;
+      }
+      case NodeTypes.INTERPOLATION: {
         genExpressionAsValue((child as InterpolationNode).content, context);
-      } else if (child.type === NodeTypes.SIMPLE_EXPRESSION) {
+      
+      break;
+      }
+      case NodeTypes.SIMPLE_EXPRESSION: {
         context.push((child as SimpleExpressionNode).content);
-      } else if (child.type === NodeTypes.COMPOUND_EXPRESSION) {
+      
+      break;
+      }
+      case NodeTypes.COMPOUND_EXPRESSION: {
         // Nested compound - generate just the inner expression
         context.push('(');
         for (const innerChild of (child as CompoundExpressionNode).children) {
@@ -1292,6 +1302,10 @@ export function genCompoundExpression(node: CompoundExpressionNode, context: Cod
           }
         }
         context.push(')');
+      
+      break;
+      }
+      // No default
       }
     }
   }
