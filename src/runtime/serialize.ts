@@ -24,7 +24,6 @@ import {
   type VServerComponentBuffered,
   VServerComponentType,
   type VServerComponent,
-  __ONIGIRI_DEV__,
 } from "./shared";
 import type { MaybePromise } from "rollup";
 
@@ -164,7 +163,7 @@ function runOnigiriRender(
   onigiriRender: (...args: any[]) => VServerComponentBuffered,
   instance: ComponentInternalInstance
 ): VServerComponentBuffered {
-  if (__ONIGIRI_DEV__) {
+  if (__DEV__) {
     return onigiriRender(
       instance.proxy,
       instance.accessCache,

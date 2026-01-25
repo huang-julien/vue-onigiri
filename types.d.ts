@@ -3,3 +3,8 @@ declare module "virtual:vsc:*" {
   const component: Component;
   export default component;
 }
+
+/**
+ * Vue's compile-time dev flag.
+ */
+declare const __DEV__: boolean;

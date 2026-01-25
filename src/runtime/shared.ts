@@ -1,12 +1,5 @@
 import type { InjectionKey } from "vue";
 
- 
-export let __ONIGIRI_DEV__ = process.env.NODE_ENV !== 'production';
-
-export function setOnigiriDevMode(isDev: boolean): void {
-  __ONIGIRI_DEV__ = isDev;
-}
-
 /**
  * Symbol used to signal that we're in onigiri render mode.
  * When this symbol is provided, setup should return the onigiri render function
