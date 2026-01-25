@@ -89,7 +89,7 @@ export function onigiriCompilerPlugin(
       }
 
       if (!descriptor.template) {
-        return `export default function __onigiriRender(_ctx, _cache, $props, $setup, $data, $options) { return null; }`;
+        return `export default function __onigiriRender(_ctx, _cache, $props, $setup, $data, $options, __parentInstance) { return null; }`;
       }
 
       let bindingMetadata: Record<string, string> = {};
@@ -155,7 +155,7 @@ export function onigiriCompilerPlugin(
       // Export only the render function with required imports
       return {
         code: `${scriptImports}${codegenImports}
-export default function __onigiriRender(_ctx, _cache, $props, $setup, $data, $options) {
+export default function __onigiriRender(_ctx, _cache, $props, $setup, $data, $options, __parentInstance) {
 ${componentDeclarations}
   return ${onigiriResult.expression};
 }`,
@@ -256,13 +256,14 @@ async function injectIntoSetupAsync(
   const s = new MagicString(code);
 
   // Add imports
-  const imports = `import { inject as __onigiri_inject } from "vue";
+  const imports = `import { inject as __onigiri_inject, getCurrentInstance as __getCurrentInstance } from "vue";
 import { ONIGIRI_RENDER_SYMBOL as __ONIGIRI_SYMBOL } from "vue-onigiri/runtime/shared";
 `;
 
-  // Injection code
+  // Injection code - capture instance at setup time for use in render
   const injectionCode = `
   if (__onigiri_inject(__ONIGIRI_SYMBOL, null)) {
+    const __parentInstance = __getCurrentInstance();
     return () => ${onigiriResult.expression};
   }
 `;

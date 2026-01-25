@@ -295,14 +295,14 @@ function wrapEventHandler(content: string, context: CodegenContext): string {
   const trimmed = content.trim();
    
   if (isMemberExpression(trimmed)) {
-    return prefixIdentifiers(trimmed, context.bindingMetadata);
+    return prefixIdentifiers(trimmed, context.bindingMetadata, context.localVars);
   }
   
   if (isFnExpression(trimmed)) {
-    return prefixIdentifiers(trimmed, context.bindingMetadata);
+    return prefixIdentifiers(trimmed, context.bindingMetadata, context.localVars);
   }
   const hasMultipleStatements = trimmed.includes(';');
-  const prefixed = prefixIdentifiers(trimmed, context.bindingMetadata);
+  const prefixed = prefixIdentifiers(trimmed, context.bindingMetadata, context.localVars);
   
   return hasMultipleStatements
     ? `$event => { ${prefixed} }`
@@ -351,7 +351,7 @@ function getIdentifierPrefix(ident: string, bindingMetadata: BindingMetadata = {
  * Uses a simple regex-based approach to find and prefix identifiers.
  * Handles common cases like: foo, foo.bar, foo = 'value', foo === bar
  */
-function prefixIdentifiers(content: string, bindingMetadata: BindingMetadata = {}): string {
+function prefixIdentifiers(content: string, bindingMetadata: BindingMetadata = {}, localVars: Set<string> = new Set()): string {
   // Keywords that should not be prefixed
   const jsKeywords = new Set([
     'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
@@ -377,6 +377,10 @@ function prefixIdentifiers(content: string, bindingMetadata: BindingMetadata = {
   const prefixed = contentWithPlaceholders.replace(/(?<![.\w$])([a-zA-Z_$][a-zA-Z0-9_$]*)(?![\w$])(?!\s*:(?!:))/g, (match, ident, offset) => {
     // Check if this is a keyword
     if (jsKeywords.has(ident)) {
+      return match;
+    }
+    // Check if this is a local variable (e.g., v-for loop variable)
+    if (localVars.has(ident)) {
       return match;
     }
     // Check if preceded by a dot (property access)
@@ -414,7 +418,7 @@ function genExpressionAsValue(node: ExpressionNode | undefined, context: Codegen
       context.push(simpleNode.content);
     } else {
       // Dynamic expression that wasn't transformed - prefix identifiers manually
-      context.push(prefixIdentifiers(simpleNode.content, context.bindingMetadata));
+      context.push(prefixIdentifiers(simpleNode.content, context.bindingMetadata, context.localVars));
     }
   } else if (node.type === NodeTypes.COMPOUND_EXPRESSION) {
     // Compound expression from transformExpression - concatenate all parts
@@ -582,12 +586,19 @@ function genComponent(node: ElementNode, context: CodegenContext): void {
   const { tag, props, children } = node;
   
   // Check if this component has v-load-client directive
-  const hasLoadClient = props.some(
-    (p) => p.type === NodeTypes.DIRECTIVE && p.name === 'load-client'
+  const loadClientDirective = props.find(
+    (p): p is DirectiveNode => p.type === NodeTypes.DIRECTIVE && p.name === 'load-client'
   );
   
-  if (hasLoadClient) {
-    genClientLoadedComponent(tag, props, children, context);
+  if (loadClientDirective) {
+    // Check if it has a dynamic value (v-load-client="condition")
+    if (loadClientDirective.exp) {
+      // Dynamic: use serializeChildComponent helper at runtime
+      genDynamicLoadClientComponent(tag, props, children, loadClientDirective, context);
+    } else {
+      // Static: v-load-client without value, always load on client
+      genClientLoadedComponent(tag, props, children, context);
+    }
   } else {
     genServerRenderedComponent(tag, props, children, context);
   }
@@ -673,7 +684,7 @@ function genClientLoadedComponent(
 /**
  * Generate code for component WITHOUT v-load-client directive.
  * These are rendered server-side and their output is serialized inline.
- * Format: __serializeComponent(Component, props, slots)
+ * Format: __serializeComponentInContext(Component, props, parentInstance)
  */
 function genServerRenderedComponent(
   tag: string,
@@ -683,10 +694,10 @@ function genServerRenderedComponent(
 ): void {
   const componentRef = getComponentRef(tag, context);
   
-  // Add import for __serializeComponent
-  context.imports.add(genImport('vue-onigiri/runtime/serialize', [{ name: 'serializeComponent', as: '__serializeComponent' }]));
+  // Add import for __serializeComponentInContext
+  context.imports.add(genImport('vue-onigiri/runtime/serialize', [{ name: 'serializeComponentInContext', as: '__serializeComponentInContext' }]));
   
-  context.push(`__serializeComponent(${componentRef}, `);
+  context.push(`__serializeComponentInContext(${componentRef}, `);
   
   // Props
   if (props.length > 0) {
@@ -694,10 +705,44 @@ function genServerRenderedComponent(
   } else {
     context.push('undefined');
   }
+  
+  // Parent instance - use getCurrentInstance() at runtime
+  context.push(', __parentInstance)');
+}
+
+function genDynamicLoadClientComponent(
+  tag: string,
+  props: (AttributeNode | DirectiveNode)[],
+  children: any[],
+  loadClientDirective: DirectiveNode,
+  context: CodegenContext
+): void {
+  const componentRef = getComponentRef(tag, context);
+  
+  // Add import for __serializeChildComponent
+  context.imports.add(genImport('vue-onigiri/runtime/serialize', [{ name: 'serializeChildComponent', as: '__serializeChildComponent' }]));
+  
+  context.push(`__serializeChildComponent(${componentRef}, `);
+  
+  // Props (filter out v-load-client directive)
+  const propsWithoutLoadClient = props.filter(
+    (p) => !(p.type === NodeTypes.DIRECTIVE && p.name === 'load-client')
+  );
+  if (propsWithoutLoadClient.length > 0) {
+    genProps(propsWithoutLoadClient, context);
+  } else {
+    context.push('undefined');
+  }
   context.push(', ');
   
-  // Slots - parse named slots from children (as functions for SSR)
-  genSlotsObject(children, context, true); // true = as functions for server-side rendering
+  context.push('__parentInstance, ');
+  
+  // Load client condition (the dynamic expression)
+  genExpressionAsValue(loadClientDirective.exp!, context);
+  context.push(', ');
+  
+  // Slots
+  genSlotsObject(children, context, false);
   
   context.push(')');
 }
@@ -719,20 +764,40 @@ function genSlotOutlet(node: ElementNode, context: CodegenContext): void {
   context.imports.add(genImport('vue-onigiri/runtime/render-slot', [{ name: 'renderSlot', as: '__renderSlot' }]));
   
   // Find the slot name from props (default is "default")
-  let slotName = '"default"';
+  // Can be static (name="foo") or dynamic (:name="expr")
+  let slotName: string | null = null;
+  let isDynamicName = false;
   const slotProps: (AttributeNode | DirectiveNode)[] = [];
   
   for (const prop of props) {
     if (prop.type === NodeTypes.ATTRIBUTE && prop.name === 'name') {
+      // Static name: <slot name="header" />
       slotName = prop.value ? `"${prop.value.content}"` : '"default"';
+    } else if (
+      prop.type === NodeTypes.DIRECTIVE && 
+      prop.name === 'bind' && 
+      prop.arg?.type === NodeTypes.SIMPLE_EXPRESSION &&
+      prop.arg.content === 'name'
+    ) {
+      // Dynamic name: <slot :name="item.name" />
+      isDynamicName = true;
+      // Genertate the expression inline
+      slotName = null; 
+      // Store the expression for later
+      (node as any).__dynamicSlotNameExp = prop.exp;
     } else {
       // All other props are passed to the slot
       slotProps.push(prop);
     }
   }
   
-  context.push('__renderSlot(_ctx, _slots, ');
-  context.push(slotName);
+  context.push('__renderSlot(_ctx, _ctx.slots, ');
+  
+  if (isDynamicName && (node as any).__dynamicSlotNameExp) {
+    genExpressionAsValue((node as any).__dynamicSlotNameExp, context);
+  } else {
+    context.push(slotName || '"default"');
+  }
   context.push(', ');
   
   // Slot props (passed to scoped slots)
@@ -855,9 +920,8 @@ function genHtmlElement(node: ElementNode, context: CodegenContext): void {
     context.push(', ');
     if (children.length === 0) {
       context.push('undefined');
-    } else if (children.length === 1) {
-      genNode(children[0], context);
     } else {
+      // Always wrap children in an array for consistent deserialization
       context.push('[');
       for (const [i, child] of children.entries()) {
         if (i > 0) context.push(', ');
@@ -1216,10 +1280,25 @@ function isNumericLiteral(node: ExpressionNode | undefined): boolean {
 export function genFor(node: ForNode, context: CodegenContext): void {
   const { source, value, key, index } = node.parseResult;
   
+  // Collect loop variables to add to local scope
+  const loopVars: string[] = [];
+  const valueVar = (value as SimpleExpressionNode)?.content || 'item';
+  loopVars.push(valueVar);
+  if (key) {
+    loopVars.push((key as SimpleExpressionNode).content);
+  }
+  if (index) {
+    loopVars.push((index as SimpleExpressionNode).content);
+  }
+  
   // Check if source is a numeric literal - needs special handling
   const isNumeric = isNumericLiteral(source);
   
-  context.push('(');
+  // TODO make sure we're in a child VServerComponent Array
+  // Should be in a child VServerComponent array/map structure
+  // So we need to generate code like:
+  // ...(source).map((value, key, index) => { ...children... })
+  context.push('...(');
   if (isNumeric) {
     // For numeric sources like `v-for="n in 3"`, create array [1, 2, ..., n]
     // Vue iterates from 1 to n (inclusive), so we use Array.from with 1-based values
@@ -1230,7 +1309,7 @@ export function genFor(node: ForNode, context: CodegenContext): void {
     genExpressionAsValue(source, context);
   }
   context.push('.map((');
-  context.push((value as SimpleExpressionNode)?.content || 'item');
+  context.push(valueVar);
   if (key) {
     context.push(', ');
     context.push((key as SimpleExpressionNode).content);
@@ -1241,17 +1320,29 @@ export function genFor(node: ForNode, context: CodegenContext): void {
   }
   context.push(') => ');
   
-  if (node.children.length === 1) {
-    genNode(node.children[0], context);
-  } else {
-    context.push('[');
-    context.push(VServerComponentType.Fragment.toString());
-    context.push(', [');
-    for (let i = 0; i < node.children.length; i++) {
-      if (i > 0) context.push(', ');
-      genNode(node.children[i], context);
+  // Add loop variables to local scope before generating children
+  for (const v of loopVars) {
+    context.localVars.add(v);
+  }
+  
+  try {
+    if (node.children.length === 1) {
+      genNode(node.children[0], context);
+    } else {
+      context.push('[');
+      context.push(VServerComponentType.Fragment.toString());
+      context.push(', [');
+      for (let i = 0; i < node.children.length; i++) {
+        if (i > 0) context.push(', ');
+        genNode(node.children[i], context);
+      }
+      context.push(']]');
     }
-    context.push(']]');
+  } finally {
+    // Remove loop variables from local scope after generating children
+    for (const v of loopVars) {
+      context.localVars.delete(v);
+    }
   }
   
   context.push('))');

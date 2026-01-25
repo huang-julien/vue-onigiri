@@ -15,6 +15,8 @@ export interface CodegenContext {
   bindingMetadata: BindingMetadata;
   /** Components that need resolveComponent() declarations */
   components: Map<string, string>; // tag -> variable name
+  /** Local variables in scope (e.g., v-for loop variables) - should not be prefixed */
+  localVars: Set<string>;
 }
 
 /**
@@ -27,6 +29,7 @@ export function createCodegenContext(bindingMetadata: BindingMetadata = {}): Cod
     imports: new Set<string>(),
     bindingMetadata,
     components: new Map<string, string>(),
+    localVars: new Set<string>(),
     push(code: string) {
       this.code += code;
     },

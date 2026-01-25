@@ -1,6 +1,6 @@
 import type { VNodeChild } from "vue";
 import { serializeVNode, unrollServerComponentBufferPromises } from "./serialize";
-import type { VServerComponent, VServerComponentBuffered } from "./shared";
+import { VServerComponentType, type VServerComponent, type VServerComponentBuffered } from "./shared";
 
 /**
  * Render a slot for onigiri serialization.
@@ -26,8 +26,15 @@ export function renderSlot(
   const slot = slots?.[name];
   
   if (slot === undefined) {
-    // No slot provided, use fallback
-    return fallback?.();
+    // No slot provided - return a slot marker so client can fill it
+    // Fallback content is baked into the marker
+    const fallbackContent = fallback?.();
+    const fallbackArray = fallbackContent 
+      ? (Array.isArray(fallbackContent) && typeof fallbackContent[0] !== 'number' 
+          ? fallbackContent 
+          : [fallbackContent]) as VServerComponentBuffered[]
+      : undefined;
+    return createSlotMarker(name, props, fallbackArray);
   }
   
   if (typeof slot === 'function') {
@@ -75,4 +82,17 @@ export function renderSlot(
   
   // Slot is already serialized content (not a function)
   return slot as VServerComponentBuffered;
+}
+
+export function createSlotMarker(
+  name: string,
+  props?: Record<string, any>,
+  fallback?: VServerComponentBuffered[],
+): VServerComponentBuffered {
+  return [
+    VServerComponentType.Slot,
+    name,
+    props,
+    fallback,
+  ];
 }

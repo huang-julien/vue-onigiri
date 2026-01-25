@@ -70,6 +70,119 @@ export async function serializeComponent(
   return serializeApp(input, context);
 }
 
+type OnigiriComponent = Component & { 
+  __onigiriRender?: (...args: any[]) => VServerComponentBuffered;
+  __chunk?: string;
+  __export?: string;
+};
+
+/**
+ * serialize a child component, either as a hydration marker
+ * *for __renderOnigiri function usage
+ */
+export async function serializeChildComponent(
+  component: OnigiriComponent,
+  props?: any,
+  parentInstance?: ComponentInternalInstance,
+  loadClient?: boolean,
+  slots?: Record<string, VServerComponent[]>,
+): Promise<VServerComponent | undefined> {
+  // If loadClient is true and component has chunk info, return a hydration marker
+  if (loadClient && component.__chunk && component.__export) {
+    return [
+      VServerComponentType.Component,
+      filterProps(props),
+      component.__chunk,
+      component.__export,
+      slots,
+    ];
+  }
+
+  // Otherwise, serialize the component inline
+  return serializeComponentInContext(component, props, parentInstance);
+}
+
+/**
+ * Serialize a component within an existing render context.
+ * for compiler __renderonigiri usage
+ */
+export function serializeComponentInContext(
+  component: OnigiriComponent,
+  props?: any,
+  parentInstance?: ComponentInternalInstance,
+): Promise<VServerComponent | undefined> {
+  // Create a vnode to properly initialize the component instance
+  const vnode = createVNode(component, props);
+  const instance = createComponentInstance(vnode, parentInstance ?? null, null);
+  const res = setupComponent(instance, true);
+  
+  const hasAsyncSetup = isPromise(res);
+  let prefetches =
+    // @ts-expect-error internal API
+    instance.sp as unknown as Promise[] | undefined;
+
+  const doRender = (): Promise<VServerComponent | undefined> => {
+
+    // If component has __onigiriRender, use it directly
+    if (typeof component.__onigiriRender === "function") {
+      const result = runOnigiriRender(component.__onigiriRender, instance);
+      return unrollServerComponentBufferPromises(result);
+    }
+
+    // Fallback: render the component and serialize the vnode tree
+    const child = renderComponentRoot(instance);
+    return Promise.resolve(serializeVNode(child, instance)).then((result) => {
+      if (result) {
+        return unrollServerComponentBufferPromises(result);
+      }
+    });
+  };
+
+  // Wait for async setup and prefetches
+  if (hasAsyncSetup || prefetches) {
+    return Promise.resolve(res).then(() => {
+      if (hasAsyncSetup) {
+        // @ts-expect-error internal API
+        prefetches = instance.sp;
+      }
+      if (prefetches) {
+        return Promise.all(
+          prefetches.map((prefetch) => prefetch.call(instance.proxy)),
+        ).then(doRender);
+      }
+      return doRender();
+    });
+  }
+
+  return doRender();
+}
+
+/**
+ * Helper to run __onigiriRender with the correct arguments based on dev/prod mode.
+ */
+function runOnigiriRender(
+  onigiriRender: (...args: any[]) => VServerComponentBuffered,
+  instance: ComponentInternalInstance
+): VServerComponentBuffered {
+  if (__ONIGIRI_DEV__) {
+    return onigiriRender(
+      instance.proxy,
+      instance.accessCache,
+      instance.props,
+      instance.setupState,
+      instance.data,
+      instance.ctx,
+      instance
+    );
+  } else {
+    return onigiriRender(
+      instance.proxy,
+      instance.accessCache,
+      instance
+    );
+  }
+}
+
 export function serializeApp(app: App, context: SSRContext = {}) {
   const input = app;
   app.provide(ssrContextKey, context);
@@ -109,24 +222,7 @@ export function serializeApp(app: App, context: SSRContext = {}) {
 
       // If component has __onigiriRender, use it directly
       if (typeof componentType.__onigiriRender === "function") {
-        const result = app.runWithContext(() => {
-          // todo fix types
-          if (__ONIGIRI_DEV__) {
-            return componentType.__onigiriRender!(
-              instance.proxy,
-              instance.accessCache,
-              instance.props,
-              instance.setupState,
-              instance.data,
-              instance.ctx
-            );
-          } else {
-            return componentType.__onigiriRender!(
-              instance.proxy,
-              instance.accessCache
-            );
-          }
-        });
+        const result = app.runWithContext(() => runOnigiriRender(componentType.__onigiriRender!, instance));
         return unrollServerComponentBufferPromises(result);
       }
 
@@ -168,6 +264,28 @@ export function unrollServerComponentBufferPromises(
           return r;
         }),
       );
+    } else if (Array.isArray(item)) {
+      // Recursively handle nested arrays (like children arrays that may contain Promises)
+      promises.push(
+        Promise.all(
+          item.map((v) => {
+            if (isPromise(v)) {
+              return v.then((resolved) => {
+                if (resolved && Array.isArray(resolved)) {
+                  return unrollServerComponentBufferPromises(resolved);
+                }
+                return resolved;
+              });
+            }
+            if (Array.isArray(v)) {
+              return unrollServerComponentBufferPromises(v);
+            }
+            return v;
+          }),
+        ).then((unrolled) => {
+          result[i] = unrolled;
+        }),
+      );
     } else {
       result[i] = item as VServerComponent;
     }
@@ -200,24 +318,6 @@ export async function serializeVNode(
         const instance = createComponentInstance(vnode, parentInstance ?? null, null);
         const res = setupComponent(instance, true);
         
-        const runOnigiriRender = () => {
-          if (__ONIGIRI_DEV__) {
-            return componentType.__onigiriRender!(
-              instance.proxy,
-              instance.accessCache,
-              instance.props,
-              instance.setupState,
-              instance.data,
-              instance.ctx
-            );
-          } else {
-            return componentType.__onigiriRender!(
-              instance.proxy,
-              instance.accessCache
-            );
-          }
-        };
-        
         // Handle async setup
         if (isPromise(res)) {
           return res.then(async () => {
@@ -228,7 +328,7 @@ export async function serializeVNode(
                 prefetches.map((prefetch) => prefetch.call(instance.proxy))
               );
             }
-            return runOnigiriRender();
+            return runOnigiriRender(componentType.__onigiriRender!, instance);
           });
         }
         
@@ -240,7 +340,7 @@ export async function serializeVNode(
           );
         }
         
-        return runOnigiriRender();
+        return runOnigiriRender(componentType.__onigiriRender!, instance);
       }
       
       // Fallback to runtime VNode serialization

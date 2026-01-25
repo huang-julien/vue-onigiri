@@ -79,9 +79,9 @@ export function compileOnigiri(
 
   // Generate the function with component declarations
   // Match Vue's render function signature:
-  // Dev: function render(_ctx, _cache, $props, $setup, $data, $options)
-  // Prod: function render(_ctx, _cache)
-  context.push('export function renderOnigiri(_ctx, _cache, $props, $setup, $data, $options) {');
+  // Dev: function render(_ctx, _cache, $props, $setup, $data, $options, __parentInstance)
+  // Prod: function render(_ctx, _cache, __parentInstance)
+  context.push('export function renderOnigiri(_ctx, _cache, $props, $setup, $data, $options, __parentInstance) {');
   context.newline();
   context.indent();
 
