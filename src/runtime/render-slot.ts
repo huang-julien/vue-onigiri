@@ -76,8 +76,8 @@ export function renderSlot(
       if (serialized) {
         return unrollServerComponentBufferPromises(serialized);
       }
-      return fallback?.();
-    }) as Promise<VServerComponent>;
+      return unrollServerComponentBufferPromises(fallback?.() as VServerComponentBuffered);
+    });
   }
   
   // Slot is already serialized content (not a function)

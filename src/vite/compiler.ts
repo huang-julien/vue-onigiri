@@ -1,5 +1,5 @@
 import type { Plugin, ResolvedConfig } from "vite";
-import { parse, compileScript } from "@vue/compiler-sfc";
+import { parse, compileScript, type BindingMetadata } from "@vue/compiler-sfc";
 import { compileOnigiriInline } from "../template-compiler";
 import MagicString from "magic-string";
 import { createHash } from "node:crypto";
@@ -113,7 +113,7 @@ export function onigiriCompilerPlugin(
         return `export default function __onigiriRender(_ctx, _cache, $props, $setup, $data, $options, __parentInstance) { return null; }`;
       }
 
-      let bindingMetadata: Record<string, string> = {};
+      let bindingMetadata: BindingMetadata = {};
       if (descriptor.scriptSetup || descriptor.script) {
         try {
           const scriptResult = compileScript(descriptor, {
@@ -121,8 +121,8 @@ export function onigiriCompilerPlugin(
             sourceMap,
           });
           bindingMetadata = scriptResult.bindings || {};
-        } catch (e) {
-          console.warn(`[vue-onigiri] Failed to compile script for ${filePath}:`, e);
+        } catch (error_) {
+          console.warn(`[vue-onigiri] Failed to compile script for ${filePath}:`, error_);
         }
       }
 
@@ -198,7 +198,7 @@ ${componentDeclarations}
         const [filePath, query] = id.split("?");
 
         // Only handle .vue files
-        if (!filePath.endsWith(".vue") || filePath?.startsWith(ONIGIRI_PREFIX) || filePath?.startsWith(RESOLVED_ONIGIRI_PREFIX)) {
+        if (!filePath || !filePath.endsWith(".vue") || filePath.startsWith(ONIGIRI_PREFIX) || filePath.startsWith(RESOLVED_ONIGIRI_PREFIX)) {
           return null;
         }
 
@@ -260,7 +260,7 @@ async function injectIntoSetupAsync(
     return null;
   }
  
-  let bindingMetadata: Record<string, string> = {};
+  let bindingMetadata: BindingMetadata = {};
   if (descriptor.scriptSetup || descriptor.script) {
     try {
       const scriptResult = compileScript(descriptor, {
@@ -268,8 +268,8 @@ async function injectIntoSetupAsync(
         sourceMap,
       });
       bindingMetadata = scriptResult.bindings || {};
-    } catch (e) {
-      console.warn(`[vue-onigiri] Failed to compile script for ${filePath}:`, e);
+    } catch (error_) {
+      console.warn(`[vue-onigiri] Failed to compile script for ${filePath}:`, error_);
     }
   }
 

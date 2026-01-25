@@ -235,7 +235,7 @@ function isMemberExpression(content: string): boolean {
       continue;
     }
     
-    if (/[\w$]/.test(char)) {
+    if (char && /[\w$]/.test(char)) {
       if (state === 'dot' || state === 'start') {
         state = 'ident';
       } else if (state !== 'ident') {
@@ -244,7 +244,7 @@ function isMemberExpression(content: string): boolean {
       continue;
     }
     
-    if (/\s/.test(char)) continue; // Whitespace is ok
+    if (char && /\s/.test(char)) continue; // Whitespace is ok
     
     // Any other character means it's not a simple member expression
     return false;
@@ -469,10 +469,9 @@ function genEventHandler(node: ExpressionNode | undefined, context: CodegenConte
       .map(child => {
         if (typeof child === 'string') {
           return child;
-        } else if (child && typeof child === 'object' && 'type' in child) {
-          if (child.type === NodeTypes.SIMPLE_EXPRESSION) {
-            return (child as SimpleExpressionNode).content;
-          }
+        }
+        if (child && typeof child === 'object' && 'type' in child && child.type === NodeTypes.SIMPLE_EXPRESSION) {
+          return (child as SimpleExpressionNode).content;
         }
         return '';
       })
@@ -622,7 +621,7 @@ function getComponentRef(tag: string, context: CodegenContext): string {
   if (isImported) {
     // Use the imported name directly
     return context.bindingMetadata[tag] ? tag : 
-           context.bindingMetadata[pascalName] ? pascalName : camelName;
+           (context.bindingMetadata[pascalName] ? pascalName : camelName);
   }
   
   // Not imported - need resolveComponent
@@ -889,6 +888,7 @@ function genHtmlElement(node: ElementNode, context: CodegenContext): void {
     // Generate from last to first so nesting is correct
     for (let i = wrappedDirectives.length - 1; i >= 0; i--) {
       const dir = wrappedDirectives[i];
+      if (!dir) continue;
       context.push('__withDirective(');
       
       // Directive reference - check if it's imported/local or needs string lookup

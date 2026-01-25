@@ -29,13 +29,7 @@ export interface CodegenContextOptions {
 /**
  * Create a new codegen context for building output code
  */
-export function createCodegenContext(options: CodegenContextOptions | BindingMetadata = {}): CodegenContext {
-  // Support both old signature (just bindingMetadata) and new options object
-  const opts: CodegenContextOptions = 
-    options && typeof options === 'object' && ('bindingMetadata' in options || 'scopeId' in options)
-      ? options
-      : { bindingMetadata: options as BindingMetadata };
-
+export function createCodegenContext(opts: CodegenContextOptions = {}): CodegenContext {
   return {
     code: '',
     indentLevel: 0,

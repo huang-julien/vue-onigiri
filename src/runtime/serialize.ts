@@ -163,23 +163,23 @@ function runOnigiriRender(
   onigiriRender: (...args: any[]) => VServerComponentBuffered,
   instance: ComponentInternalInstance
 ): VServerComponentBuffered {
-  if (__DEV__) {
-    return onigiriRender(
+  return __DEV__ ? onigiriRender(
       instance.proxy,
+      // @ts-expect-error vue internal API
       instance.accessCache,
       instance.props,
+      // @ts-expect-error vue internal API
       instance.setupState,
       instance.data,
+      // @ts-expect-error vue internal API
       instance.ctx,
       instance
-    );
-  } else {
-    return onigiriRender(
+    ) : onigiriRender(
       instance.proxy,
+      // @ts-expect-error vue internal API
       instance.accessCache,
       instance
     );
-  }
 }
 
 export function serializeApp(app: App, context: SSRContext = {}) {
@@ -189,6 +189,7 @@ export function serializeApp(app: App, context: SSRContext = {}) {
   const vnode = createVNode(input._component, input._props);
   const instance = createComponentInstance(vnode, input._instance, null);
   instance.appContext = input._context;
+      // @ts-expect-error vue internal API
   instance.provides = /* @__PURE__ */ Object.create(input._context.provides);
 
   const componentType = input._component as Component & {
@@ -271,13 +272,13 @@ export function unrollServerComponentBufferPromises(
             if (isPromise(v)) {
               return v.then((resolved) => {
                 if (resolved && Array.isArray(resolved)) {
-                  return unrollServerComponentBufferPromises(resolved);
+                  return unrollServerComponentBufferPromises(resolved as VServerComponentBuffered);
                 }
                 return resolved;
               });
             }
             if (Array.isArray(v)) {
-              return unrollServerComponentBufferPromises(v);
+              return unrollServerComponentBufferPromises(v as VServerComponentBuffered);
             }
             return v;
           }),
@@ -471,29 +472,32 @@ function serializeSlots(
 function renderComponent(
   _vnode: VNode,
   parentInstance?: ComponentInternalInstance | null,
-): Promise<VNodeNormalizedChildren> | VNodeNormalizedChildren | VNode {
+): Promise<VNodeNormalizedChildren | VNode> | VNodeNormalizedChildren | VNode {
  
   const instance = createComponentInstance(
     _vnode,
     parentInstance ?? null,
     null,
   );
-const reconstructedSlots = {}
-for(const key in instance.vnode.children) {
-   const fn = instance.vnode.children[key]
-   if(typeof fn !== 'function') {
-      reconstructedSlots[key] = fn
-      continue
-   }
-  reconstructedSlots[key] = (...args: any[]) => {
-      const result = fn(...args);
-  instance.__slotsResult = instance.__slotsResult || {};
-  instance.__slotsResult[key] = result;
-  return result;
+  const children = instance.vnode.children;
+  const reconstructedSlots: Record<string, any> = {};
+  if (children && typeof children === 'object' && !Array.isArray(children)) {
+    for (const key in children) {
+      const fn = (children as Record<string, any>)[key];
+      if (typeof fn !== 'function') {
+        reconstructedSlots[key] = fn;
+        continue;
+      }
+      reconstructedSlots[key] = (...args: any[]) => {
+        const result = fn(...args);
+        instance.__slotsResult = instance.__slotsResult || {};
+        instance.__slotsResult[key] = result;
+        return result;
+      };
+    }
   }
-}
-instance.vnode.children = reconstructedSlots;
-   const res = setupComponent(instance, true); 
+  instance.vnode.children = reconstructedSlots;
+  const res = setupComponent(instance, true); 
   const hasAsyncSetup = isPromise(res);
   let prefetches =
     // @ts-expect-error internal API
