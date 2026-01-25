@@ -908,9 +908,12 @@ function genHtmlElement(node: ElementNode, context: CodegenContext): void {
   context.push(`"${tag}"`);
   context.push(', ');
   
-  // 3. Attrs (filtered to exclude wrapped directives)
-  if (filteredProps.length > 0) {
-    genProps(filteredProps, context);
+  // 3. Attrs (filtered to exclude wrapped directives + scopeId if present)
+  const hasScopeId = !!context.scopeId;
+  const hasProps = filteredProps.length > 0;
+  
+  if (hasProps || hasScopeId) {
+    genPropsWithScopeId(filteredProps, context);
   } else {
     context.push('undefined');
   }
@@ -1046,6 +1049,111 @@ export function genProps(props: (AttributeNode | DirectiveNode)[], context: Code
   
   // No v-bind object spread - just regular props
   genPropsObject(props, context);
+}
+
+/**
+ * Generate code for props/attributes with scopeId support.
+ * This version adds the scopeId attribute if present in context.
+ */
+function genPropsWithScopeId(props: (AttributeNode | DirectiveNode)[], context: CodegenContext): void {
+  //v-bind without argument (object spread)
+  const bindDirective = props.find(prop => 
+    prop.type === NodeTypes.DIRECTIVE && 
+    prop.name === 'bind' && 
+    !prop.arg
+  ) as DirectiveNode | undefined;
+  
+  const otherProps = props.filter(prop => 
+    !(prop.type === NodeTypes.DIRECTIVE && prop.name === 'bind' && !prop.arg)
+  );
+  
+  if (bindDirective) {
+    // need to merge with scopeId
+    context.imports.add(genImport('vue', [{ name: 'mergeProps', as: '_mergeProps' }]));
+    context.push('_mergeProps(');
+     
+    if (bindDirective.exp) {
+      genExpressionAsValue(bindDirective.exp, context);
+    } else {
+      context.push('{}');
+    }
+     
+    if (otherProps.length > 0 || context.scopeId) {
+      context.push(', ');
+      genPropsObjectWithScopeId(otherProps, context);
+    }
+    
+    context.push(')');
+    return;
+  }
+   
+  genPropsObjectWithScopeId(props, context);
+}
+ 
+function genPropsObjectWithScopeId(props: (AttributeNode | DirectiveNode)[], context: CodegenContext): void {
+  context.push('{');
+  let first = true;
+   
+  if (context.scopeId) {
+    context.push(`"${context.scopeId}": ""`);
+    first = false;
+  }
+  
+  for (const prop of props) {
+    if (prop.type === NodeTypes.ATTRIBUTE) {
+      if (!first) context.push(', ');
+      first = false;
+      
+      context.push(`"${prop.name}": `);
+      if (prop.value) {
+        context.push(JSON.stringify(prop.value.content));
+      } else {
+        context.push('true');
+      }
+    } else if (prop.type === NodeTypes.DIRECTIVE) { 
+      if (STRIPPED_DIRECTIVES.has(prop.name)) {
+        continue;
+      }
+       
+      if (shouldWrapDirective(prop.name)) {
+        continue;
+      }
+      
+      if (!first) context.push(', ');
+      first = false;
+       
+      if (prop.name === 'on') {
+        const eventName = (prop.arg && typeof prop.arg === 'object' && 'content' in prop.arg) 
+          ? (prop.arg as SimpleExpressionNode).content 
+          : ''; 
+        const onEventName = 'on' + eventName.charAt(0).toUpperCase() + eventName.slice(1);
+        context.push(`"${onEventName}": `);
+        
+        if (prop.exp) {
+          genEventHandler(prop.exp, context);
+        } else {
+          context.push('() => {}');
+        }
+        continue;
+      }
+       
+      if (prop.name === 'bind' && prop.arg) {
+        const propName = (prop.arg && typeof prop.arg === 'object' && 'content' in prop.arg)
+          ? (prop.arg as SimpleExpressionNode).content
+          : '';
+        context.push(`"${propName}": `);
+        
+        if (prop.exp) {
+          genExpressionAsValue(prop.exp, context);
+        } else {
+          context.push('true');
+        }
+        continue;
+      }
+    }
+  }
+  
+  context.push('}');
 }
 
 /**

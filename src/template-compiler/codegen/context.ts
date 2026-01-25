@@ -17,19 +17,33 @@ export interface CodegenContext {
   components: Map<string, string>; // tag -> variable name
   /** Local variables in scope (e.g., v-for loop variables) - should not be prefixed */
   localVars: Set<string>;
+  /** SFC scoped style ID (e.g., "data-v-xxxxxxx") - added as attribute to all elements */
+  scopeId: string | null;
+}
+
+export interface CodegenContextOptions {
+  bindingMetadata?: BindingMetadata;
+  scopeId?: string | null;
 }
 
 /**
  * Create a new codegen context for building output code
  */
-export function createCodegenContext(bindingMetadata: BindingMetadata = {}): CodegenContext {
+export function createCodegenContext(options: CodegenContextOptions | BindingMetadata = {}): CodegenContext {
+  // Support both old signature (just bindingMetadata) and new options object
+  const opts: CodegenContextOptions = 
+    options && typeof options === 'object' && ('bindingMetadata' in options || 'scopeId' in options)
+      ? options
+      : { bindingMetadata: options as BindingMetadata };
+
   return {
     code: '',
     indentLevel: 0,
     imports: new Set<string>(),
-    bindingMetadata,
+    bindingMetadata: opts.bindingMetadata ?? {},
     components: new Map<string, string>(),
     localVars: new Set<string>(),
+    scopeId: opts.scopeId ?? null,
     push(code: string) {
       this.code += code;
     },

@@ -22,6 +22,8 @@ const [baseNodeTransforms] = getBaseTransformPreset(true);
 export interface OnigiriCompilerOptions extends CompilerOptions {
   /** Additional compiler options specific to onigiri */
   onigiriSpecific?: boolean;
+  /** SFC scoped style ID (e.g., "data-v-xxxxxxx") - added as attribute to all elements */
+  scopeId?: string | null;
 }
 
 export interface OnigiriCodegenResult {
@@ -52,10 +54,16 @@ export function compileOnigiri(
   });
 
   // Generate the onigiri code
-  const context = createCodegenContext(options.bindingMetadata);
+  const context = createCodegenContext({ 
+    bindingMetadata: options.bindingMetadata,
+    scopeId: options.scopeId 
+  });
 
   // First, generate the return expression to collect component references
-  const bodyContext = createCodegenContext(options.bindingMetadata);
+  const bodyContext = createCodegenContext({ 
+    bindingMetadata: options.bindingMetadata,
+    scopeId: options.scopeId 
+  });
   if (ast.children.length === 0) {
     bodyContext.push('null');
   } else if (ast.children.length === 1) {
@@ -135,7 +143,10 @@ export function compileOnigiriInline(
   });
 
   // Generate just the expression, no function wrapper
-  const context = createCodegenContext(options.bindingMetadata);
+  const context = createCodegenContext({ 
+    bindingMetadata: options.bindingMetadata,
+    scopeId: options.scopeId 
+  });
 
   if (ast.children.length === 0) {
     context.push('null');

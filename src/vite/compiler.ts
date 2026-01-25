@@ -1,11 +1,27 @@
-import type { Plugin } from "vite";
+import type { Plugin, ResolvedConfig } from "vite";
 import { parse, compileScript } from "@vue/compiler-sfc";
 import { compileOnigiriInline } from "../template-compiler";
 import MagicString from "magic-string";
+import { createHash } from "node:crypto";
+import path from "node:path";
 
 // Virtual module prefix
 const ONIGIRI_PREFIX = "virtual:onigiri:";
 const RESOLVED_ONIGIRI_PREFIX = "\0" + ONIGIRI_PREFIX;
+
+function getHash(text: string): string {
+  return createHash("sha256").update(text).digest("hex").slice(0, 8);
+}
+
+function normalizePath(p: string): string {
+  return p.replace(/\\/g, '/');
+}
+
+function generateScopeId(filePath: string, source: string, root: string, isProduction: boolean): string {
+  const relativePath = normalizePath(path.relative(root, filePath));
+  const hashInput = isProduction ? relativePath + source : relativePath;
+  return `data-v-${getHash(hashInput)}`;
+}
 
 /**
  * Options for the onigiri compiler plugin
@@ -36,9 +52,14 @@ export function onigiriCompilerPlugin(
   options: OnigiriCompilerOptions = {}
 ): Plugin {
   const { sourceMap = true } = options;
+  let config: ResolvedConfig;
 
   return {
     name: "vite:vue-onigiri-compiler",
+
+    configResolved(resolvedConfig) {
+      config = resolvedConfig;
+    },
   
     resolveId: {
       order: "pre",
@@ -105,6 +126,10 @@ export function onigiriCompilerPlugin(
         }
       }
 
+      const hasScoped = descriptor.styles.some(style => style.scoped);
+      // https://github.com/vitejs/vite-plugin-vue/blob/main/packages/plugin-vue/src/utils/descriptorCache.ts#L34-L54
+      const scopeId = hasScoped ? generateScopeId(filePath, source, config.root, config.isProduction) : null;
+
       // Extract imports from the script block
       let scriptImports = '';
       const scriptContent = descriptor.scriptSetup?.content || descriptor.script?.content || '';
@@ -142,6 +167,7 @@ export function onigiriCompilerPlugin(
         filename: filePath,
         sourceMap,
         bindingMetadata,
+        scopeId,
       });
 
       // Build imports string from collected codegen imports
@@ -195,7 +221,7 @@ ${componentDeclarations}
 
           if (hasInlineTemplate) {
             // Build mode: inject into setup - need to read template from disk
-            return injectIntoSetupAsync(code, filePath, sourceMap);
+            return injectIntoSetupAsync(code, filePath, sourceMap, config);
           }
           // Dev mode with type=script query - skip, we handle main .vue file
           return null;
@@ -213,7 +239,8 @@ ${componentDeclarations}
 async function injectIntoSetupAsync(
   code: string,
   filePath: string,
-  sourceMap: boolean
+  sourceMap: boolean,
+  config: ResolvedConfig
 ): Promise<{ code: string; map: any } | null> {
   // Must have setup function
   const setupMatch = code.match(
@@ -246,11 +273,17 @@ async function injectIntoSetupAsync(
     }
   }
 
+  // Check if any style block has scoped attribute
+  const hasScoped = descriptor.styles.some(style => style.scoped);
+  // https://github.com/vitejs/vite-plugin-vue/blob/main/packages/plugin-vue/src/utils/descriptorCache.ts#L34-L54
+  const scopeId = hasScoped ? generateScopeId(filePath, source, config.root, config.isProduction) : null;
+
   // Compile template to onigiri expression
   const onigiriResult = compileOnigiriInline(descriptor.template.content, {
     filename: filePath,
     sourceMap,
     bindingMetadata,
+    scopeId,
   });
 
   const s = new MagicString(code);
