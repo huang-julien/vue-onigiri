@@ -1,26 +1,26 @@
-import type { Plugin, ResolvedConfig } from "vite";
-import { parse, compileScript, type BindingMetadata } from "@vue/compiler-sfc";
-import { compileOnigiriInline } from "../template-compiler";
-import MagicString from "magic-string";
-import { createHash } from "node:crypto";
-import path from "node:path";
+import type { Plugin, ResolvedConfig } from 'vite'
+import { parse, compileScript, type BindingMetadata } from '@vue/compiler-sfc'
+import { compileOnigiriInline } from '../template-compiler'
+import MagicString from 'magic-string'
+import { createHash } from 'node:crypto'
+import path from 'node:path'
 
 // Virtual module prefix
-const ONIGIRI_PREFIX = "virtual:onigiri:";
-const RESOLVED_ONIGIRI_PREFIX = "\0" + ONIGIRI_PREFIX;
+const ONIGIRI_PREFIX = 'virtual:onigiri:'
+const RESOLVED_ONIGIRI_PREFIX = '\0' + ONIGIRI_PREFIX
 
 function getHash(text: string): string {
-  return createHash("sha256").update(text).digest("hex").slice(0, 8);
+  return createHash('sha256').update(text).digest('hex').slice(0, 8)
 }
 
 function normalizePath(p: string): string {
-  return p.replace(/\\/g, '/');
+  return p.replace(/\\/g, '/')
 }
 
 function generateScopeId(filePath: string, source: string, root: string, isProduction: boolean): string {
-  const relativePath = normalizePath(path.relative(root, filePath));
-  const hashInput = isProduction ? relativePath + source : relativePath;
-  return `data-v-${getHash(hashInput)}`;
+  const relativePath = normalizePath(path.relative(root, filePath))
+  const hashInput = isProduction ? relativePath + source : relativePath
+  return `data-v-${getHash(hashInput)}`
 }
 
 /**
@@ -31,7 +31,7 @@ export interface OnigiriCompilerOptions {
    * Whether to include source maps
    * @default true
    */
-  sourceMap?: boolean;
+  sourceMap?: boolean
 }
 
 /**
@@ -49,116 +49,117 @@ export interface OnigiriCompilerOptions {
  *    - Dev (no inline): Imports onigiri render and attaches as `__onigiriRender` property
  */
 export function onigiriCompilerPlugin(
-  options: OnigiriCompilerOptions = {}
+  options: OnigiriCompilerOptions = {},
 ): Plugin {
-  const { sourceMap = true } = options;
-  let config: ResolvedConfig;
+  const { sourceMap = true } = options
+  let config: ResolvedConfig
 
   return {
-    name: "vite:vue-onigiri-compiler",
+    name: 'vite:vue-onigiri-compiler',
 
     configResolved(resolvedConfig) {
-      config = resolvedConfig;
+      config = resolvedConfig
     },
-  
+
     resolveId: {
-      order: "pre",
+      order: 'pre',
       async handler(id, importer) {
         // Handle virtual:onigiri/ prefix - convert to resolved virtual module
         if (id.startsWith(ONIGIRI_PREFIX)) {
-          return "\0" + id;
+          return '\0' + id
         }
 
         // If the importer is a virtual onigiri module, resolve relative to the original file
         if (importer?.startsWith(RESOLVED_ONIGIRI_PREFIX)) {
-          const originalFilePath = importer.slice(RESOLVED_ONIGIRI_PREFIX.length);
-          const resolved = await this.resolve(id, originalFilePath, { skipSelf: true });
-          return resolved;
+          const originalFilePath = importer.slice(RESOLVED_ONIGIRI_PREFIX.length)
+          const resolved = await this.resolve(id, originalFilePath, { skipSelf: true })
+          return resolved
         }
 
-        return null;
-      }
+        return null
+      },
     },
 
     /**
      * Load virtual:onigiri/ modules - exports only the render function
      */
     async load(id) {
-       if(id.includes('devtools')) {
-        return null;
+      if (id.includes('devtools')) {
+        return null
       }
       // Check for resolved virtual:onigiri/ prefix
       if (!id.startsWith(RESOLVED_ONIGIRI_PREFIX)) {
-        return null;
+        return null
       }
-      
+
       // Extract file path: \0virtual:onigiri/path/to/file.vue -> /path/to/file.vue
-      const filePath = id.slice(RESOLVED_ONIGIRI_PREFIX.length,);
-        const fs = await import("node:fs/promises");
-      const source = await fs.readFile(filePath, "utf8");
+      const filePath = id.slice(RESOLVED_ONIGIRI_PREFIX.length)
+      const fs = await import('node:fs/promises')
+      const source = await fs.readFile(filePath, 'utf8')
 
       const { descriptor, errors } = parse(source, {
         filename: filePath,
         sourceMap,
-      });
+      })
 
       if (errors.length > 0) {
         for (const error of errors) {
-          this.error(error.message);
+          this.error(error.message)
         }
-        return null;
+        return null
       }
 
       if (!descriptor.template) {
-        return `export default function __onigiriRender(_ctx, _cache, $props, $setup, $data, $options, __parentInstance) { return null; }`;
+        return `export default function __onigiriRender(_ctx, _cache, $props, $setup, $data, $options, __parentInstance) { return null; }`
       }
 
-      let bindingMetadata: BindingMetadata = {};
+      let bindingMetadata: BindingMetadata = {}
       if (descriptor.scriptSetup || descriptor.script) {
         try {
           const scriptResult = compileScript(descriptor, {
             id: filePath,
             sourceMap,
-          });
-          bindingMetadata = scriptResult.bindings || {};
-        } catch (error_) {
-          console.warn(`[vue-onigiri] Failed to compile script for ${filePath}:`, error_);
+          })
+          bindingMetadata = scriptResult.bindings || {}
+        }
+        catch (error_) {
+          console.warn(`[vue-onigiri] Failed to compile script for ${filePath}:`, error_)
         }
       }
 
-      const hasScoped = descriptor.styles.some(style => style.scoped);
+      const hasScoped = descriptor.styles.some(style => style.scoped)
       // https://github.com/vitejs/vite-plugin-vue/blob/main/packages/plugin-vue/src/utils/descriptorCache.ts#L34-L54
-      const scopeId = hasScoped ? generateScopeId(filePath, source, config.root, config.isProduction) : null;
+      const scopeId = hasScoped ? generateScopeId(filePath, source, config.root, config.isProduction) : null
 
       // Extract imports from the script block
-      let scriptImports = '';
-      const scriptContent = descriptor.scriptSetup?.content || descriptor.script?.content || '';
+      let scriptImports = ''
+      const scriptContent = descriptor.scriptSetup?.content || descriptor.script?.content || ''
       if (scriptContent) {
         // Match all import statements
-        const importRegex = /^import\s+.+?from\s+['"].+?['"];?\s*$/gm;
-        const imports = scriptContent.match(importRegex);
+        const importRegex = /^import\s+.+?from\s+['"].+?['"];?\s*$/gm
+        const imports = scriptContent.match(importRegex)
         if (imports) {
           // Filter and clean imports:
           // 1. Skip type-only imports (import type { ... })
           // 2. Remove inline type imports (import { type Foo, Bar })
           const cleanedImports = imports
             .filter(imp => !/^import\s+type\s+/.test(imp))
-            .map(imp => {
+            .map((imp) => {
               // Remove "type" keyword from named imports: { type Foo, Bar } -> { Bar }
               return imp.replace(/\{([^}]*)\}/g, (match, inner) => {
                 const cleaned = inner
                   .split(',')
                   .map((s: string) => s.trim())
                   .filter((s: string) => !s.startsWith('type '))
-                  .join(', ');
-                return cleaned ? `{ ${cleaned} }` : '';
-              });
+                  .join(', ')
+                return cleaned ? `{ ${cleaned} }` : ''
+              })
             })
             // Filter out imports that became empty after removing types
-            .filter(imp => !/^import\s+\{\s*\}\s+from/.test(imp) && !/^import\s+from/.test(imp));
-          
+            .filter(imp => !/^import\s+\{\s*\}\s+from/.test(imp) && !/^import\s+from/.test(imp))
+
           if (cleanedImports.length > 0) {
-            scriptImports = cleanedImports.join('\n') + '\n';
+            scriptImports = cleanedImports.join('\n') + '\n'
           }
         }
       }
@@ -168,15 +169,15 @@ export function onigiriCompilerPlugin(
         sourceMap,
         bindingMetadata,
         scopeId,
-      });
+      })
 
       // Build imports string from collected codegen imports
-      const codegenImports = [...onigiriResult.imports].join('\n');
+      const codegenImports = [...onigiriResult.imports].join('\n')
 
       // Build component declarations for resolveComponent calls
       const componentDeclarations = [...onigiriResult.components.entries()]
         .map(([tag, varName]) => `  const ${varName} = _resolveComponent("${tag}")`)
-        .join('\n');
+        .join('\n')
 
       // Export only the render function with required imports
       return {
@@ -186,7 +187,7 @@ ${componentDeclarations}
   return ${onigiriResult.expression};
 }`,
         map: null,
-      };
+      }
     },
 
     /**
@@ -194,43 +195,43 @@ ${componentDeclarations}
      * Using order: "post" to run AFTER vue plugin
      */
     transform: {
-       async handler(code, id) {
-        const [filePath, query] = id.split("?");
+      async handler(code, id) {
+        const [filePath, query] = id.split('?')
 
         // Only handle .vue files
-        if (!filePath || !filePath.endsWith(".vue") || filePath.startsWith(ONIGIRI_PREFIX) || filePath.startsWith(RESOLVED_ONIGIRI_PREFIX)) {
-          return null;
+        if (!filePath || !filePath.endsWith('.vue') || filePath.startsWith(ONIGIRI_PREFIX) || filePath.startsWith(RESOLVED_ONIGIRI_PREFIX)) {
+          return null
         }
 
         // For .vue file (no query) - this is the final combined output from Vue (dev mode)
         if (!query) {
-          if (code.includes("export default")) {
+          if (code.includes('export default')) {
             // Use plain virtual: prefix - Vite will handle encoding after resolveId
-            const onigiriImport = `${ONIGIRI_PREFIX}${filePath}`;
-             return attachAsProperty(code, filePath, onigiriImport, sourceMap);
+            const onigiriImport = `${ONIGIRI_PREFIX}${filePath}`
+            return attachAsProperty(code, filePath, onigiriImport, sourceMap)
           }
-          return null;
+          return null
         }
 
         // Handle compiled script module with type=script query (build mode with inline template)
-        if (query.includes("type=script")) {
+        if (query.includes('type=script')) {
           // Check if this has inline template (build mode)
-          const hasInlineTemplate = code.includes("_createElementVNode") || 
-                                     code.includes("_createVNode") ||
-                                     code.includes("_createBlock");
+          const hasInlineTemplate = code.includes('_createElementVNode')
+            || code.includes('_createVNode')
+            || code.includes('_createBlock')
 
           if (hasInlineTemplate) {
             // Build mode: inject into setup - need to read template from disk
-            return injectIntoSetupAsync(code, filePath, sourceMap, config);
+            return injectIntoSetupAsync(code, filePath, sourceMap, config)
           }
           // Dev mode with type=script query - skip, we handle main .vue file
-          return null;
+          return null
         }
 
-        return null;
+        return null
       },
     },
-  };
+  }
 }
 
 /**
@@ -240,43 +241,44 @@ async function injectIntoSetupAsync(
   code: string,
   filePath: string,
   sourceMap: boolean,
-  config: ResolvedConfig
-): Promise<{ code: string; map: any } | null> {
+  config: ResolvedConfig,
+): Promise<{ code: string, map: any } | null> {
   // Must have setup function
   const setupMatch = code.match(
-    /setup\s*\(\s*([^,)]*?)(?:,\s*\{[^}]*\})?\s*\)\s*\{/
-  );
+    /setup\s*\(\s*([^,)]*?)(?:,\s*\{[^}]*\})?\s*\)\s*\{/,
+  )
 
   if (!setupMatch || setupMatch.index === undefined) {
-    return null;
+    return null
   }
 
   // Read and parse the SFC to get template
-  const fs = await import("node:fs/promises");
-  const source = await fs.readFile(filePath, "utf8");
-  const { descriptor } = parse(source, { filename: filePath });
+  const fs = await import('node:fs/promises')
+  const source = await fs.readFile(filePath, 'utf8')
+  const { descriptor } = parse(source, { filename: filePath })
 
   if (!descriptor.template) {
-    return null;
+    return null
   }
- 
-  let bindingMetadata: BindingMetadata = {};
+
+  let bindingMetadata: BindingMetadata = {}
   if (descriptor.scriptSetup || descriptor.script) {
     try {
       const scriptResult = compileScript(descriptor, {
         id: filePath,
         sourceMap,
-      });
-      bindingMetadata = scriptResult.bindings || {};
-    } catch (error_) {
-      console.warn(`[vue-onigiri] Failed to compile script for ${filePath}:`, error_);
+      })
+      bindingMetadata = scriptResult.bindings || {}
+    }
+    catch (error_) {
+      console.warn(`[vue-onigiri] Failed to compile script for ${filePath}:`, error_)
     }
   }
 
   // Check if any style block has scoped attribute
-  const hasScoped = descriptor.styles.some(style => style.scoped);
+  const hasScoped = descriptor.styles.some(style => style.scoped)
   // https://github.com/vitejs/vite-plugin-vue/blob/main/packages/plugin-vue/src/utils/descriptorCache.ts#L34-L54
-  const scopeId = hasScoped ? generateScopeId(filePath, source, config.root, config.isProduction) : null;
+  const scopeId = hasScoped ? generateScopeId(filePath, source, config.root, config.isProduction) : null
 
   // Compile template to onigiri expression
   const onigiriResult = compileOnigiriInline(descriptor.template.content, {
@@ -284,14 +286,14 @@ async function injectIntoSetupAsync(
     sourceMap,
     bindingMetadata,
     scopeId,
-  });
+  })
 
-  const s = new MagicString(code);
+  const s = new MagicString(code)
 
   // Add imports
   const imports = `import { inject as __onigiri_inject, getCurrentInstance as __getCurrentInstance } from "vue";
 import { ONIGIRI_RENDER_SYMBOL as __ONIGIRI_SYMBOL } from "vue-onigiri/runtime/shared";
-`;
+`
 
   // Injection code - capture instance at setup time for use in render
   const injectionCode = `
@@ -299,16 +301,16 @@ import { ONIGIRI_RENDER_SYMBOL as __ONIGIRI_SYMBOL } from "vue-onigiri/runtime/s
     const __parentInstance = __getCurrentInstance();
     return () => ${onigiriResult.expression};
   }
-`;
+`
 
-  const setupBodyStart = setupMatch.index + setupMatch[0].length;
-  s.appendLeft(setupBodyStart, injectionCode);
-  s.prepend(imports);
+  const setupBodyStart = setupMatch.index + setupMatch[0].length
+  s.appendLeft(setupBodyStart, injectionCode)
+  s.prepend(imports)
 
   return {
     code: s.toString(),
     map: sourceMap ? s.generateMap({ hires: true }) : null,
-  };
+  }
 }
 
 /**
@@ -318,77 +320,77 @@ function attachAsProperty(
   code: string,
   filePath: string,
   resolvedOnigiriId: string,
-  sourceMap: boolean
-): { code: string; map: any } | null {
+  sourceMap: boolean,
+): { code: string, map: any } | null {
   // Must have a default export
-  if (!code.includes("export default")) {
-    return null;
+  if (!code.includes('export default')) {
+    return null
   }
 
-  const s = new MagicString(code);
+  const s = new MagicString(code)
 
   // Import the onigiri render function using resolved virtual module ID
-  const importStatement = `import __onigiriRender from "${resolvedOnigiriId}";\n`;
+  const importStatement = `import __onigiriRender from "${resolvedOnigiriId}";\n`
 
   // Handle Vue's _export_sfc pattern: export default _export_sfc(_sfc_main, [...])
   // This is the common dev mode pattern
   const exportSfcMatch = code.match(
-    /export\s+default\s+(?:\/\*[^*]*\*\/\s*)?_export_sfc\s*\(\s*(_sfc_main|_sfc_component)/
-  );
+    /export\s+default\s+(?:\/\*[^*]*\*\/\s*)?_export_sfc\s*\(\s*(_sfc_main|_sfc_component)/,
+  )
 
   if (exportSfcMatch && exportSfcMatch[1] && exportSfcMatch.index !== undefined) {
-    const componentVar = exportSfcMatch[1];
-    s.prepend(importStatement);
+    const componentVar = exportSfcMatch[1]
+    s.prepend(importStatement)
     // Attach before the export
-    s.appendLeft(exportSfcMatch.index, `${componentVar}.__onigiriRender = __onigiriRender;\n`);
+    s.appendLeft(exportSfcMatch.index, `${componentVar}.__onigiriRender = __onigiriRender;\n`)
 
     return {
       code: s.toString(),
       map: sourceMap ? s.generateMap({ hires: true }) : null,
-    };
+    }
   }
 
   // Handle: export default _sfc_main
   const varExportMatch = code.match(
-    /export\s+default\s+(_sfc_main|__default__|_sfc_component)\s*;?\s*$/m
-  );
+    /export\s+default\s+(_sfc_main|__default__|_sfc_component)\s*;?\s*$/m,
+  )
 
   if (varExportMatch && varExportMatch[1] && varExportMatch.index !== undefined) {
-    const componentVar = varExportMatch[1];
-    s.prepend(importStatement);
-    s.appendLeft(varExportMatch.index, `${componentVar}.__onigiriRender = __onigiriRender;\n`);
+    const componentVar = varExportMatch[1]
+    s.prepend(importStatement)
+    s.appendLeft(varExportMatch.index, `${componentVar}.__onigiriRender = __onigiriRender;\n`)
 
     return {
       code: s.toString(),
       map: sourceMap ? s.generateMap({ hires: true }) : null,
-    };
+    }
   }
 
   // Handle inline export: export default /*...*/ _defineComponent({...})
   const inlineExportMatch = code.match(
-    /export\s+default\s+(?:\/\*[^*]*\*\/\s*)?/
-  );
+    /export\s+default\s+(?:\/\*[^*]*\*\/\s*)?/,
+  )
 
   if (inlineExportMatch && inlineExportMatch.index !== undefined) {
-    s.prepend(importStatement);
+    s.prepend(importStatement)
 
-    const exportStart = inlineExportMatch.index;
-    const exportPrefix = inlineExportMatch[0];
+    const exportStart = inlineExportMatch.index
+    const exportPrefix = inlineExportMatch[0]
 
     s.overwrite(
       exportStart,
       exportStart + exportPrefix.length,
-      "const __sfc_with_onigiri = "
-    );
-    s.append(`\n__sfc_with_onigiri.__onigiriRender = __onigiriRender;\nexport default __sfc_with_onigiri;`);
+      'const __sfc_with_onigiri = ',
+    )
+    s.append(`\n__sfc_with_onigiri.__onigiriRender = __onigiriRender;\nexport default __sfc_with_onigiri;`)
 
     return {
       code: s.toString(),
       map: sourceMap ? s.generateMap({ hires: true }) : null,
-    };
+    }
   }
 
-  return null;
+  return null
 }
 
-export default onigiriCompilerPlugin;
+export default onigiriCompilerPlugin

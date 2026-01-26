@@ -2,8 +2,8 @@
  * Code generation utilities for the onigiri template compiler.
  */
 
-export { createCodegenContext, type CodegenContext } from './context';
-export { 
+export { createCodegenContext, type CodegenContext } from './context'
+export {
   genNode,
   genElement,
   genText,
@@ -11,5 +11,5 @@ export {
   genCompoundExpression,
   genIf,
   genFor,
-  genProps
-} from './vnode';
+  genProps,
+} from './vnode'

@@ -1,35 +1,35 @@
 /**
  * Onigiri Template Compiler
- * 
+ *
  * Compiles Vue templates to onigiri render functions that return
  * serialized VServerComponent structures.
  */
 
-import { 
-  baseParse, 
+import {
+  baseParse,
   transform,
   getBaseTransformPreset,
-  type CompilerOptions, 
+  type CompilerOptions,
   type RootNode,
-} from "@vue/compiler-dom";
-import { isVoidTag } from "@vue/shared";
-import { VServerComponentType } from "../runtime/shared";
-import { createCodegenContext, genNode } from "./codegen";
+} from '@vue/compiler-dom'
+import { isVoidTag } from '@vue/shared'
+import { VServerComponentType } from '../runtime/shared'
+import { createCodegenContext, genNode } from './codegen'
 
 // Get Vue's default transforms (includes v-if, v-for, etc.)
-const [baseNodeTransforms] = getBaseTransformPreset(true);
+const [baseNodeTransforms] = getBaseTransformPreset(true)
 
 export interface OnigiriCompilerOptions extends CompilerOptions {
   /** Additional compiler options specific to onigiri */
-  onigiriSpecific?: boolean;
+  onigiriSpecific?: boolean
   /** SFC scoped style ID (e.g., "data-v-xxxxxxx") - added as attribute to all elements */
-  scopeId?: string | null;
+  scopeId?: string | null
 }
 
 export interface OnigiriCodegenResult {
-  code: string;
-  ast: RootNode;
-  map?: any;
+  code: string
+  ast: RootNode
+  map?: any
 }
 
 /**
@@ -37,82 +37,84 @@ export interface OnigiriCodegenResult {
  */
 export function compileOnigiri(
   template: string,
-  options: OnigiriCompilerOptions = {}
+  options: OnigiriCompilerOptions = {},
 ): OnigiriCodegenResult {
   // Parse the template with HTML void tag recognition
   const ast = baseParse(template, {
     ...options,
     isVoidTag,
-  });
-  
+  })
+
   // Transform the AST with Vue's default transforms (v-if, v-for, expressions, etc.)
   transform(ast, {
     ...options,
     prefixIdentifiers: true,
     nodeTransforms: baseNodeTransforms,
-    directiveTransforms: {}
-  });
+    directiveTransforms: {},
+  })
 
   // Generate the onigiri code
-  const context = createCodegenContext({ 
+  const context = createCodegenContext({
     bindingMetadata: options.bindingMetadata,
-    scopeId: options.scopeId 
-  });
+    scopeId: options.scopeId,
+  })
 
   // First, generate the return expression to collect component references
-  const bodyContext = createCodegenContext({ 
+  const bodyContext = createCodegenContext({
     bindingMetadata: options.bindingMetadata,
-    scopeId: options.scopeId 
-  });
+    scopeId: options.scopeId,
+  })
   if (ast.children.length === 0) {
-    bodyContext.push('null');
-  } else if (ast.children.length === 1) {
-    genNode(ast.children[0], bodyContext);
-  } else {
+    bodyContext.push('null')
+  }
+  else if (ast.children.length === 1) {
+    genNode(ast.children[0], bodyContext)
+  }
+  else {
     // Multiple root nodes - wrap in fragment
-    bodyContext.push('[');
-    bodyContext.push(VServerComponentType.Fragment.toString());
-    bodyContext.push(', [');
+    bodyContext.push('[')
+    bodyContext.push(VServerComponentType.Fragment.toString())
+    bodyContext.push(', [')
     for (let i = 0; i < ast.children.length; i++) {
-      if (i > 0) bodyContext.push(', ');
-      genNode(ast.children[i], bodyContext);
+      if (i > 0) bodyContext.push(', ')
+      genNode(ast.children[i], bodyContext)
     }
-    bodyContext.push(']]');
+    bodyContext.push(']]')
   }
 
   // Merge imports from body context
   for (const imp of bodyContext.imports) {
-    context.imports.add(imp);
+    context.imports.add(imp)
   }
 
   // Generate the function with component declarations
   // Match Vue's render function signature:
   // Dev: function render(_ctx, _cache, $props, $setup, $data, $options, __parentInstance)
   // Prod: function render(_ctx, _cache, __parentInstance)
-  context.push('export function renderOnigiri(_ctx, _cache, $props, $setup, $data, $options, __parentInstance) {');
-  context.newline();
-  context.indent();
+  context.push('export function renderOnigiri(_ctx, _cache, $props, $setup, $data, $options, __parentInstance) {')
+  context.newline()
+  context.indent()
 
   // Inject component declarations
   for (const [tag, varName] of bodyContext.components) {
-    context.push(`const ${varName} = _resolveComponent("${tag}")`);
-    context.newline();
+    context.push(`const ${varName} = _resolveComponent("${tag}")`)
+    context.newline()
   }
 
   // Add the return statement
-  context.push('return ');
-  context.push(bodyContext.code);
-  context.push(';');
+  context.push('return ')
+  context.push(bodyContext.code)
+  context.push(';')
 
-  context.deindent();
-  context.newline();
-  context.push('}');
+  context.deindent()
+  context.newline()
+  context.push('}')
 
   return {
     code: `${[...context.imports, '\n'].join('\n')}${context.code}`.trim(),
     ast,
-    map: undefined
-  };
+    map: undefined,
+  }
 }
 
 /**
@@ -126,51 +128,53 @@ export function compileOnigiri(
  */
 export function compileOnigiriInline(
   template: string,
-  options: OnigiriCompilerOptions = {}
-): { expression: string; imports: Set<string>; components: Map<string, string>; ast: RootNode } {
+  options: OnigiriCompilerOptions = {},
+): { expression: string, imports: Set<string>, components: Map<string, string>, ast: RootNode } {
   // Parse the template with HTML void tag recognition
   const ast = baseParse(template, {
     ...options,
     isVoidTag,
-  });
+  })
 
   // Transform the AST with Vue's default transforms
   transform(ast, {
     ...options,
     prefixIdentifiers: true,
     nodeTransforms: baseNodeTransforms,
-    directiveTransforms: {}
-  });
+    directiveTransforms: {},
+  })
 
   // Generate just the expression, no function wrapper
-  const context = createCodegenContext({ 
+  const context = createCodegenContext({
     bindingMetadata: options.bindingMetadata,
-    scopeId: options.scopeId 
-  });
+    scopeId: options.scopeId,
+  })
 
   if (ast.children.length === 0) {
-    context.push('null');
-  } else if (ast.children.length === 1) {
-    genNode(ast.children[0], context);
-  } else {
+    context.push('null')
+  }
+  else if (ast.children.length === 1) {
+    genNode(ast.children[0], context)
+  }
+  else {
     // Multiple root nodes - wrap in fragment
-    context.push('[');
-    context.push(VServerComponentType.Fragment.toString());
-    context.push(', [');
+    context.push('[')
+    context.push(VServerComponentType.Fragment.toString())
+    context.push(', [')
     for (let i = 0; i < ast.children.length; i++) {
-      if (i > 0) context.push(', ');
-      genNode(ast.children[i], context);
+      if (i > 0) context.push(', ')
+      genNode(ast.children[i], context)
     }
-    context.push(']]');
+    context.push(']]')
   }
 
   return {
     expression: context.code,
     imports: context.imports,
     components: context.components, // Map of tag -> varName for resolveComponent declarations
-    ast
-  };
+    ast,
+  }
 }
 
 // Re-export codegen utilities for direct access
-export * from './codegen';
+export * from './codegen'
