@@ -2,7 +2,7 @@ import type { DefineComponent, Directive } from 'vue'
 export type ImportFn = (src: string, exportName?: string) => Promise<DefineComponent>
 
 // @ts-expect-error virtual module
-const componentsImports = () => ({})
+const componentsImports = () => Promise.resolve({})
 
 export const defaultImportFn: ImportFn = (src, exportName = 'default') => componentsImports().then(mod => (mod.default ?? mod)[`${src}#${exportName}`])
 
