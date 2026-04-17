@@ -14,8 +14,12 @@ export interface ObjectDirectiveBinding<V = any> {
  */
 export type DirectiveResolver = (name: string) => ObjectDirective | undefined
 
-// todo better way to do this?
-// better to avoid global
+/**
+ * Module-scoped resolver for custom directives referenced by string name
+ * from compiled templates. Set once at app bootstrap. An app-scoped
+ * alternative would be cleaner but would require threading through every
+ * compiled render function; this is the pragmatic trade-off.
+ */
 let globalDirectiveResolver: DirectiveResolver | undefined
 export function setDirectiveResolver(resolver: DirectiveResolver): void {
   globalDirectiveResolver = resolver
@@ -64,8 +68,10 @@ export function withDirective(
   }
 
   if (dir?.transformOnigiri) {
-    // todo fix
-    return dir.transformOnigiri(node as unknown as VServerComponent, normalizedBinding) as unknown as VServerComponentBuffered
+    // Directives operate on resolved VServerComponent nodes. The buffered
+    // variant is structurally identical but may contain Promises in children;
+    // transforms that only touch props/tag are safe to apply here.
+    return dir.transformOnigiri(node as VServerComponent, normalizedBinding) as VServerComponentBuffered
   }
 
   return node
@@ -77,8 +83,9 @@ export function withDirective(
 export { withDirective as __withDirective }
 
 /**
- * for createStaticVNode second argument.
- * TODO ffs find a better way to do this
+ * Count top-level nodes in an HTML string. Vue's `createStaticVNode`
+ * requires the number of root nodes for correct hydration boundaries.
+ * A simple character-level parser avoids pulling in a full HTML parser.
  */
 function countHtmlRootNodes(html: string): number {
   if (!html) return 0

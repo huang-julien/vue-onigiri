@@ -34,10 +34,14 @@ export default defineComponent({
           return [
             key,
             () => {
-              return renderChildren(
-                value as VServerComponent[] | undefined,
-                importFn,
-              )
+              if (!value) return undefined
+              // `value` can be either a single VServerComponent tuple
+              // (first element is a VServerComponentType number) or an
+              // array of such tuples. Normalise to an array for renderChildren.
+              const asArr = Array.isArray(value) && typeof value[0] === 'number'
+                ? [value as unknown as VServerComponent]
+                : (value as VServerComponent[])
+              return renderChildren(asArr, importFn)
             },
           ]
         }),

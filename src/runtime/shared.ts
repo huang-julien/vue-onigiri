@@ -15,8 +15,6 @@ export const enum VServerComponentType {
   Suspense,
   /** Raw HTML string - rendered using createStaticVNode */
   StaticHtml,
-  /** Slot outlet - marks where slot content should be rendered */
-  Slot,
 }
 type Tag = string
 type ChunkPath = string
@@ -56,25 +54,6 @@ type VServerComponentStaticHtml = [
   VServerComponentType.StaticHtml,
   string, // HTML string
   number, // Number of root nodes (for createStaticVNode)
-]
-
-/**
- * Slot outlet - marks where slot content should be rendered.
- * Used by <slot> elements in templates.
- * Format: [type, slotName, slotProps, fallbackContent]
- */
-type VServerComponentSlot = [
-  VServerComponentType.Slot,
-  string, // Slot name (e.g., "default", "header")
-  Props, // Props passed to scoped slots
-  VServerComponent[] | undefined, // Fallback content
-]
-
-type VServerComponentSlotBuffered = [
-  VServerComponentType.Slot,
-  string,
-  Props,
-  MaybePromise<VServerComponentBuffered[]> | undefined,
 ]
 
 type MaybePromise<T> = T | Promise<T>
@@ -117,7 +96,6 @@ export type VServerComponentBuffered
     | VServerComponentFragmentBuffered
     | VServerComponentSuspenseBuffered
     | VServerComponentStaticHtmlBuffered
-    | VServerComponentSlotBuffered
 
 export type VServerComponent
   = | VServerComponentElement
@@ -126,7 +104,6 @@ export type VServerComponent
     | VServerComponentFragment
     | VServerComponentSuspense
     | VServerComponentStaticHtml
-    | VServerComponentSlot
 
 /**
  * The render function signature for onigiri components.
