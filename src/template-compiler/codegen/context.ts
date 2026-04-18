@@ -19,11 +19,19 @@ export interface CodegenContext {
   localVars: Set<string>
   /** SFC scoped style ID (e.g., "data-v-xxxxxxx") - added as attribute to all elements */
   scopeId: string | null
+  /**
+   * Local identifier → root-relative module path (from the SFC's `import`
+   * statements). When present for a `v-load-client` target, the compiler
+   * inlines the path as a literal string instead of emitting a runtime
+   * `Component.__chunk` property lookup.
+   */
+  importMap: Map<string, string>
 }
 
 export interface CodegenContextOptions {
   bindingMetadata?: BindingMetadata
   scopeId?: string | null
+  importMap?: Map<string, string>
 }
 
 /**
@@ -38,6 +46,7 @@ export function createCodegenContext(opts: CodegenContextOptions = {}): CodegenC
     components: new Map<string, string>(),
     localVars: new Set<string>(),
     scopeId: opts.scopeId ?? null,
+    importMap: opts.importMap ?? new Map<string, string>(),
     push(code: string) {
       this.code += code
     },

@@ -8,7 +8,7 @@ describe('onigiri compiler', () => {
       const template = `<div class="test">{{ message }}</div>`
       const result = compileOnigiri(template)
 
-      expect(result.code).toContain('function renderOnigiri(_ctx)')
+      expect(result.code).toContain('function renderOnigiri(_ctx, __instance)')
       expect(result.code).toContain('return [')
     })
 
@@ -184,7 +184,8 @@ defineProps<{ title: string }>()
       const result = compileOnigiri(template)
 
       expect(result.code).toContain('renderOnigiri')
-      expect(result.code).toContain('__serializeComponent(MyComponent')
+      expect(result.code).toContain('__serializeComponentInContext(')
+      expect(result.code).toContain('MyComponent')
       // Should NOT contain Component type array - it's server-rendered
       expect(result.code).not.toContain('[1,')
     })
@@ -259,8 +260,6 @@ defineProps<{ title: string }>()
       const template = `<slot>Fallback content</slot>`
       const result = compileOnigiri(template)
 
-      // Note: Currently <slot> is treated as a regular element
-      // TODO: Implement proper slot type (VServerComponentType.Slot = 4)
       expect(result.code).toContain('slot')
       expect(result.code).toContain('Fallback content')
     })
@@ -272,8 +271,8 @@ defineProps<{ title: string }>()
       const result = compileOnigiri(template)
 
       expect(result.code).toContain('"button"')
-      // Events should be captured in props
-      expect(result.code).toContain('click')
+      // Events should be captured in props (camelCase per Vue convention)
+      expect(result.code).toContain('onClick')
       expect(result.code).toContain('handleClick')
     })
 
@@ -282,7 +281,7 @@ defineProps<{ title: string }>()
       const result = compileOnigiri(template)
 
       expect(result.code).toContain('"form"')
-      expect(result.code).toContain('submit')
+      expect(result.code).toContain('onSubmit')
     })
 
     it('should handle inline handlers', () => {
@@ -421,7 +420,7 @@ defineProps<{ title: string }>()
       const template = `<span>{{ formatDate(date) }}</span>`
       const result = compileOnigiri(template)
 
-      expect(result.code).toContain('formatDate(date)')
+      expect(result.code).toContain('_ctx.formatDate(_ctx.date)')
     })
 
     it('should handle ternary expressions', () => {
@@ -688,15 +687,14 @@ defineProps<{ title: string }>()
         expect(result.code).toMatchSnapshot()
       })
 
-      it('component with scoped slot', () => {
-        const result = compileOnigiri(`
+      it('scoped slot on client-loaded component throws', () => {
+        expect(() => compileOnigiri(`
           <MyList v-load-client :items="items">
             <template #item="{ item, index }">
               <span>{{ index }}: {{ item.name }}</span>
             </template>
           </MyList>
-        `)
-        expect(result.code).toMatchSnapshot()
+        `)).toThrow(/Scoped slots are not supported on client-loaded components/)
       })
 
       it('kebab-case component with v-load-client', () => {

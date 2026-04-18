@@ -3,13 +3,14 @@ import { ViteMcp } from 'vite-plugin-mcp'
 import { defineConfig } from 'vite'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import { onigiriCompilerPlugin } from '../src/vite/compiler'
-import { onigiriClientPlugin } from '../src/vite/chunk'
+import { onigiriClientPlugin, onigiriManifestPlugin } from '../src/vite/chunk'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    ...onigiriClientPlugin(), // Attach __chunk to SFC exports
+    onigiriClientPlugin(), // Attach __chunk to SFC exports
     onigiriCompilerPlugin(), // Attach __onigiriRender to SFC exports
+    onigiriManifestPlugin(), // Provide virtual:onigiri/manifest
     vueDevTools(),
     ViteMcp(),
   ],

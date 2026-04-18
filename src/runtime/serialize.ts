@@ -18,6 +18,7 @@ import {
   mergeProps,
   type DirectiveBinding,
   type VNodeProps,
+  getCurrentInstance,
 } from 'vue'
 import { isPromise, ShapeFlags } from '@vue/shared'
 import {
@@ -129,6 +130,25 @@ export function serializeComponentInContext(
   // Create a vnode with slots as children so setupComponent wires instance.slots
   const vnode = createVNode(component, props, slots as any)
   const instance = createComponentInstance(vnode, parentInstance ?? null, null)
+  // Walk up the parent chain to find a usable appContext / provides. When
+  // rendering a child inside an async-setup parent, the `app.runWithContext`
+  // frame has unwound and Vue's default wiring may have cleared these on
+  // the parent by the time the child is instantiated. Carrying them down
+  // restores the `inject(ssrContextKey)` chain Nuxt's SSR relies on.
+  if (!instance.appContext || !instance.provides) {
+    let p: ComponentInternalInstance | null | undefined = parentInstance
+    while (p) {
+      if (!instance.appContext && p.appContext) {
+        // @ts-expect-error internal
+        instance.appContext = p.appContext
+      }
+      if (!instance.provides && p.provides) {
+        instance.provides = p.provides
+      }
+      if (instance.appContext && instance.provides) break
+      p = p.parent
+    }
+  }
   const res = setupComponent(instance, true)
 
   const hasAsyncSetup = isPromise(res)
@@ -146,8 +166,10 @@ export function serializeComponentInContext(
     // Inject-setup path: setup returned a tagged onigiri render fn.
     // @ts-expect-error internal
     if (instance.render?.__onigiri) {
-      // @ts-expect-error internal
-      const rendered = instance.render.call(instance.proxy, instance.proxy, instance)
+      const rendered = withInstance(instance, () =>
+        // @ts-expect-error internal
+        instance.render.call(instance.proxy, instance.proxy, instance),
+      )
       if (isPromise(rendered)) {
         return rendered.then((r: VServerComponentBuffered) =>
           unrollServerComponentBufferPromises(r),
@@ -241,11 +263,40 @@ function createOnigiriCtx(instance: ComponentInternalInstance): any {
   })
 }
 
+/**
+ * Temporarily install `instance` as Vue's `currentInstance` for the
+ * duration of a callback. Vue's `resolveComponent(name)` (emitted by the
+ * compiler for globally-registered components like Nuxt's auto-imports)
+ * uses `currentRenderingInstance || currentInstance` to locate the app
+ * context's component registry. Manually-created instances via
+ * `createComponentInstance` + `setupComponent` reset `currentInstance`
+ * after setup returns, so by the time our onigiri render runs, the
+ * lookup falls back to the name string — which then reaches
+ * `serializeComponentInContext` as the `component` arg and Vue throws
+ * `render is not a function`.
+ *
+ * Uses the `__VUE_INSTANCE_SETTERS__` global that Vue registers for
+ * cross-Vue safety (same mechanism `setCurrentInstance` uses internally).
+ */
+function withInstance<T>(instance: ComponentInternalInstance, fn: () => T): T {
+  const g = globalThis as any
+  const setters = g.__VUE_INSTANCE_SETTERS__ as Array<(v: any) => void> | undefined
+  if (!setters) return fn()
+  const prev = getCurrentInstance()
+  for (const s of setters) s(instance)
+  try {
+    return fn()
+  }
+  finally {
+    for (const s of setters) s(prev)
+  }
+}
+
 function runOnigiriRender(
   onigiriRender: (...args: any[]) => VServerComponentBuffered,
   instance: ComponentInternalInstance,
 ): VServerComponentBuffered {
-  return onigiriRender(createOnigiriCtx(instance), instance)
+  return withInstance(instance, () => onigiriRender(createOnigiriCtx(instance), instance))
 }
 
 export function serializeApp(
@@ -407,6 +458,24 @@ export async function serializeVNode(
       if (typeof componentType.__onigiriRender === 'function') {
         // Create instance to run setup and get reactive context
         const instance = createComponentInstance(vnode, parentInstance ?? null, null)
+        // Re-assert appContext + provides from the parent chain so inject()
+        // (used by Vue's SSR context setup) works inside nested components,
+        // including children of async-setup parents where the runWithContext
+        // frame has already unwound.
+        if (!instance.appContext || !instance.provides) {
+          let p: ComponentInternalInstance | null | undefined = parentInstance
+          while (p) {
+            if (!instance.appContext && p.appContext) {
+              // @ts-expect-error internal
+              instance.appContext = p.appContext
+            }
+            if (!instance.provides && p.provides) {
+              instance.provides = p.provides
+            }
+            if (instance.appContext && instance.provides) break
+            p = p.parent
+          }
+        }
         const res = setupComponent(instance, true)
 
         // Handle async setup

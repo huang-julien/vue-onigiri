@@ -24,6 +24,14 @@ export interface OnigiriCompilerOptions extends CompilerOptions {
   onigiriSpecific?: boolean
   /** SFC scoped style ID (e.g., "data-v-xxxxxxx") - added as attribute to all elements */
   scopeId?: string | null
+  /**
+   * Map of local identifier → root-relative source path for components
+   * statically imported in this SFC's `<script>` block.
+   * When a `v-load-client` component's tag matches a key, the compiler
+   * emits the literal path as `__chunk` instead of a runtime property
+   * lookup. Unmapped identifiers fall back to `Component.__chunk`.
+   */
+  importMap?: Map<string, string>
 }
 
 export interface OnigiriCodegenResult {
@@ -57,12 +65,14 @@ export function compileOnigiri(
   const context = createCodegenContext({
     bindingMetadata: options.bindingMetadata,
     scopeId: options.scopeId,
+    importMap: options.importMap,
   })
 
   // First, generate the return expression to collect component references
   const bodyContext = createCodegenContext({
     bindingMetadata: options.bindingMetadata,
     scopeId: options.scopeId,
+    importMap: options.importMap,
   })
   if (ast.children.length === 0) {
     bodyContext.push('null')
@@ -87,11 +97,11 @@ export function compileOnigiri(
     context.imports.add(imp)
   }
 
-  // Generate the function with component declarations
-  // Match Vue's render function signature:
-  // Dev: function render(_ctx, _cache, $props, $setup, $data, $options, __parentInstance)
-  // Prod: function render(_ctx, _cache, __parentInstance)
-  context.push('export function renderOnigiri(_ctx, _cache, $props, $setup, $data, $options, __parentInstance) {')
+  // Stable onigiri ABI: single signature across dev/prod.
+  // - _ctx is the component instance proxy (props/setup/data/options unified).
+  // - __instance is the raw ComponentInternalInstance, forwarded to child
+  //   serializer calls as their parent instance.
+  context.push('export function renderOnigiri(_ctx, __instance) {')
   context.newline()
   context.indent()
 
@@ -148,6 +158,7 @@ export function compileOnigiriInline(
   const context = createCodegenContext({
     bindingMetadata: options.bindingMetadata,
     scopeId: options.scopeId,
+    importMap: options.importMap,
   })
 
   if (ast.children.length === 0) {

@@ -17,12 +17,15 @@ describe('renderToSerializedVNode', () => {
         // This is what the Vite plugin injects
         const onigiriMode = inject(ONIGIRI_RENDER_SYMBOL, null)
         if (onigiriMode) {
-          // Return the onigiri render function with direct access to bindings
-          return () =>
+          // Return the onigiri render function with direct access to bindings.
+          // The `__onigiri` tag flags it to the serializer.
+          const render = () =>
             renderOnigiri({
               message: props.message,
               count: count.value,
             })
+          ;(render as any).__onigiri = true
+          return render
         }
 
         // Normal render (not used in this test)
@@ -94,11 +97,13 @@ describe('renderToSerializedVNode', () => {
 
         if (onigiriMode) {
           // Return async function that will be awaited
-          return async () => {
+          const render = async () => {
             await Promise.resolve()
             data.value = 'async data'
             return [VServerComponentType.Text, data.value] as const
           }
+          ;(render as any).__onigiri = true
+          return render
         }
 
         return { data }

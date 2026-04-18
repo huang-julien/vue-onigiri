@@ -5,9 +5,22 @@ import MagicString from 'magic-string'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 
-// Virtual module prefix
+// Virtual module identifier shape. We model this on Nuxt's `virtual:nuxt:`
+// convention:
+// - Specifier emitted into compiled SFCs is
+//     `virtual:onigiri:<URL-encoded-path>.mjs`
+// - resolveId returns the same string unchanged (no `\0` prefix).
+//
+// Two reasons for this shape:
+// 1. `\0` breaks Vite's `/@id/` URL round-trip for specifiers that also
+//    contain colons / slashes (Windows absolute paths like `D:/…`). Using
+//    a plain `virtual:` prefix lets Vite serve the module at
+//    `/@id/virtual:onigiri:…` — the URL-encoded path stays intact.
+// 2. `@vitejs/plugin-vue` tries to parse any specifier ending in `.vue`
+//    as an SFC and blows up on our generated JS. The `.mjs` suffix keeps
+//    it out of plugin-vue's filter.
 const ONIGIRI_PREFIX = 'virtual:onigiri:'
-const RESOLVED_ONIGIRI_PREFIX = '\0' + ONIGIRI_PREFIX
+const ONIGIRI_SUFFIX = '.mjs'
 
 function getHash(text: string): string {
   return createHash('sha256').update(text).digest('hex').slice(0, 8)
@@ -21,6 +34,84 @@ function generateScopeId(filePath: string, source: string, root: string, isProdu
   const relativePath = normalizePath(path.relative(root, filePath))
   const hashInput = isProduction ? relativePath + source : relativePath
   return `data-v-${getHash(hashInput)}`
+}
+
+/**
+ * Parse the top-level `import` statements of a script block and build a
+ * map of local identifier → root-relative source path (`/fixtures/X.vue`).
+ *
+ * Only relative imports are resolved (starts with `./` or `../`). Absolute
+ * specifiers, aliases and package imports are skipped — those aren't local
+ * components and won't have manifest entries.
+ *
+ * Recognized clauses:
+ *   import Foo from './X.vue'             → Foo
+ *   import { Foo } from './X.vue'         → Foo
+ *   import { X as Foo } from './X.vue'    → Foo
+ *   import Foo, { Bar } from './X.vue'    → Foo, Bar
+ *   Skipped: `type` imports, namespace imports.
+ */
+function buildImportMap(
+  scriptContent: string,
+  currentFilePath: string,
+  root: string,
+): Map<string, string> {
+  const map = new Map<string, string>()
+  if (!scriptContent) return map
+
+  // Matches `import <clause> from "<source>"`
+  const importRegex = /import\s+(?!type\b)([^;]+?)\s+from\s+['"](\.\.?\/[^'"]+)['"]/g
+  for (const match of scriptContent.matchAll(importRegex)) {
+    const [, clauseRaw, source] = match
+    if (!clauseRaw || !source) continue
+
+    // Resolve relative to the file doing the importing, then make it
+    // root-relative so it matches what the chunk plugin / manifest emit.
+    const abs = path.resolve(path.dirname(currentFilePath), source)
+    const rel = '/' + normalizePath(path.relative(root, abs))
+
+    const clause = clauseRaw.trim()
+    const identifiers = parseImportClause(clause)
+    for (const id of identifiers) {
+      map.set(id, rel)
+    }
+  }
+  return map
+}
+
+function parseImportClause(clause: string): string[] {
+  const results: string[] = []
+
+  // Split default and named parts: "Default, { A, B as C }"
+  const namedMatch = clause.match(/\{([^}]*)\}/)
+  const defaultPart = namedMatch
+    ? clause.slice(0, namedMatch.index).replace(/,\s*$/, '').trim()
+    : clause.trim()
+
+  if (defaultPart && !defaultPart.startsWith('*')) {
+    // Skip `type` marker in default clause
+    const clean = defaultPart.replace(/^type\s+/, '')
+    if (clean && /^[a-zA-Z_$][\w$]*$/.test(clean)) {
+      results.push(clean)
+    }
+  }
+
+  if (namedMatch?.[1]) {
+    for (const raw of namedMatch[1].split(',')) {
+      const spec = raw.trim()
+      if (!spec || spec.startsWith('type ')) continue
+      // `X as Foo` → local is Foo; `X` → local is X
+      const asMatch = spec.match(/^\S+\s+as\s+([a-zA-Z_$][\w$]*)$/)
+      if (asMatch?.[1]) {
+        results.push(asMatch[1])
+      }
+      else if (/^[a-zA-Z_$][\w$]*$/.test(spec)) {
+        results.push(spec)
+      }
+    }
+  }
+
+  return results
 }
 
 /**
@@ -56,6 +147,14 @@ export function onigiriCompilerPlugin(
 
   return {
     name: 'vite:vue-onigiri-compiler',
+    // `enforce: 'post'` pushes the whole plugin into Vite's "post" bucket so
+    // our `transform` runs AFTER `@vitejs/plugin-vue` and we see its compiled
+    // output (split `type=script` / `type=template` modules, combined dev
+    // `export default`). Plugin-level `enforce: 'post'` still runs BEFORE
+    // Vite's core `vite:import-analysis` — using hook-level
+    // `transform: { order: 'post' }` instead pushed us past import-analysis,
+    // causing `virtual:onigiri:*` specifiers to reach the browser unrewritten.
+    enforce: 'post',
 
     configResolved(resolvedConfig) {
       config = resolvedConfig
@@ -64,14 +163,29 @@ export function onigiriCompilerPlugin(
     resolveId: {
       order: 'pre',
       async handler(id, importer) {
-        // Handle virtual:onigiri/ prefix - convert to resolved virtual module
-        if (id.startsWith(ONIGIRI_PREFIX)) {
-          return '\0' + id
+        // Anything matching `virtual:onigiri:<...>.mjs` is ours. The
+        // specifier carries its own encoding — we simply claim the id so
+        // Vite stops looking elsewhere. No `\0` prefix because that breaks
+        // Vite's `/@id/` URL round-trip when the body contains colons
+        // (Windows absolute paths like `D:/…`).
+        if (id.startsWith(ONIGIRI_PREFIX) && id.endsWith(ONIGIRI_SUFFIX)) {
+          return id
         }
 
-        // If the importer is a virtual onigiri module, resolve relative to the original file
-        if (importer?.startsWith(RESOLVED_ONIGIRI_PREFIX)) {
-          const originalFilePath = importer.slice(RESOLVED_ONIGIRI_PREFIX.length)
+        // If a specifier came in raw (no suffix) — shouldn't happen in the
+        // normal flow since `attachAsProperty` emits the full form, but be
+        // defensive — encode + suffix it.
+        if (id.startsWith(ONIGIRI_PREFIX)) {
+          const tail = id.slice(ONIGIRI_PREFIX.length)
+          const encoded = /%[0-9A-Fa-f]{2}/.test(tail) ? tail : encodeURIComponent(tail)
+          return ONIGIRI_PREFIX + encoded + ONIGIRI_SUFFIX
+        }
+
+        // Relative imports inside a virtual onigiri module resolve against
+        // the original (decoded) file path on disk.
+        if (importer?.startsWith(ONIGIRI_PREFIX) && importer.endsWith(ONIGIRI_SUFFIX)) {
+          const encoded = importer.slice(ONIGIRI_PREFIX.length, -ONIGIRI_SUFFIX.length)
+          const originalFilePath = decodeURIComponent(encoded)
           const resolved = await this.resolve(id, originalFilePath, { skipSelf: true })
           return resolved
         }
@@ -87,13 +201,14 @@ export function onigiriCompilerPlugin(
       if (id.includes('devtools')) {
         return null
       }
-      // Check for resolved virtual:onigiri/ prefix
-      if (!id.startsWith(RESOLVED_ONIGIRI_PREFIX)) {
+      // Must match `virtual:onigiri:<encoded>.mjs`
+      if (!id.startsWith(ONIGIRI_PREFIX) || !id.endsWith(ONIGIRI_SUFFIX)) {
         return null
       }
 
-      // Extract file path: \0virtual:onigiri/path/to/file.vue -> /path/to/file.vue
-      const filePath = id.slice(RESOLVED_ONIGIRI_PREFIX.length)
+      // Extract + decode the wrapped source path.
+      const encoded = id.slice(ONIGIRI_PREFIX.length, -ONIGIRI_SUFFIX.length)
+      const filePath = decodeURIComponent(encoded)
       const fs = await import('node:fs/promises')
       const source = await fs.readFile(filePath, 'utf8')
 
@@ -110,7 +225,7 @@ export function onigiriCompilerPlugin(
       }
 
       if (!descriptor.template) {
-        return `export default function __onigiriRender(_ctx, _cache, $props, $setup, $data, $options, __parentInstance) { return null; }`
+        return `export default function __onigiriRender(_ctx, __instance) { return null; }`
       }
 
       let bindingMetadata: BindingMetadata = {}
@@ -164,11 +279,14 @@ export function onigiriCompilerPlugin(
         }
       }
 
+      const importMap = buildImportMap(scriptContent, filePath, config.root)
+
       const onigiriResult = compileOnigiriInline(descriptor.template.content, {
         filename: filePath,
         sourceMap,
         bindingMetadata,
         scopeId,
+        importMap,
       })
 
       // Build imports string from collected codegen imports
@@ -182,7 +300,7 @@ export function onigiriCompilerPlugin(
       // Export only the render function with required imports
       return {
         code: `${scriptImports}${codegenImports}
-export default function __onigiriRender(_ctx, _cache, $props, $setup, $data, $options, __parentInstance) {
+export default function __onigiriRender(_ctx, __instance) {
 ${componentDeclarations}
   return ${onigiriResult.expression};
 }`,
@@ -191,23 +309,34 @@ ${componentDeclarations}
     },
 
     /**
-     * Transform hook to inject onigiri support into compiled SFCs
-     * Using order: "post" to run AFTER vue plugin
+     * Transform hook to inject onigiri support into compiled SFCs.
+     * Must run AFTER @vitejs/plugin-vue so we see its compiled output
+     * (the main .vue module already rewritten to `export default ...`).
+     *
+     * We DO NOT use `order: 'post'` here — that would move us after
+     * Vite's core `vite:import-analysis` plugin, and the `import
+     * __onigiriRender from "virtual:onigiri:..."` specifier we inject
+     * would reach the browser unrewritten. Relying on registration
+     * order to run after @vitejs/plugin-vue is sufficient.
      */
     transform: {
       async handler(code, id) {
         const [filePath, query] = id.split('?')
 
         // Only handle .vue files
-        if (!filePath || !filePath.endsWith('.vue') || filePath.startsWith(ONIGIRI_PREFIX) || filePath.startsWith(RESOLVED_ONIGIRI_PREFIX)) {
+        if (!filePath || !filePath.endsWith('.vue') || filePath.startsWith(ONIGIRI_PREFIX)) {
           return null
         }
 
         // For .vue file (no query) - this is the final combined output from Vue (dev mode)
         if (!query) {
           if (code.includes('export default')) {
-            // Use plain virtual: prefix - Vite will handle encoding after resolveId
-            const onigiriImport = `${ONIGIRI_PREFIX}${filePath}`
+            // Emit the import specifier with the path URL-encoded and
+            // a `.mjs` suffix. This shape round-trips cleanly through
+            // Vite's `/@id/` URL rewrite for Windows paths (`D:/…`) and
+            // keeps @vitejs/plugin-vue from matching `.vue` and trying
+            // to re-parse our generated JS as an SFC.
+            const onigiriImport = `${ONIGIRI_PREFIX}${encodeURIComponent(filePath)}${ONIGIRI_SUFFIX}`
             return attachAsProperty(code, filePath, onigiriImport, sourceMap)
           }
           return null
@@ -280,12 +409,16 @@ async function injectIntoSetupAsync(
   // https://github.com/vitejs/vite-plugin-vue/blob/main/packages/plugin-vue/src/utils/descriptorCache.ts#L34-L54
   const scopeId = hasScoped ? generateScopeId(filePath, source, config.root, config.isProduction) : null
 
+  const scriptContent = descriptor.scriptSetup?.content || descriptor.script?.content || ''
+  const importMap = buildImportMap(scriptContent, filePath, config.root)
+
   // Compile template to onigiri expression
   const onigiriResult = compileOnigiriInline(descriptor.template.content, {
     filename: filePath,
     sourceMap,
     bindingMetadata,
     scopeId,
+    importMap,
   })
 
   const s = new MagicString(code)
@@ -295,11 +428,18 @@ async function injectIntoSetupAsync(
 import { ONIGIRI_RENDER_SYMBOL as __ONIGIRI_SYMBOL } from "vue-onigiri/runtime/shared";
 `
 
-  // Injection code - capture instance at setup time for use in render
+  // Injection code - capture instance at setup time, close over it so the
+  // returned render fn has the stable onigiri ABI (_ctx, __instance).
+  // Vue calls the returned fn as render(proxy, cache), so the first arg is
+  // already the proxy; __instance comes from the setup-time closure.
+  // The `__onigiri` tag lets the serializer distinguish our render fn from
+  // a normal Vue render fn that happens to share the (_ctx) signature.
   const injectionCode = `
   if (__onigiri_inject(__ONIGIRI_SYMBOL, null)) {
-    const __parentInstance = __getCurrentInstance();
-    return () => ${onigiriResult.expression};
+    const __instance = __getCurrentInstance();
+    const __render = (_ctx) => ${onigiriResult.expression};
+    __render.__onigiri = true;
+    return __render;
   }
 `
 

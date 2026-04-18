@@ -111,11 +111,13 @@ const doubled = computed(() => count.value * 2)
     const result = simulatePluginTransform(source)
     expect(result).not.toBeNull()
 
-    // The expression is inlined directly in setup, so bindings are accessed directly
-    // (no _ctx wrapper needed - the variables are in scope!)
-    expect(result).toContain('[2, message]')
-    expect(result).toContain('[2, count]')
-    expect(result).toContain('[2, doubled]')
+    // The onigiri ABI routes binding access through `_ctx.*` — namespace
+    // prefixes ($setup./$props./$data./$options.) from Vue's transformer
+    // are stripped so the instance proxy resolves across namespaces and
+    // auto-unwraps setup refs.
+    expect(result).toContain('_ctx.message')
+    expect(result).toContain('_ctx.count')
+    expect(result).toContain('_ctx.doubled')
   })
 
   it('should handle components with props', () => {
@@ -132,8 +134,7 @@ defineProps<{ title: string }>()
     const result = simulatePluginTransform(source)
     expect(result).not.toBeNull()
 
-    // Should include title in the inline expression
-    expect(result).toContain('[2, title]')
+    expect(result).toContain('_ctx.title')
   })
 
   it('should handle components without script', () => {

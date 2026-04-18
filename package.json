@@ -37,6 +37,7 @@
     "@stylistic/eslint-plugin": "^5.7.1",
     "@types/node": "^22.13.13",
     "@vitest/coverage-v8": "^3.0.9",
+    "@vue/server-renderer": "^3.5.13",
     "automd": "^0.4.0",
     "changelogen": "^0.6.1",
     "eslint": "^9.23.0",
@@ -46,7 +47,17 @@
     "unbuild": "^3.5.0",
     "vite-plugin-mcp": "^0.3.1",
     "vitest": "^3.1.4",
+    "vue": "^3.5.13",
     "vue-tsc": "^2.2.8"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0",
+    "@vue/server-renderer": "^3.5.0"
+  },
+  "peerDependenciesMeta": {
+    "@vue/server-renderer": {
+      "optional": true
+    }
   },
   "packageManager": "pnpm@10.7.0",
   "dependencies": {
@@ -58,7 +69,6 @@
     "@vue/compiler-dom": "^3.5.13",
     "@vue/compiler-sfc": "^3.5.13",
     "@vue/compiler-ssr": "^3.5.13",
-    "@vue/server-renderer": "^3.5.13",
     "@vue/shared": "^3.5.13",
     "@vue/test-utils": "^2.4.6",
     "acorn": "^8.14.1",
@@ -71,7 +81,6 @@
     "rollup": "^4.40.1",
     "source-map-js": "^1.2.1",
     "unplugin": "^2.3.2",
-    "vite": "^7.2.7",
-    "vue": "^3.5.13"
+    "vite": "^7.2.7"
   }
 }

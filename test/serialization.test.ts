@@ -2,15 +2,15 @@
 
 import { describe, expect, it } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import ElementsOnly from 'virtual:vsc:./fixtures/components/ElementsOnly.vue'
+import ElementsOnly from './fixtures/components/ElementsOnly.vue'
 import { defineComponent, h, nextTick, provide, Suspense } from 'vue'
 import { renderOnigiri } from '../src/runtime/deserialize'
-import LoadComponent from 'virtual:vsc:./fixtures/components/LoadComponent.vue'
+import LoadComponent from './fixtures/components/LoadComponent.vue'
 import { serializeComponent } from '../src/runtime/serialize'
-import AsyncComponent from 'virtual:vsc:./fixtures/components/AsyncComponent.vue'
-import WithAsyncComponent from 'virtual:vsc:./fixtures/components/WithAsyncComponent.vue'
-import SlotToCounter from 'virtual:vsc:./fixtures/components/SlotToCounter.vue'
-import WithSuspense from 'virtual:vsc:./fixtures/components/WithSuspense.vue'
+import AsyncComponent from './fixtures/components/AsyncComponent.vue'
+import WithAsyncComponent from './fixtures/components/WithAsyncComponent.vue'
+import SlotToCounter from './fixtures/components/SlotToCounter.vue'
+import WithSuspense from './fixtures/components/WithSuspense.vue'
 import { removeCommentsFromHtml } from './utils'
 import {
   VServerComponentType,
@@ -61,7 +61,7 @@ describe('serialize/deserialize', () => {
             [
               [
                 2,
-                "0",
+                0,
               ],
             ],
           ],
@@ -125,14 +125,7 @@ describe('serialize/deserialize', () => {
               undefined,
               "/test/fixtures/components/Counter.vue",
               "default",
-              {
-                "default": [
-                  [
-                    3,
-                    [],
-                  ],
-                ],
-              },
+              undefined,
             ],
           ],
         ]
@@ -229,7 +222,9 @@ describe('Async components', () => {
             " component with suspense ",
           ],
           [
-            3,
+            0,
+            "div",
+            undefined,
             [
               [
                 2,
@@ -259,7 +254,9 @@ describe('Async components', () => {
             4,
             [
               [
-                3,
+                0,
+                "div",
+                undefined,
                 [
                   [
                     2,
@@ -325,27 +322,21 @@ describe('slots', () => {
             1,
             undefined,
             "/test/fixtures/components/Counter.vue",
+            "default",
             {
               "default": [
+                0,
+                "div",
+                undefined,
                 [
-                  3,
                   [
+                    0,
+                    "p",
+                    undefined,
                     [
-                      0,
-                      "div",
-                      undefined,
                       [
-                        [
-                          0,
-                          "p",
-                          undefined,
-                          [
-                            [
-                              2,
-                              "Slot to Counter: 0",
-                            ],
-                          ],
-                        ],
+                        2,
+                        "Slot content (static)",
                       ],
                     ],
                   ],
@@ -356,54 +347,16 @@ describe('slots', () => {
         ],
       ]
     `)
-    const astHtml = await renderToString(renderOnigiri(ast)!)
+    // Wrap in Suspense so async loader setup resolves before rendering.
+    const astHtml = await renderToString(
+      h(Suspense, null, { default: () => renderOnigiri(ast) }),
+    )
     expect(removeCommentsFromHtml(astHtml)).toMatchInlineSnapshot(
-      `
-      [
-        0,
-        "div",
-        undefined,
-        [
-          [
-            1,
-            undefined,
-            "/test/fixtures/components/Counter.vue",
-            "default",
-            {
-              "default": [
-                [
-                  3,
-                  [
-                    [
-                      0,
-                      "div",
-                      undefined,
-                      [
-                        [
-                          0,
-                          "p",
-                          undefined,
-                          [
-                            [
-                              2,
-                              "Slot to Counter: 0",
-                            ],
-                          ],
-                        ],
-                      ],
-                    ],
-                  ],
-                ],
-              ],
-            },
-          ],
-        ],
-      ]
-    `,
+      `"<div><div> counter : 0 <button>Increment</button><div><p>Slot content (static)</p></div></div></div>"`,
     )
     const html = await renderToString(h(SlotToCounter))
     expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
-      `"<div><div> counter : 0 <button>Increment</button><div><p>Slot to Counter: 0</p></div></div></div>"`,
+      `"<div><div> counter : 0 <button>Increment</button><div><p>Slot content (static)</p></div></div></div>"`,
     )
     expect(removeCommentsFromHtml(html)).toEqual(
       removeCommentsFromHtml(astHtml),

@@ -32,9 +32,6 @@ importers:
       '@vue/compiler-ssr':
         specifier: ^3.5.13
         version: 3.5.13
-      '@vue/server-renderer':
-        specifier: ^3.5.13
-        version: 3.5.13(vue@3.5.13(typescript@5.8.3))
       '@vue/shared':
         specifier: ^3.5.13
         version: 3.5.13
@@ -74,9 +71,6 @@ importers:
       vite:
         specifier: ^7.2.7
         version: 7.2.7(@types/node@22.15.3)(jiti@2.4.2)
-      vue:
-        specifier: ^3.5.13
-        version: 3.5.13(typescript@5.8.3)
     devDependencies:
       '@stylistic/eslint-plugin':
         specifier: ^5.7.1
@@ -87,6 +81,9 @@ importers:
       '@vitest/coverage-v8':
         specifier: ^3.0.9
         version: 3.1.2(vitest@3.1.4)
+      '@vue/server-renderer':
+        specifier: ^3.5.13
+        version: 3.5.13(vue@3.5.13(typescript@5.8.3))
       automd:
         specifier: ^0.4.0
         version: 0.4.0(magicast@0.3.5)
@@ -114,6 +111,9 @@ importers:
       vitest:
         specifier: ^3.1.4
         version: 3.1.4(@types/node@22.15.3)(@vitest/ui@3.2.4)(happy-dom@20.0.0)(jiti@2.4.2)
+      vue:
+        specifier: ^3.5.13
+        version: 3.5.13(typescript@5.8.3)
       vue-tsc:
         specifier: ^2.2.8
         version: 2.2.10(typescript@5.8.3)

@@ -64,10 +64,18 @@ function parseSlots(children: any[]): ParsedSlot[] {
           slotName = (slotDirective.arg as SimpleExpressionNode).content
         }
 
-        // Extract slot props (scoped slot parameter)
+        // Extract slot props (scoped slot parameter). For simple identifiers
+        // (e.g. #default="scope") exp is a SIMPLE_EXPRESSION with `.content`.
+        // For destructuring (e.g. #default="{ item, index }") exp is a
+        // COMPOUND_EXPRESSION without a flat `.content`; use `loc.source`.
         let slotProps: string | null = null
-        if (slotDirective.exp && slotDirective.exp.type === NodeTypes.SIMPLE_EXPRESSION) {
-          slotProps = (slotDirective.exp as SimpleExpressionNode).content
+        if (slotDirective.exp) {
+          if (slotDirective.exp.type === NodeTypes.SIMPLE_EXPRESSION) {
+            slotProps = (slotDirective.exp as SimpleExpressionNode).content
+          }
+          else if (slotDirective.exp.loc?.source) {
+            slotProps = slotDirective.exp.loc.source
+          }
         }
 
         slots.push({
@@ -130,7 +138,16 @@ function genSlotsObject(children: any[], context: CodegenContext, asFunction: bo
       context.push(']')
     }
     else {
-      // Client-side: slots are serialized VNodes (not functions)
+      // Client-side: slots are pre-serialized arrays. Scoped slots cannot
+      // cross the client boundary because the scope value only exists on the
+      // client at runtime; the slot body cannot be embedded in frozen AST.
+      if (slot.slotProps) {
+        throw new Error(
+          `[vue-onigiri] Scoped slots are not supported on client-loaded components ('v-load-client'). `
+          + `Slot "${slot.name}" declares scope "${slot.slotProps}" but the scope is only available on `
+          + `the client and cannot be embedded in pre-rendered AST.`,
+        )
+      }
       if (slot.children.length === 1) {
         genNode(slot.children[0], context)
       }
@@ -314,38 +331,27 @@ function wrapEventHandler(content: string, context: CodegenContext): string {
 }
 
 /**
- * get the correct prefix for an identifier based on its binding type.
- * matches how Vue generates render function code.
+ * Get the prefix for an identifier. The stable onigiri ABI passes a single
+ * `_ctx` argument which is the component instance proxy — it transparently
+ * resolves props, setup bindings (refs auto-unwrapped), data, methods and
+ * options. So every identifier gets the same `_ctx.` prefix regardless of
+ * binding type. `bindingMetadata` is kept in the signature for potential
+ * future optimisations (e.g. skipping the proxy for known-static values).
  */
-function getIdentifierPrefix(ident: string, bindingMetadata: BindingMetadata = {}): string {
-  const bindingType = bindingMetadata[ident]
+function getIdentifierPrefix(_ident: string, _bindingMetadata: BindingMetadata = {}): string {
+  return '_ctx.'
+}
 
-  switch (bindingType) {
-    case BindingTypes.SETUP_CONST:
-    case BindingTypes.SETUP_REACTIVE_CONST:
-    case BindingTypes.SETUP_LET:
-    case BindingTypes.SETUP_REF:
-    case BindingTypes.SETUP_MAYBE_REF:
-    case BindingTypes.LITERAL_CONST: {
-      return '$setup.'
-    }
-    case BindingTypes.PROPS: {
-      return '$props.'
-    }
-    case BindingTypes.PROPS_ALIASED: {
-      return '$props.'
-    }
-    case BindingTypes.DATA: {
-      return '$data.'
-    }
-    case BindingTypes.OPTIONS: {
-      return '_ctx.'
-    }
-    default: {
-      // Unknown binding or no binding - use _ctx
-      return '_ctx.'
-    }
-  }
+/**
+ * Strip Vue's binding-type prefixes (`$setup.` / `$props.` / `$data.` /
+ * `$options.`) from an expression string. Vue's `transformExpression`
+ * prefixes identifiers based on binding metadata for its own ABI; our ABI
+ * uses `_ctx.` on the instance proxy, which resolves across namespaces and
+ * unwraps setup refs automatically, so we drop the extra indirection.
+ */
+function stripVuePrefixes(content: string | undefined): string {
+  if (!content) return ''
+  return content.replace(/\$(?:setup|props|data|options)\./g, '')
 }
 
 /**
@@ -365,7 +371,12 @@ function prefixIdentifiers(content: string, bindingMetadata: BindingMetadata = {
     'typeof', 'instanceof', 'in', 'new', 'delete', 'void',
     'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break', 'continue', 'return',
     'function', 'class', 'const', 'let', 'var',
-    '$event', '_ctx', '_cache', '_slots', '$props', '$setup', '$data', '$options',
+    // `_ctx`, `__instance` are our own ABI locals. `$event` is Vue's inline
+    // event handler parameter name. Vue's transformExpression emits names
+    // like `$props.foo` / `$setup.foo` which need to flow through _ctx on
+    // the proxy: those get prefixed to `_ctx.$props.foo` etc below (the
+    // Vue proxy exposes these namespaces).
+    '$event', '_ctx', '__instance',
   ])
 
   // First, temporarily replace string literals to avoid matching inside them
@@ -423,28 +434,46 @@ function genExpressionAsValue(node: ExpressionNode | undefined, context: Codegen
     }
     else {
       // Dynamic expression that wasn't transformed - prefix identifiers manually
-      context.push(prefixIdentifiers(simpleNode.content, context.bindingMetadata, context.localVars))
+      context.push(prefixIdentifiers(stripVuePrefixes(simpleNode.content), context.bindingMetadata, context.localVars))
     }
   }
   else if (node.type === NodeTypes.COMPOUND_EXPRESSION) {
-    // Compound expression from transformExpression - concatenate all parts
+    // Compound expression from transformExpression. We reassemble the full
+    // textual expression (children can be SimpleExpressionNode parts like
+    // `todo` or raw strings like `.done`) into one string, strip Vue's
+    // namespace prefixes, then run `prefixIdentifiers` once so property
+    // accessors (e.g. `done` after a dot) aren't mistakenly prefixed.
     const compound = node as CompoundExpressionNode
+    let flat = ''
     for (const child of compound.children) {
       if (typeof child === 'string') {
-        context.push(child)
+        flat += child
       }
       else if (typeof child === 'symbol') {
-        // Skip symbols (used for internal markers)
+        // Skip — internal markers
       }
       else if (child && typeof child === 'object' && 'type' in child) {
         if (child.type === NodeTypes.SIMPLE_EXPRESSION) {
-          context.push((child as SimpleExpressionNode).content)
+          flat += (child as SimpleExpressionNode).content
         }
-        else {
-          genExpressionAsValue(child as ExpressionNode, context)
+        else if (child.type === NodeTypes.COMPOUND_EXPRESSION) {
+          // Nested compound — recurse by flattening to a string. We build
+          // a throwaway context whose `push` appends to a local buffer.
+          let nested = ''
+          const tmp: CodegenContext = {
+            ...context,
+            code: '',
+            push(s: string) { nested += s },
+            indent() { this.indentLevel++ },
+            deindent() { this.indentLevel-- },
+            newline() { nested += '\n' },
+          }
+          genExpressionAsValue(child as ExpressionNode, tmp)
+          flat += nested
         }
       }
     }
+    context.push(prefixIdentifiers(stripVuePrefixes(flat), context.bindingMetadata, context.localVars))
   }
 }
 
@@ -581,8 +610,9 @@ export function genElement(node: ElementNode, context: CodegenContext): void {
   // Check if it's a component:
   // - Starts with uppercase (PascalCase components)
   // - Contains hyphen (kebab-case components like my-component)
+  // - Is Vue's built-in dynamic-component tag `<component>`
   // Note: Web components also use hyphens but Vue treats them the same
-  const isComponent = /^[A-Z]/.test(tag) || tag.includes('-')
+  const isComponent = /^[A-Z]/.test(tag) || tag.includes('-') || tag === 'component'
 
   if (isComponent) {
     genComponent(node, context)
@@ -597,6 +627,34 @@ export function genElement(node: ElementNode, context: CodegenContext): void {
  */
 function genComponent(node: ElementNode, context: CodegenContext): void {
   const { tag, props, children } = node
+
+  // Vue built-in components — handled specially, never routed through the
+  // server-rendered / client-loaded component paths.
+  if (tag === 'Suspense') {
+    genSuspense(children, context)
+    return
+  }
+  if (tag === 'component') {
+    // <component :is="..."> — dynamic component dispatched at runtime
+    genDynamicComponent(node, context)
+    return
+  }
+  if (tag === 'Teleport' || tag === 'teleport') {
+    // Teleport has no server-side DOM effect — emit a fragment of children
+    // and carry the `to` target as an attr for potential future support.
+    genFragmentPassthrough(children, context)
+    return
+  }
+  if (tag === 'KeepAlive' || tag === 'keep-alive') {
+    // KeepAlive is a client-only caching wrapper. Pass children through.
+    genFragmentPassthrough(children, context)
+    return
+  }
+  if (tag === 'Transition' || tag === 'transition' || tag === 'TransitionGroup' || tag === 'transition-group') {
+    // Transition/TransitionGroup are client-only animation wrappers.
+    genFragmentPassthrough(children, context)
+    return
+  }
 
   // Check if this component has v-load-client directive
   const loadClientDirective = props.find(
@@ -655,6 +713,103 @@ function getComponentRef(tag: string, context: CodegenContext): string {
 }
 
 /**
+ * Generate `[Suspense, [...children]]`. Slot-form children would nest via
+ * named slots, but Vue's Suspense treats the default slot as its content
+ * by convention — we serialize all non-template children into the payload.
+ */
+function genSuspense(children: any[], context: CodegenContext): void {
+  context.push('[')
+  context.push(VServerComponentType.Suspense.toString())
+  context.push(', [')
+  const filtered = children.filter(
+    c => c.type !== NodeTypes.ELEMENT || c.tag !== 'template',
+  )
+  const defaultSlotChildren = children
+    .filter(c => c.type === NodeTypes.ELEMENT && c.tag === 'template')
+    .flatMap(c => c.children ?? [])
+  const all = [...filtered, ...defaultSlotChildren]
+  for (const [i, child] of all.entries()) {
+    if (i > 0) context.push(', ')
+    genNode(child, context)
+  }
+  context.push(']]')
+}
+
+/**
+ * Generate a Fragment wrapping the given children. Used for Vue built-ins
+ * (KeepAlive, Transition, Teleport) where the wrapper has no server-side
+ * effect on the rendered DOM.
+ */
+function genFragmentPassthrough(children: any[], context: CodegenContext): void {
+  context.push('[')
+  context.push(VServerComponentType.Fragment.toString())
+  context.push(', [')
+  for (const [i, child] of children.entries()) {
+    if (i > 0) context.push(', ')
+    genNode(child, context)
+  }
+  context.push(']]')
+}
+
+/**
+ * Generate code for `<component :is="...">` — the resolved target is
+ * serialized inline on the server (same as a regular non-client component).
+ */
+function genDynamicComponent(node: ElementNode, context: CodegenContext): void {
+  const { props, children } = node
+
+  // Extract the `is` binding. It can be:
+  //  - static string: <component is="Foo" />
+  //  - dynamic expression: <component :is="dynamic" />
+  const isAttr = props.find(
+    p => (p.type === NodeTypes.ATTRIBUTE && p.name === 'is')
+      || (p.type === NodeTypes.DIRECTIVE && p.name === 'bind' && p.arg && (p.arg as SimpleExpressionNode).content === 'is'),
+  )
+
+  let targetExpr = 'null'
+  if (isAttr?.type === NodeTypes.ATTRIBUTE && isAttr.value) {
+    // Static — resolve via resolveComponent at runtime
+    const tagName = isAttr.value.content
+    targetExpr = getComponentRef(tagName, context)
+  }
+  else if (isAttr?.type === NodeTypes.DIRECTIVE && isAttr.exp) {
+    // Dynamic — evaluate the expression to get the component reference.
+    // The runtime serializer resolves the identifier via resolveDynamicComponent.
+    context.imports.add(genImport('vue', [{ name: 'resolveDynamicComponent', as: '_resolveDynamicComponent' }]))
+    // exp may be SIMPLE_EXPRESSION (flat `.content`) or COMPOUND_EXPRESSION
+    // (children + `loc.source`). Fall back to loc.source for compounds.
+    const exp = isAttr.exp as SimpleExpressionNode
+    const rawExpr = exp.content ?? exp.loc?.source ?? ''
+    const expContent = prefixIdentifiers(
+      stripVuePrefixes(rawExpr),
+      context.bindingMetadata,
+      context.localVars,
+    )
+    targetExpr = `_resolveDynamicComponent(${expContent})`
+  }
+
+  // Delegate to serializeComponentInContext so the dynamically-resolved
+  // component runs through the normal inline-render path.
+  context.imports.add(genImport('vue-onigiri/runtime/serialize', [{ name: 'serializeComponentInContext', as: '__serializeComponentInContext' }]))
+
+  context.push(`__serializeComponentInContext(${targetExpr}, `)
+
+  const propsWithoutIs = props.filter(p =>
+    !(p.type === NodeTypes.ATTRIBUTE && p.name === 'is')
+    && !(p.type === NodeTypes.DIRECTIVE && p.name === 'bind' && p.arg && (p.arg as SimpleExpressionNode).content === 'is'),
+  )
+  if (propsWithoutIs.length > 0) {
+    genProps(propsWithoutIs, context)
+  }
+  else {
+    context.push('undefined')
+  }
+  context.push(', __instance, ')
+  genSlotsObject(children, context, true)
+  context.push(')')
+}
+
+/**
  * Generate code for component with v-load-client directive.
  * These are serialized as Component type and loaded on the client.
  * Format: [VServerComponentType.Component, Props, ChunkPath, ExportName, Slots]
@@ -666,6 +821,13 @@ function genClientLoadedComponent(
   context: CodegenContext,
 ): void {
   const componentRef = getComponentRef(tag, context)
+  // If the identifier was statically imported in this SFC, embed the path
+  // directly — no runtime property lookup, no import of the component into
+  // the parent's compiled output. This matches how React/Next RSC emit
+  // client-reference tags. Falls back to `Component.__chunk` for cases the
+  // import tracer can't resolve (globals from resolveComponent, aliased
+  // packages, dynamic refs).
+  const staticSource = context.importMap.get(componentRef)
 
   context.push('[')
   // 1. Type
@@ -684,12 +846,22 @@ function genClientLoadedComponent(
   }
   context.push(', ')
 
-  // 3. ChunkPath - access from component's __chunk property (set by build plugin)
-  context.push(`${componentRef}.__chunk`)
+  // 3. ChunkPath
+  if (staticSource) {
+    context.push(JSON.stringify(staticSource))
+  }
+  else {
+    context.push(`${componentRef}.__chunk`)
+  }
   context.push(', ')
 
-  // 4. ExportName - access from component's __export property (set by build plugin)
-  context.push(`${componentRef}.__export`)
+  // 4. ExportName
+  if (staticSource) {
+    context.push('"default"')
+  }
+  else {
+    context.push(`${componentRef}.__export`)
+  }
   context.push(', ')
 
   // 5. Slots - parse named slots from children
@@ -724,8 +896,12 @@ function genServerRenderedComponent(
     context.push('undefined')
   }
 
-  // Parent instance - use getCurrentInstance() at runtime
-  context.push(', __parentInstance)')
+  context.push(', __instance, ')
+
+  // Slots as functions - server component invokes them at serialize time
+  genSlotsObject(children, context, true)
+
+  context.push(')')
 }
 
 function genDynamicLoadClientComponent(
@@ -754,7 +930,7 @@ function genDynamicLoadClientComponent(
   }
   context.push(', ')
 
-  context.push('__parentInstance, ')
+  context.push('__instance, ')
 
   // Load client condition (the dynamic expression)
   genExpressionAsValue(loadClientDirective.exp!, context)
@@ -1466,10 +1642,12 @@ export function genFor(node: ForNode, context: CodegenContext): void {
   // Check if source is a numeric literal - needs special handling
   const isNumeric = isNumericLiteral(source)
 
-  // TODO make sure we're in a child VServerComponent Array
-  // Should be in a child VServerComponent array/map structure
-  // So we need to generate code like:
-  // ...(source).map((value, key, index) => { ...children... })
+  // v-for emits a spread of `.map()` results into the parent array,
+  // so the parent must be a VServerComponent children array. The grammar
+  // guarantees this: v-for is only valid on child positions where an array
+  // of VServerComponents is expected (element children, fragment children,
+  // slot contents). The spread at position 0 of a children array yields
+  // the same structural result as if each item were a direct sibling.
   context.push('...(')
   if (isNumeric) {
     // For numeric sources like `v-for="n in 3"`, create array [1, 2, ..., n]

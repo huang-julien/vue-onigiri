@@ -1,271 +1,305 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`onigiri compiler > snapshots > basic elements > div with multiple attributes 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "div", {"id": "app", "class": "main", "data-test": "value"}, [2, "Content"]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "div", {"id": "app", "class": "main", "data-test": "value"}, [[2, "Content"]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > basic elements > div with static class 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "div", {"class": "container"}, [2, "Content"]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "div", {"class": "container"}, [[2, "Content"]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > basic elements > multiple root elements (fragment) 1`] = `
-"export function renderOnigiri(_ctx) {
-return [3, [[0, "div", undefined, [2, "First"]], [0, "span", undefined, [2, "Second"]], [0, "p", undefined, [2, "Third"]]]];
+"export function renderOnigiri(_ctx, __instance) {
+return [3, [[0, "div", undefined, [[2, "First"]]], [0, "span", undefined, [[2, "Second"]]], [0, "p", undefined, [[2, "Third"]]]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > basic elements > nested elements 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "div", {"class": "outer"}, [0, "div", {"class": "inner"}, [0, "span", undefined, [2, "Nested text"]]]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "div", {"class": "outer"}, [[0, "div", {"class": "inner"}, [[0, "span", undefined, [[2, "Nested text"]]]]]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > basic elements > self-closing elements 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "input", {"type": "text", "placeholder": "Enter text"}, undefined];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "input", {"type": "text", "placeholder": "Enter text"}];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > basic elements > simple div with text 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "div", undefined, [2, "Hello World"]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "div", undefined, [[2, "Hello World"]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > components > component WITHOUT v-load-client (server-rendered) 1`] = `
-"export function renderOnigiri(_ctx) {
-return __serializeComponent(MyComponent, {"title": _ctx.title, "count": 42}, undefined);
+"import { resolveComponent as _resolveComponent } from "vue";
+import { serializeComponentInContext as __serializeComponentInContext } from "vue-onigiri/runtime/serialize";
+
+export function renderOnigiri(_ctx, __instance) {
+const _component_MyComponent = _resolveComponent("MyComponent")
+  return __serializeComponentInContext(_component_MyComponent, {"title": _ctx.title, "count": 42}, __instance, undefined);
 }"
 `;
 
 exports[`onigiri compiler > snapshots > components > component WITHOUT v-load-client with slot 1`] = `
-"export function renderOnigiri(_ctx) {
-return __serializeComponent(MyComponent, undefined, { default: () => [[2, "Slot content"]] });
+"import { resolveComponent as _resolveComponent } from "vue";
+import { serializeComponentInContext as __serializeComponentInContext } from "vue-onigiri/runtime/serialize";
+
+export function renderOnigiri(_ctx, __instance) {
+const _component_MyComponent = _resolveComponent("MyComponent")
+  return __serializeComponentInContext(_component_MyComponent, undefined, __instance, { "default": () => [[2, "Slot content"]] });
 }"
 `;
 
 exports[`onigiri compiler > snapshots > components > component with default slot 1`] = `
-"export function renderOnigiri(_ctx) {
-return [1, undefined, MyComponent.__chunk, MyComponent.__export, { default: [2, "Default slot content"] }];
+"import { resolveComponent as _resolveComponent } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+const _component_MyComponent = _resolveComponent("MyComponent")
+  return [1, undefined, _component_MyComponent.__chunk, _component_MyComponent.__export, { "default": [2, "Default slot content"] }];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > components > component with named slots 1`] = `
-"export function renderOnigiri(_ctx) {
-return [1, undefined, MyComponent.__chunk, MyComponent.__export, { default: [[0, "template", {"header": true}, [2, "Header content"]], [0, "template", {"default": true}, [2, "Main content"]], [0, "template", {"footer": true}, [2, "Footer content"]]] }];
+"import { resolveComponent as _resolveComponent } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+const _component_MyComponent = _resolveComponent("MyComponent")
+  return [1, undefined, _component_MyComponent.__chunk, _component_MyComponent.__export, { "header": [2, "Header content"], "default": [2, "Main content"], "footer": [2, "Footer content"] }];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > components > component with props 1`] = `
-"export function renderOnigiri(_ctx) {
-return [1, {"title": _ctx.title, "count": 42}, MyComponent.__chunk, MyComponent.__export, undefined];
-}"
-`;
+"import { resolveComponent as _resolveComponent } from "vue";
 
-exports[`onigiri compiler > snapshots > components > component with scoped slot 1`] = `
-"export function renderOnigiri(_ctx) {
-return [1, {"items": _ctx.items}, MyList.__chunk, MyList.__export, { default: [0, "template", {"item": { item, index }}, [0, "span", undefined, [[2, index], [2, ": "], [2, item.name]]]] }];
+export function renderOnigiri(_ctx, __instance) {
+const _component_MyComponent = _resolveComponent("MyComponent")
+  return [1, {"title": _ctx.title, "count": 42}, _component_MyComponent.__chunk, _component_MyComponent.__export, undefined];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > components > kebab-case component with v-load-client 1`] = `
-"export function renderOnigiri(_ctx) {
-return [1, {"prop": _ctx.value}, my-component.__chunk, my-component.__export, { default: [2, "Content"] }];
+"import { resolveComponent as _resolveComponent } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+const _component_my_component = _resolveComponent("my-component")
+  return [1, {"prop": _ctx.value}, _component_my_component.__chunk, _component_my_component.__export, { "default": [2, "Content"] }];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > directives > v-else-if and v-else 1`] = `
-"export function renderOnigiri(_ctx) {
-return [3, [[0, "div", {"if": status === 'loading'}, [2, "Loading..."]], [0, "div", {"else-if": status === 'error'}, [2, "Error!"]], [0, "div", {"else": true}, [2, "Content"]]]];
+"export function renderOnigiri(_ctx, __instance) {
+return (_ctx.status === 'loading' ? [0, "div", undefined, [[2, "Loading..."]]] : (_ctx.status === 'error' ? [0, "div", undefined, [[2, "Error!"]]] : [0, "div", undefined, [[2, "Content"]]]));
 }"
 `;
 
 exports[`onigiri compiler > snapshots > directives > v-for with index 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "li", {"for": (item, index) in items, "key": _ctx.index}, [[2, index], [2, ": "], [2, item]]];
+"export function renderOnigiri(_ctx, __instance) {
+return ...(_ctx.items.map((item, index) => [0, "li", {"key": index}, [[2, (index + ": " + item)]]]));
 }"
 `;
 
 exports[`onigiri compiler > snapshots > directives > v-for with key 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "li", {"for": item in items, "key": item.id}, [2, item.name]];
+"export function renderOnigiri(_ctx, __instance) {
+return ...(_ctx.items.map((item) => [0, "li", {"key": item.id}, [[2, item.name]]]));
 }"
 `;
 
 exports[`onigiri compiler > snapshots > directives > v-if 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "div", {"if": _ctx.show}, [2, "Conditional"]];
+"export function renderOnigiri(_ctx, __instance) {
+return (_ctx.show ? [0, "div", undefined, [[2, "Conditional"]]] : null);
 }"
 `;
 
 exports[`onigiri compiler > snapshots > directives > v-model on input 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "input", {"model": _ctx.text}, undefined];
+"import { withDirective as __withDirective } from "vue-onigiri/runtime/with-directive";
+
+export function renderOnigiri(_ctx, __instance) {
+return __withDirective("model", [0, "input", undefined], {"value": _ctx.text});
 }"
 `;
 
 exports[`onigiri compiler > snapshots > directives > v-show 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "div", {"show": _ctx.visible}, [2, "Visible content"]];
+"import { withDirective as __withDirective } from "vue-onigiri/runtime/with-directive";
+
+export function renderOnigiri(_ctx, __instance) {
+return __withDirective("show", [0, "div", undefined, [[2, "Visible content"]]], {"value": _ctx.visible});
 }"
 `;
 
 exports[`onigiri compiler > snapshots > dynamic bindings > class array binding 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "div", {"class": [baseClass, conditionalClass]}, [2, "Content"]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "div", {"class": [_ctx.baseClass, _ctx.conditionalClass]}, [[2, "Content"]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > dynamic bindings > class object binding 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "div", {"class": { active: isActive, disabled: isDisabled }}, [2, "Content"]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "div", {"class": { active: _ctx.isActive, disabled: _ctx.isDisabled }}, [[2, "Content"]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > dynamic bindings > dynamic attribute name 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "div", {"attrName": _ctx.attrValue}, [2, "Content"]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "div", {"_ctx.attrName": _ctx.attrValue}, [[2, "Content"]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > dynamic bindings > style object binding 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "div", {"style": { color: textColor, fontSize: size + 'px' }}, [2, "Content"]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "div", {"style": { color: _ctx.textColor, fontSize: _ctx.size + 'px' }}, [[2, "Content"]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > dynamic bindings > v-bind object spread 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "div", _ctx.attrs, [2, "Content"]];
+"import { mergeProps as _mergeProps } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+return [0, "div", _mergeProps(_ctx.attrs), [[2, "Content"]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > dynamic bindings > v-bind shorthand 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "div", {"id": _ctx.elementId, "class": _ctx.dynamicClass}, [2, "Content"]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "div", {"id": _ctx.elementId, "class": _ctx.dynamicClass}, [[2, "Content"]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > event handlers > handler with modifier 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "form", {"submit": _ctx.onSubmit}, [2, "Submit"]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "form", {"onSubmit": _ctx.onSubmit}, [[2, "Submit"]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > event handlers > inline expression handler 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "button", {"click": count++}, [2, "Increment"]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "button", {"onClick": $event => (_ctx.count++)}, [[2, "Increment"]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > event handlers > multiple event handlers 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "input", {"focus": _ctx.onFocus, "blur": _ctx.onBlur, "input": _ctx.onInput}, undefined];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "input", {"onFocus": _ctx.onFocus, "onBlur": _ctx.onBlur, "onInput": _ctx.onInput}];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > event handlers > simple click handler 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "button", {"click": _ctx.handleClick}, [2, "Click me"]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "button", {"onClick": _ctx.handleClick}, [[2, "Click me"]]];
 }"
 `;
 
-exports[`onigiri compiler > snapshots > inline expressions > complex nested structure 1`] = `"[0, "div", {"class": "card"}, [[0, "header", {"class": "card-header"}, [0, "h2", undefined, [2, title]]], [0, "div", {"class": "card-body"}, [0, "p", undefined, [2, content]]]]]"`;
+exports[`onigiri compiler > snapshots > inline expressions > complex nested structure 1`] = `"[0, "div", {"class": "card"}, [[0, "header", {"class": "card-header"}, [[0, "h2", undefined, [[2, _ctx.title]]]]], [0, "div", {"class": "card-body"}, [[0, "p", undefined, [[2, _ctx.content]]]]]]]"`;
 
-exports[`onigiri compiler > snapshots > inline expressions > component with v-load-client 1`] = `"[1, {"initial": 5}, Counter.__chunk, Counter.__export, undefined]"`;
+exports[`onigiri compiler > snapshots > inline expressions > component with v-load-client 1`] = `"[1, {"initial": 5}, _component_Counter.__chunk, _component_Counter.__export, undefined]"`;
 
-exports[`onigiri compiler > snapshots > inline expressions > component without v-load-client (server-rendered) 1`] = `"__serializeComponent(Counter, {"initial": 5}, undefined)"`;
+exports[`onigiri compiler > snapshots > inline expressions > component without v-load-client (server-rendered) 1`] = `"__serializeComponentInContext(_component_Counter, {"initial": 5}, __instance, undefined)"`;
 
-exports[`onigiri compiler > snapshots > inline expressions > element with interpolation 1`] = `"[0, "span", undefined, [2, message]]"`;
+exports[`onigiri compiler > snapshots > inline expressions > element with interpolation 1`] = `"[0, "span", undefined, [[2, _ctx.message]]]"`;
 
-exports[`onigiri compiler > snapshots > inline expressions > fragment 1`] = `"[3, [[0, "div", undefined, [2, "A"]], [0, "div", undefined, [2, "B"]]]]"`;
+exports[`onigiri compiler > snapshots > inline expressions > fragment 1`] = `"[3, [[0, "div", undefined, [[2, "A"]]], [0, "div", undefined, [[2, "B"]]]]]"`;
 
-exports[`onigiri compiler > snapshots > inline expressions > simple element 1`] = `"[0, "div", undefined, [2, "Hello"]]"`;
+exports[`onigiri compiler > snapshots > inline expressions > simple element 1`] = `"[0, "div", undefined, [[2, "Hello"]]]"`;
 
 exports[`onigiri compiler > snapshots > interpolation > expression 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "span", undefined, [2, count + 1]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "span", undefined, [[2, _ctx.count + 1]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > interpolation > method call 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "span", undefined, [2, formatDate(date)]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "span", undefined, [[2, _ctx.formatDate(_ctx.date)]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > interpolation > mixed text and interpolation 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "p", undefined, [[2, "Hello "], [2, name], [2, ", you have "], [2, count], [2, " messages."]]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "p", undefined, [[2, ("Hello " + _ctx.name + ", you have " + _ctx.count + " messages.")]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > interpolation > simple variable 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "span", undefined, [2, message]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "span", undefined, [[2, _ctx.message]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > interpolation > ternary 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "span", undefined, [2, active ? 'Yes' : 'No']];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "span", undefined, [[2, _ctx.active ? 'Yes' : 'No']]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > real-world examples > card component 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "article", {"class": "card", "class": [variant, { featured: isFeatured }]}, [[0, "img", {"if": _ctx.image, "src": _ctx.image, "alt": _ctx.title, "class": "card-image"}, undefined], [0, "div", {"class": "card-content"}, [[0, "h3", {"class": "card-title"}, [2, title]], [0, "p", {"class": "card-description"}, [2, description]], __renderSlot(_ctx, _slots, "actions", undefined, undefined)]]]];
+"import { renderSlot as __renderSlot } from "vue-onigiri/runtime/render-slot";
+
+export function renderOnigiri(_ctx, __instance) {
+return [0, "article", {"class": "card", "class": [_ctx.variant, { featured: _ctx.isFeatured }]}, [(_ctx.image ? [0, "img", {"src": _ctx.image, "alt": _ctx.title, "class": "card-image"}] : null), [0, "div", {"class": "card-content"}, [[0, "h3", {"class": "card-title"}, [[2, _ctx.title]]], [0, "p", {"class": "card-description"}, [[2, _ctx.description]]], __renderSlot(_ctx, _ctx.slots, "actions", undefined, undefined)]]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > real-world examples > form with validation 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "form", {"submit": _ctx.onSubmit, "class": "form"}, [[0, "div", {"class": "form-group"}, [[0, "label", {"for": "email"}, [2, "Email"]], [0, "input", {"id": "email", "type": "email", "model": _ctx.email, "class": { error: errors.email }}, undefined], [0, "span", {"if": errors.email, "class": "error-message"}, [2, errors.email]]]], [0, "button", {"type": "submit", "disabled": _ctx.isSubmitting}, [2, isSubmitting ? 'Submitting...' : 'Submit']]]];
+"import { withDirective as __withDirective } from "vue-onigiri/runtime/with-directive";
+
+export function renderOnigiri(_ctx, __instance) {
+return [0, "form", {"onSubmit": _ctx.onSubmit, "class": "form"}, [[0, "div", {"class": "form-group"}, [[0, "label", {"for": "email"}, [[2, "Email"]]], __withDirective("model", [0, "input", {"id": "email", "type": "email", "class": { error: _ctx.errors.email }}], {"value": _ctx.email}), (_ctx.errors.email ? [0, "span", {"class": "error-message"}, [[2, _ctx.errors.email]]] : null)]], [0, "button", {"type": "submit", "disabled": _ctx.isSubmitting}, [[2, _ctx.isSubmitting ? 'Submitting...' : 'Submit']]]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > real-world examples > modal dialog 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "div", {"if": _ctx.isOpen, "class": "modal-overlay", "click": _ctx.close}, [0, "div", {"class": "modal", "role": "dialog", "aria-labelledby": _ctx.titleId}, [[0, "header", {"class": "modal-header"}, [[0, "h2", {"id": _ctx.titleId}, [2, title]], [0, "button", {"click": _ctx.close, "aria-label": "Close"}, [2, "×"]]]], [0, "div", {"class": "modal-body"}, __renderSlot(_ctx, _slots, "default", undefined, undefined)], [0, "footer", {"class": "modal-footer"}, __renderSlot(_ctx, _slots, "footer", undefined, () => [0, "button", {"click": _ctx.close}, [2, "Close"]])]]]];
+"import { renderSlot as __renderSlot } from "vue-onigiri/runtime/render-slot";
+
+export function renderOnigiri(_ctx, __instance) {
+return (_ctx.isOpen ? [0, "div", {"class": "modal-overlay", "onClick": _ctx.close}, [[0, "div", {"class": "modal", "role": "dialog", "aria-labelledby": _ctx.titleId}, [[0, "header", {"class": "modal-header"}, [[0, "h2", {"id": _ctx.titleId}, [[2, _ctx.title]]], [0, "button", {"onClick": _ctx.close, "aria-label": "Close"}, [[2, "×"]]]]], [0, "div", {"class": "modal-body"}, [__renderSlot(_ctx, _ctx.slots, "default", undefined, undefined)]], [0, "footer", {"class": "modal-footer"}, [__renderSlot(_ctx, _ctx.slots, "footer", undefined, () => [0, "button", {"onClick": _ctx.close}, [[2, "Close"]]])]]]]]] : null);
 }"
 `;
 
 exports[`onigiri compiler > snapshots > real-world examples > navigation menu 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "nav", {"class": "navbar"}, [[0, "a", {"href": "/", "class": "logo"}, [2, "MyApp"]], [0, "ul", {"class": "nav-links"}, [0, "li", {"for": link in links, "key": link.path}, [0, "a", {"href": link.path, "class": { active: currentPath === link.path }}, [2, link.label]]]]]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "nav", {"class": "navbar"}, [[0, "a", {"href": "/", "class": "logo"}, [[2, "MyApp"]]], [0, "ul", {"class": "nav-links"}, [...(_ctx.links.map((link) => [0, "li", {"key": link.path}, [[0, "a", {"href": link.path, "class": { active: _ctx.currentPath === link.path }}, [[2, link.label]]]]]))]]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > real-world examples > todo item 1`] = `
-"export function renderOnigiri(_ctx) {
-return [0, "li", {"class": "todo-item", "class": { completed: todo.done }}, [[0, "input", {"type": "checkbox", "checked": todo.done, "change": toggle(todo.id)}, undefined], [0, "span", undefined, [2, todo.text]], [0, "button", {"click": remove(todo.id)}, [2, "×"]]]];
+"export function renderOnigiri(_ctx, __instance) {
+return [0, "li", {"class": "todo-item", "class": { completed: _ctx.todo.done }}, [[0, "input", {"type": "checkbox", "checked": _ctx.todo.done, "onChange": _ctx.toggle(_ctx.todo.id)}], [0, "span", undefined, [[2, _ctx.todo.text]]], [0, "button", {"onClick": _ctx.remove(_ctx.todo.id)}, [[2, "×"]]]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > slots > default slot outlet 1`] = `
-"export function renderOnigiri(_ctx) {
-return __renderSlot(_ctx, _slots, "default", undefined, undefined);
+"import { renderSlot as __renderSlot } from "vue-onigiri/runtime/render-slot";
+
+export function renderOnigiri(_ctx, __instance) {
+return __renderSlot(_ctx, _ctx.slots, "default", undefined, undefined);
 }"
 `;
 
 exports[`onigiri compiler > snapshots > slots > named slot outlet 1`] = `
-"export function renderOnigiri(_ctx) {
-return __renderSlot(_ctx, _slots, "header", undefined, undefined);
+"import { renderSlot as __renderSlot } from "vue-onigiri/runtime/render-slot";
+
+export function renderOnigiri(_ctx, __instance) {
+return __renderSlot(_ctx, _ctx.slots, "header", undefined, undefined);
 }"
 `;
 
 exports[`onigiri compiler > snapshots > slots > scoped slot outlet 1`] = `
-"export function renderOnigiri(_ctx) {
-return __renderSlot(_ctx, _slots, "default", {"item": _ctx.item, "index": _ctx.index}, undefined);
+"import { renderSlot as __renderSlot } from "vue-onigiri/runtime/render-slot";
+
+export function renderOnigiri(_ctx, __instance) {
+return __renderSlot(_ctx, _ctx.slots, "default", {"item": _ctx.item, "index": _ctx.index}, undefined);
 }"
 `;
 
 exports[`onigiri compiler > snapshots > slots > slot with fallback 1`] = `
-"export function renderOnigiri(_ctx) {
-return __renderSlot(_ctx, _slots, "default", undefined, () => [2, "Fallback content"]);
+"import { renderSlot as __renderSlot } from "vue-onigiri/runtime/render-slot";
+
+export function renderOnigiri(_ctx, __instance) {
+return __renderSlot(_ctx, _ctx.slots, "default", undefined, () => [2, "Fallback content"]);
 }"
 `;
