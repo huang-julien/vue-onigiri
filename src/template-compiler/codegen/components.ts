@@ -168,9 +168,10 @@ function genDynamicComponent(node: ElementNode, context: CodegenContext): void {
 
 /**
  * Emit a `[Component, props, chunkPath, exportName, slots]` payload for a
- * `v-load-client` component. If the identifier was statically imported in
- * this SFC, embed the source path inline (same model as RSC client-reference
- * tags); otherwise fall back to `Component.__chunk` set by the chunk plugin.
+ * `v-load-client` component. The path must be resolvable at compile time —
+ * either via the SFC's own static imports or via `additionalImports` (Nuxt
+ * components registry, globally-registered components declared by the user).
+ * Anything else is a hard compile error.
  */
 function genClientLoadedComponent(
   tag: string,
@@ -179,7 +180,7 @@ function genClientLoadedComponent(
   context: CodegenContext,
 ): void {
   const componentRef = getComponentRef(tag, context)
-  const staticSource = context.importMap.get(componentRef)
+  const staticSource = resolveClientChunkPath(tag, componentRef, context)
 
   context.push('[')
   context.push(VServerComponentType.Component.toString())
@@ -196,25 +197,41 @@ function genClientLoadedComponent(
   }
   context.push(', ')
 
-  if (staticSource) {
-    context.push(JSON.stringify(staticSource))
-  }
-  else {
-    context.push(`${componentRef}.__chunk`)
-  }
-  context.push(', ')
-
-  if (staticSource) {
-    context.push('"default"')
-  }
-  else {
-    context.push(`${componentRef}.__export`)
-  }
-  context.push(', ')
+  context.push(JSON.stringify(staticSource))
+  context.push(', "default", ')
 
   genSlotsObject(children, context, false)
 
   context.push(']')
+}
+
+/**
+ * Resolve a `v-load-client` target to a root-relative module path. Tries the
+ * SFC's static imports keyed by the resolved ref first, then external
+ * `additionalImports` under Pascal / camel / kebab variants of the tag.
+ */
+function resolveClientChunkPath(
+  tag: string,
+  componentRef: string,
+  context: CodegenContext,
+): string {
+  const fromImportMap = context.importMap.get(componentRef)
+  if (fromImportMap) return fromImportMap
+
+  const pascal = tag.replace(/-./g, x => x[1]?.toUpperCase() ?? '').replace(/^./, x => x.toUpperCase())
+  const camel = pascal.replace(/^./, x => x.toLowerCase())
+  const kebab = tag.replace(/([a-z\d])([A-Z])/g, '$1-$2').toLowerCase()
+  for (const key of [tag, pascal, camel, kebab]) {
+    const path = context.additionalImports.get(key)
+    if (path) return path
+  }
+
+  throw new Error(
+    `[vue-onigiri] Cannot resolve v-load-client target "${tag}": no matching import in `
+    + `the component's <script> block and no entry in additionalImports. `
+    + `Either import the component statically (\`import ${pascal} from './path/to/${pascal}.vue'\`), `
+    + `or pass it through the compiler plugin's \`additionalImports\` option.`,
+  )
 }
 
 /**
@@ -255,6 +272,7 @@ function genDynamicLoadClientComponent(
   context: CodegenContext,
 ): void {
   const componentRef = getComponentRef(tag, context)
+  const chunkPath = resolveClientChunkPath(tag, componentRef, context)
 
   context.imports.add(genImport('vue-onigiri/runtime/serialize', [{ name: 'serializeChildComponent', as: '__serializeChildComponent' }]))
 
@@ -275,6 +293,10 @@ function genDynamicLoadClientComponent(
   context.push(', ')
 
   genSlotsObject(children, context, false)
+
+  context.push(', ')
+  context.push(JSON.stringify(chunkPath))
+  context.push(', "default"')
 
   context.push(')')
 }

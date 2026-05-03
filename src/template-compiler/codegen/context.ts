@@ -23,10 +23,16 @@ export interface CodegenContext {
   /**
    * Local identifier → root-relative module path (from the SFC's `import`
    * statements). When present for a `v-load-client` target, the compiler
-   * inlines the path as a literal string instead of emitting a runtime
-   * `Component.__chunk` property lookup.
+   * inlines the path as a literal string.
    */
   importMap: Map<string, string>
+  /**
+   * Tag name → root-relative module path, supplied externally (Nuxt
+   * components, user-declared globals). Looked up under PascalCase,
+   * camelCase, and kebab-case variants when the SFC's own imports don't
+   * resolve a `v-load-client` target.
+   */
+  additionalImports: Map<string, string>
   isCustomElement: (tag: string) => boolean
 }
 
@@ -34,6 +40,7 @@ export interface CodegenContextOptions {
   bindingMetadata?: BindingMetadata
   scopeId?: string | null
   importMap?: Map<string, string>
+  additionalImports?: Map<string, string>
   isCustomElement?: (tag: string) => boolean
 }
 
@@ -50,6 +57,7 @@ export function createCodegenContext(opts: CodegenContextOptions = {}): CodegenC
     localVars: new Set<string>(),
     scopeId: opts.scopeId ?? null,
     importMap: opts.importMap ?? new Map<string, string>(),
+    additionalImports: opts.additionalImports ?? new Map<string, string>(),
     isCustomElement: opts.isCustomElement ?? (() => false),
     push(code: string) {
       this.code += code

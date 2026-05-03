@@ -22,7 +22,7 @@ describe('manifest-based component loading', () => {
   })
 
   it('virtual:onigiri/manifest throws for an unknown chunk', async () => {
-    await expect(manifestImportFn('/nope.vue')).rejects.toThrow(/No component registered/)
+    await expect(manifestImportFn('/nope.vue')).rejects.toThrow(/No loader registered/)
   })
 
   it('renderOnigiri loads a client-loaded component via the default manifest', async () => {

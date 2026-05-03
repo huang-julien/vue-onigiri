@@ -14,6 +14,16 @@ export interface OnigiriCompilerOptions {
    * Vue's `CompilerOptions.isCustomElement`.
    */
   isCustomElement?: (tag: string) => boolean
+  /**
+   * Tag → root-relative module path for components the SFC doesn't
+   * import statically. Lets `v-load-client` resolve to the right
+   * chunk for Nuxt auto-imports, globally-registered components, or
+   * any other case where the compiler can't see the import in
+   * `<script>`. Provide either a static map or a getter (re-evaluated
+   * per transform; cheap to swap out from a parent module that
+   * collects component info dynamically — e.g. the Nuxt module).
+   */
+  additionalImports?: Record<string, string> | Map<string, string> | (() => Record<string, string> | Map<string, string>)
 }
 
 /**
@@ -31,8 +41,14 @@ export interface OnigiriCompilerOptions {
 export function onigiriCompilerPlugin(
   options: OnigiriCompilerOptions = {},
 ): Plugin {
-  const { sourceMap = true, isCustomElement } = options
+  const { sourceMap = true, isCustomElement, additionalImports } = options
   let config: ResolvedConfig
+
+  const resolveAdditionalImports = (): Map<string, string> => {
+    const raw = typeof additionalImports === 'function' ? additionalImports() : additionalImports
+    if (!raw) return new Map()
+    return raw instanceof Map ? raw : new Map(Object.entries(raw))
+  }
 
   return {
     name: 'vite:vue-onigiri-compiler',
@@ -76,7 +92,7 @@ export function onigiriCompilerPlugin(
       if (id.includes('devtools')) return null
       return loadVirtualOnigiriModule(
         id,
-        { config, sourceMap, isCustomElement },
+        { config, sourceMap, isCustomElement, additionalImports: resolveAdditionalImports() },
         msg => this.error(msg),
       )
     },
@@ -108,7 +124,7 @@ export function onigiriCompilerPlugin(
             || code.includes('ssrInterpolate')
             || code.includes('ssrRenderAttrs')
           if (hasInlineTemplate) {
-            return injectIntoSetupAsync(code, filePath, sourceMap, config, isCustomElement)
+            return injectIntoSetupAsync(code, filePath, sourceMap, config, isCustomElement, resolveAdditionalImports())
           }
           return null
         }

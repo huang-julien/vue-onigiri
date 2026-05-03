@@ -170,11 +170,12 @@ defineProps<{ title: string }>()
 
     it('should handle components with v-load-client', () => {
       const template = `<MyComponent v-load-client :prop="value" />`
-      const result = compileOnigiri(template)
+      const result = compileOnigiri(template, {
+        additionalImports: new Map([['MyComponent', '/components/MyComponent.vue']]),
+      })
 
       expect(result.code).toContain('renderOnigiri')
-      expect(result.code).toContain('MyComponent.__chunk')
-      expect(result.code).toContain('MyComponent.__export')
+      expect(result.code).toContain('"/components/MyComponent.vue"')
       // Component type is 1 (VServerComponentType.Component)
       expect(result.code).toContain('[1,')
     })
@@ -666,13 +667,18 @@ defineProps<{ title: string }>()
     })
 
     describe('components', () => {
+      const additionalImports = new Map([
+        ['MyComponent', '/components/MyComponent.vue'],
+        ['MyList', '/components/MyList.vue'],
+      ])
+
       it('component with props', () => {
-        const result = compileOnigiri(`<MyComponent v-load-client :title="title" :count="42" />`)
+        const result = compileOnigiri(`<MyComponent v-load-client :title="title" :count="42" />`, { additionalImports })
         expect(result.code).toMatchSnapshot()
       })
 
       it('component with default slot', () => {
-        const result = compileOnigiri(`<MyComponent v-load-client>Default slot content</MyComponent>`)
+        const result = compileOnigiri(`<MyComponent v-load-client>Default slot content</MyComponent>`, { additionalImports })
         expect(result.code).toMatchSnapshot()
       })
 
@@ -683,7 +689,7 @@ defineProps<{ title: string }>()
             <template #default>Main content</template>
             <template #footer>Footer content</template>
           </MyComponent>
-        `)
+        `, { additionalImports })
         expect(result.code).toMatchSnapshot()
       })
 
@@ -694,11 +700,14 @@ defineProps<{ title: string }>()
               <span>{{ index }}: {{ item.name }}</span>
             </template>
           </MyList>
-        `)).toThrow(/Scoped slots are not supported on client-loaded components/)
+        `, { additionalImports })).toThrow(/Scoped slots are not supported on client-loaded components/)
       })
 
       it('kebab-case component with v-load-client', () => {
-        const result = compileOnigiri(`<my-component v-load-client :prop="value">Content</my-component>`)
+        const result = compileOnigiri(
+          `<my-component v-load-client :prop="value">Content</my-component>`,
+          { additionalImports },
+        )
         expect(result.code).toMatchSnapshot()
       })
 
@@ -747,7 +756,9 @@ defineProps<{ title: string }>()
       })
 
       it('component with v-load-client', () => {
-        const result = compileOnigiriInline(`<Counter v-load-client :initial="5" />`)
+        const result = compileOnigiriInline(`<Counter v-load-client :initial="5" />`, {
+          additionalImports: new Map([['Counter', '/components/Counter.vue']]),
+        })
         expect(result.expression).toMatchSnapshot()
       })
 

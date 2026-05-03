@@ -117,18 +117,37 @@ describe('static chunk-path inlining', () => {
       `<Counter v-load-client :initial="5" />`,
       { importMap, bindingMetadata: { Counter: 'setup-const' as any } },
     )
-    // Literal path, no runtime property lookup:
     expect(result.code).toContain('"/fixtures/Counter.vue"')
     expect(result.code).not.toContain('Counter.__chunk')
     expect(result.code).not.toContain('Counter.__export')
   })
 
-  it('falls back to Component.__chunk when the identifier is not in the import map', () => {
+  it('resolves via additionalImports when the SFC does not statically import the tag', () => {
+    const additionalImports = new Map([
+      ['NuxtAuto', '/components/NuxtAuto.vue'],
+    ])
     const result = compileOnigiri(
-      `<UnknownThing v-load-client />`,
+      `<NuxtAuto v-load-client :prop="value" />`,
+      { additionalImports },
     )
-    // No importMap entry → runtime lookup is kept as the safety net.
-    expect(result.code).toContain('.__chunk')
-    expect(result.code).toContain('.__export')
+    expect(result.code).toContain('"/components/NuxtAuto.vue"')
+    expect(result.code).not.toContain('.__chunk')
+  })
+
+  it('matches additionalImports under PascalCase / camelCase / kebab-case variants', () => {
+    const additionalImports = new Map([
+      ['MyWidget', '/components/MyWidget.vue'],
+    ])
+    const result = compileOnigiri(
+      `<my-widget v-load-client />`,
+      { additionalImports },
+    )
+    expect(result.code).toContain('"/components/MyWidget.vue"')
+  })
+
+  it('throws a compile error when v-load-client target is unresolvable', () => {
+    expect(() => compileOnigiri(`<UnknownThing v-load-client />`)).toThrow(
+      /Cannot resolve v-load-client target "UnknownThing"/,
+    )
   })
 })

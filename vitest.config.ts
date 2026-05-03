@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath } from 'node:url'
 import { onigiriCompilerPlugin } from './src/vite/compiler'
-import { onigiriClientPlugin, onigiriManifestPlugin } from './src/vite/chunk'
+import { onigiriManifestPlugin } from './src/vite/manifest'
 
 const srcUrl = (rel: string) => fileURLToPath(new URL(`src/${rel}`, import.meta.url))
 
@@ -10,7 +10,6 @@ export default defineConfig({
   plugins: [
     onigiriCompilerPlugin(),
     vue(),
-    onigiriClientPlugin(),
     // Tests with `@vitest-environment happy-dom` run as `ssr: false`. Some
     // fixtures intentionally aren't statically imported, so they rely on
     // the glob fallback. Scope it to the fixtures directory rather than

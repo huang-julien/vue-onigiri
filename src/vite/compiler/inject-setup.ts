@@ -50,6 +50,7 @@ export async function injectIntoSetupAsync(
   sourceMap: boolean,
   config: ResolvedConfig,
   isCustomElement?: (tag: string) => boolean,
+  additionalImports?: Map<string, string>,
 ): Promise<{ code: string, map: any } | null> {
   const setupMatch = code.match(/setup\s*\(\s*([^,)]*?)(?:,\s*\{[^}]*\})?\s*\)\s*\{/)
   if (!setupMatch || setupMatch.index === undefined) return null
@@ -93,6 +94,7 @@ export async function injectIntoSetupAsync(
     bindingMetadata,
     scopeId,
     importMap,
+    additionalImports,
     isCustomElement,
   })
 

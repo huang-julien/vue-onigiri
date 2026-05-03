@@ -75,15 +75,15 @@ export const renderToSerializedVNode = serializeComponent
 
 type OnigiriComponent = Component & {
   __onigiriRender?: (...args: any[]) => VServerComponentBuffered
-  __chunk?: string
-  __export?: string
 }
 
 /**
- * Serialize a child component. When `loadClient` is true and the
- * component has chunk metadata, emits a hydration marker that the
- * client deserializer mounts via the loader. Otherwise serializes
- * the rendered VNode tree inline.
+ * Serialize a child component. When `loadClient` is true emits a
+ * hydration marker pointing at the `chunkPath`/`exportName` resolved
+ * by the compiler at compile time; otherwise serializes the rendered
+ * VNode tree inline. The compiler always supplies chunk metadata for
+ * `v-load-client` targets — runtime fallbacks (`__chunk` on the
+ * component constructor) are gone in 0.3.
  */
 export async function serializeChildComponent(
   component: OnigiriComponent,
@@ -91,13 +91,15 @@ export async function serializeChildComponent(
   parentInstance?: ComponentInternalInstance,
   loadClient?: boolean,
   slots?: Record<string, VServerComponent[] | ((props?: any) => any)>,
+  chunkPath?: string,
+  exportName: string = 'default',
 ): Promise<VServerComponent | undefined> {
-  if (loadClient && component.__chunk && component.__export) {
+  if (loadClient && chunkPath) {
     return [
       VServerComponentType.Component,
       filterProps(props),
-      component.__chunk,
-      component.__export,
+      chunkPath,
+      exportName,
       slots as Record<string, VServerComponent[]> | undefined,
     ]
   }
@@ -400,8 +402,6 @@ export async function serializeVNode(
     else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
       const componentType = vnode.type as Component & {
         __onigiriRender?: (ctx: any, slots: any) => VServerComponentBuffered
-        __chunk?: string
-        __export?: string
       }
       if (typeof componentType.__onigiriRender === 'function') {
         const instance = createComponentInstance(vnode, parentInstance ?? null, null)
@@ -444,24 +444,13 @@ export async function serializeVNode(
         (child) => {
           // @ts-expect-error
           if (child._onigiriLoadClient) {
-            // @ts-expect-error
-            if (vnode.type.__chunk && vnode.type.__export) {
-              return [
-                VServerComponentType.Component,
-                filterProps(vnode.props),
-                // @ts-expect-error
-                vnode.type.__chunk as string,
-                // @ts-expect-error
-                vnode.type.__export as string,
-                serializeSlots((child as any).__slotsResult, parentInstance),
-              ]
-            }
             const componentName = (vnode.type as any)?.__name
               ?? (vnode.type as any)?.name
               ?? 'anonymous'
             throw new Error(
-              `[vue-onigiri] Component "${componentName}" is marked with v-load-client but has no __chunk / __export metadata. `
-              + `Make sure onigiriChunkPlugin is registered in your Vite config.`,
+              `[vue-onigiri] Component "${componentName}" uses v-load-client outside an onigiri-compiled template. `
+              + `v-load-client only works on components rendered through the onigiri compiler — Vue's vnode-tree fallback `
+              + `has no compile-time path to point the client at. Render this component from a .vue file processed by onigiriCompilerPlugin.`,
             )
           }
 
@@ -521,59 +510,6 @@ function serializeChildren(
   if (typeof children === 'string' || typeof children === 'number') {
     return [[VServerComponentType.Text, children as string]]
   }
-}
-
-function serializeSlots(
-  slots: Record<string, VNode[]> | undefined,
-  parentInstance?: ComponentInternalInstance,
-): MaybePromise<Record<string, VServerComponent[] | undefined>> | undefined {
-  if (!slots) {
-    return {}
-  }
-  const result: Record<string, VServerComponent[] | undefined> | undefined = {}
-  const promises: Promise<any>[] = []
-  for (const key in slots) {
-    const slot = slots[key]
-
-    if (Array.isArray(slot)) {
-      promises.push(
-        Promise.all(
-          slot.map(
-            vnode =>
-              Promise.resolve(serializeVNode(vnode, parentInstance)).then((v) => {
-                if (v) {
-                  return unrollServerComponentBufferPromises(v)
-                }
-              }) as Promise<VServerComponentBuffered | undefined>,
-          ),
-        ).then((vnodes) => {
-          result[key]
-            = vnodes.length > 0
-              ? (vnodes.filter(Boolean) as VServerComponent[])
-              : undefined
-        }),
-      )
-    }
-    else if (isVNode(slot)) {
-      promises.push(
-        Promise.resolve(serializeVNode(slot, parentInstance))
-          .then((v) => {
-            if (v) {
-              return unrollServerComponentBufferPromises(v)
-            }
-          })
-          .then((vnode) => {
-            result[key] = vnode ? [vnode] : undefined
-          }),
-      )
-    }
-    else {
-      console.warn(`Unexpected slot type: ${typeof slot} for key: ${key}`)
-    }
-  }
-  return Promise.all(promises).then(() => {
-    return result
-  })
 }
 
 function renderComponent(

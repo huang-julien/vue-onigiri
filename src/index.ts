@@ -1,4 +1,4 @@
-export * from './vite/chunk'
+export * from './vite/manifest'
 export { onigiriCompilerPlugin } from './vite/compiler'
 export type { OnigiriCompilerOptions } from './vite/compiler'
 export { compileOnigiri, compileOnigiriInline } from './template-compiler'

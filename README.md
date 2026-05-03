@@ -17,7 +17,8 @@ Vue Onigiri brings React Server Components-style rendering to Vue. Components re
 - **Selective hydration** — only components tagged with `v-load-client` are loaded client-side
 - **Slot support** — named and scoped slots survive serialization
 - **Async / Suspense** — async components and `<Suspense>` boundaries are preserved
-- **Bundler-agnostic** — works with Vite by default; `setOnigiriImportFn` lets you plug in any loader
+- **Compile-time chunk resolution** — `v-load-client` paths are resolved during compilation, no runtime tagging required
+- **Bundler-agnostic** — works with Vite by default; `provideOnigiriImportFn` lets you plug in any loader
 
 ## Installation
 
@@ -30,25 +31,24 @@ npm install vue-onigiri
 
 ### 1. Configure Vite
 
-`onigiriPlugins()` returns the chunk-marker and manifest plugins together. Spread them into your config:
-
 ```js
 // vite.config.js
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { onigiriPlugins } from 'vue-onigiri'
+import { onigiriCompilerPlugin, onigiriManifestPlugin } from 'vue-onigiri'
 
 export default defineConfig({
   plugins: [
     vue(),
-    ...onigiriPlugins(),
+    onigiriCompilerPlugin(),
+    onigiriManifestPlugin(),
   ],
 })
 ```
 
 ### 2. Mark client-loaded components
 
-Add `v-load-client` to any component that should hydrate on the client:
+Add `v-load-client` to any component that should hydrate on the client. The component **must** be statically imported in the same SFC (or registered through `additionalImports` / the Nuxt module):
 
 ```vue
 <template>
@@ -63,7 +63,7 @@ import Counter from './Counter.vue'
 </script>
 ```
 
-Components without `v-load-client` are rendered on the server and inlined into the payload — their source never reaches the browser.
+The compiler reads the import and inlines `/components/Counter.vue` into the serialized payload. Components without `v-load-client` are rendered on the server and inlined — their source never reaches the browser.
 
 ### 3. Serialize on the server
 
@@ -89,85 +89,41 @@ const app = createApp({
 app.mount('#app')
 ```
 
-Wrap the mount point in `<Suspense>` if your tree contains `v-load-client` components — each one resolves through its own internal `<Suspense>`, but a top-level boundary keeps the initial render hydration-safe.
+Wrap the mount point in `<Suspense>` if your tree contains `v-load-client` components — each loader uses its own internal `<Suspense>`, but a top-level boundary keeps the initial render hydration-safe.
 
 ## Vite Plugins
 
-### `onigiriPlugins(options?)`
+### `onigiriCompilerPlugin(options?)`
 
-Convenience factory bundling both plugins below. Accepts the union of
-`OnigiriChunkPluginOptions` (prefixed `registry*` to disambiguate) and
-`OnigiriManifestPluginOptions`:
+Generates the per-SFC `__onigiriRender` function from each `<template>`. This is the only plugin doing real codegen work.
 
 ```ts
-interface OnigiriPluginsOptions {
-  registryInclude?: OnigiriChunkInclude // see below
-  registryExclude?: string | RegExp | (string | RegExp)[]
-  serverInclude?: string | false
-  clientInclude?: string | false
-  stub?: boolean
-}
-```
-
-### `onigiriChunkPlugin(options?)`
-
-Tags every matching Vue SFC export with `__chunk` (root-relative source path) and `__export` so the serializer knows where to point hydration markers. Each module also self-registers into `globalThis.__ONIGIRI_REGISTRY__`, which lets the manifest resolve components synchronously without a Vite-specific glob runtime.
-
-```ts
-interface OnigiriRegistryEntry {
-  /** Root-relative path (e.g. `/components/Foo.vue`). Globs allowed. */
-  path: string
-  /** Whitelist of export names to register. Default: all. */
-  exports?: string[]
-}
-
-type OnigiriChunkInclude
-  = | string
-    | RegExp
-    | OnigiriRegistryEntry
-    | (string | RegExp | OnigiriRegistryEntry)[]
-
-interface OnigiriChunkPluginOptions {
+interface OnigiriCompilerOptions {
+  /** @default true */
+  sourceMap?: boolean
   /**
-   * What to register. Glob, RegExp, `{ path, exports? }` entry, or array
-   * mixing any of those. Default: every `.vue` file.
-   *
-   * Use the structured `{ path, exports }` form to whitelist specific
-   * files and (optionally) which named exports from each are loadable
-   * via `v-load-client` / `importFn`.
+   * Predicate for native custom elements / web components. Tags it
+   * returns `true` for skip the Vue-component dispatch path and emit
+   * as plain HTML. Mirrors Vue's `CompilerOptions.isCustomElement`.
    */
-  include?: OnigiriChunkInclude
-  /** Filter exclusions, matched after `include`. */
-  exclude?: string | RegExp | (string | RegExp)[]
+  isCustomElement?: (tag: string) => boolean
+  /**
+   * Tag → root-relative module path for components the SFC doesn't
+   * import statically. Lets `v-load-client` resolve to the right
+   * chunk for Nuxt auto-imports, globally-registered components, or
+   * any other case the compiler can't see in `<script>`. Pass either
+   * a static map or a getter (re-evaluated per transform).
+   */
+  additionalImports?:
+    | Record<string, string>
+    | Map<string, string>
+    | (() => Record<string, string> | Map<string, string>)
 }
-```
-
-Examples:
-
-```ts
-// Glob — every .vue under /widgets/ self-registers, all exports.
-onigiriChunkPlugin({ include: '/widgets/**/*.vue' })
-
-// Explicit whitelist — only these two files, only their default exports.
-onigiriChunkPlugin({
-  include: [
-    { path: '/components/Counter.vue', exports: ['default'] },
-    { path: '/components/Modal.vue', exports: ['default', 'ModalHeader'] },
-  ],
-})
-
-// Mixed — glob plus a single explicit override.
-onigiriChunkPlugin({
-  include: [
-    '/widgets/**/*.vue',
-    { path: '/special/MultiExport.vue', exports: ['PrintView'] },
-  ],
-})
 ```
 
 ### `onigiriManifestPlugin(options?)`
 
-Emits the `virtual:onigiri/manifest` virtual module that the runtime loader imports. It resolves chunks first from the global registry, then optionally falls back to a Vite `import.meta.glob` lookup. The defaults are asymmetric — server gets a glob, client gets registry only — to avoid leaking project file paths into the browser bundle.
+Emits the `virtual:onigiri/manifest` virtual module that the runtime loader imports. It exposes an `importFn(src, exportName?)` that resolves a root-relative `.vue` path via `import.meta.glob`.
 
 ```ts
 interface OnigiriManifestPluginOptions {
@@ -177,26 +133,30 @@ interface OnigiriManifestPluginOptions {
    */
   serverInclude?: string | false
   /**
-   * Glob for the **client** lazy-load fallback. Default: `false`
-   * (registry only). Exposing `import.meta.glob` on the client leaks
-   * every matching file path into the bundle and lets any browser
-   * caller lazy-load arbitrary components — only enable this if you
-   * have client components that aren't reachable through the static
-   * import graph, and scope the glob as narrowly as possible.
+   * Glob for the **client** lazy-load fallback. Default: `false`.
+   * Exposing `import.meta.glob` to the browser leaks every matching
+   * file path into the bundle, so the safer default is to require
+   * `provideOnigiriImportFn` on the host app. Only set this if you
+   * have client islands that aren't reachable through your app's
+   * static import graph; scope it as narrowly as possible.
    */
   clientInclude?: string | false
   /**
-   * Force registry-only mode in **all** environments. Required for
-   * bundlers that can't preprocess `import.meta.glob` or compile `.vue`
-   * imports (e.g. Nitro's prerender rollup).
+   * Force a no-glob manifest in **all** environments. Required for
+   * bundlers that can't preprocess `import.meta.glob` or compile
+   * `.vue` imports (e.g. Nitro's prerender rollup).
    */
   stub?: boolean
 }
 ```
 
+## Nuxt
+
+Nuxt integrates onigiri directly: wire is handled inside Nuxt core, which feeds its component registry into the compiler's `additionalImports` so auto-imported components work with `v-load-client` without further setup. No separate module to install.
+
 ## API Reference
 
-### `serializeApp(app, container?, ssrContext?)`
+### `serializeApp(app, slots?, ssrContext?)`
 
 Serialize an entire Vue app instance.
 
@@ -226,9 +186,25 @@ import { renderOnigiri } from 'vue-onigiri/runtime/deserialize'
 const vnode = renderOnigiri(data)
 ```
 
+### `provideOnigiriImportFn(app, fn)`
+
+Attach an app-scoped resolver for `v-load-client` chunks. Wins over the built-in manifest. Use this when:
+
+- you need full control over how chunk paths map to modules (CDN-served bundles, federation, custom path normalization)
+- you want a per-request (per-app) override that doesn't bleed across concurrent SSR
+
+```js
+import { provideOnigiriImportFn } from 'vue-onigiri/runtime/utils'
+
+provideOnigiriImportFn(app, async (src, exportName = 'default') => {
+  const mod = await myCustomLoader(src)
+  return mod[exportName] ?? mod.default ?? mod
+})
+```
+
 ### `setOnigiriImportFn(fn)`
 
-Override how `v-load-client` components are loaded. Only needed when you can't use the Vite manifest plugin (custom bundlers, exotic SSR entrypoints).
+Module-scoped fallback resolver. Prefer `provideOnigiriImportFn` — `setOnigiriImportFn` is for non-Vite consumers (custom bundlers, exotic SSR entrypoints) where you can't get an app instance to inject onto.
 
 ```js
 import { setOnigiriImportFn } from 'vue-onigiri/runtime/utils'
@@ -241,20 +217,39 @@ setOnigiriImportFn(async (src, exportName = 'default') => {
 
 ## How It Works
 
-1. **Compile time** — the chunk plugin tags every SFC's default export with the source path it came from. The template compiler turns `v-load-client` into a serializable `Component` marker carrying that path.
-2. **Server render** — `serializeApp` walks the rendered tree. Server components get inlined as HTML/AST; client components get a marker (`[Component, props, chunkPath, exportName, slots]`).
+1. **Compile time** — `onigiriCompilerPlugin` generates a per-SFC `__onigiriRender` function. For `<X v-load-client />`, the chunk path is resolved from the SFC's static imports (or `additionalImports`) and embedded as a literal string. Unresolvable targets fail compilation with an explicit error.
+2. **Server render** — `serializeApp` walks the rendered tree. Server components inline as HTML/AST; client components emit a marker `[Component, props, chunkPath, exportName, slots]`.
 3. **Client render** — `renderOnigiri` recreates the VNode tree. Each `Component` marker mounts a loader that wraps `defineAsyncComponent` in its own `<Suspense>`, so hydration matches the server's empty fallback before swapping in the real component.
 
 ```
 Server: VNode tree → serialize → AST + client markers
-Client: AST → deserialize → VNode tree (lazy chunks resolved via manifest)
+Client: AST → deserialize → VNode tree (lazy chunks resolved via importFn)
 ```
 
 ## Limitations
 
 - Proof of concept — API is unstable, not production-ready.
+- `v-load-client` requires compile-time path resolution: the target component must be statically imported in the SFC, or registered through `additionalImports` (Nuxt module handles this automatically for auto-imported components).
+- `<component :is="x" v-load-client />` with a runtime `is` value isn't supported — the compiler can't resolve the path at build time.
+- Components used outside an onigiri-compiled SFC (e.g. via Vue's vnode fallback path) can't carry `v-load-client`.
 - Scoped slots can't be passed *into* `v-load-client` components (the slot scope only exists on the client at runtime and can't be embedded in the frozen AST).
 - Payload size grows with tree size; deeply server-rendered pages produce larger responses than equivalent SSR HTML.
+
+## Migrating from 0.2.x
+
+`0.3` is a breaking change focused on shrinking the runtime surface:
+
+- **Removed** `onigiriChunkPlugin` / `onigiriClientPlugin` / `onigiriServerPlugin` and the `onigiriPlugins()` factory. The chunk plugin's job (tagging SFCs with `__chunk` / `__export` and self-registering into `__ONIGIRI_REGISTRY__`) is gone — paths are now resolved at compile time.
+- **Removed** the `OnigiriRegistryEntry` / `OnigiriChunkInclude` types and the `registryInclude` / `registryExclude` options.
+- **Removed** runtime `Component.__chunk` / `Component.__export` reads. The compiler always inlines a literal path; if it can't, it errors at build time.
+- **Added** `additionalImports` on `onigiriCompilerPlugin` — pass a map of `{ tag: path }` for components the SFC doesn't import statically.
+- **Renamed** `src/vite/chunk.ts` → `src/vite/manifest.ts` (just an internal rename, not user-visible).
+
+If your app worked because `onigiriChunkPlugin` was tagging components for you, the fix is one of:
+
+1. Add a static `import` for the component in the SFC where you use `v-load-client`.
+2. For Nuxt: upgrade to a Nuxt version that integrates onigiri directly (auto-imports work without further setup).
+3. For globally-registered components: pass them through `onigiriCompilerPlugin({ additionalImports: { Foo: '/components/Foo.vue' } })`.
 
 ## Development
 

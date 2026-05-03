@@ -9,6 +9,7 @@ export interface LoadVirtualOptions {
   config: ResolvedConfig
   sourceMap: boolean
   isCustomElement?: (tag: string) => boolean
+  additionalImports?: Map<string, string>
 }
 
 /**
@@ -23,7 +24,7 @@ export async function loadVirtualOnigiriModule(
 ): Promise<{ code: string, map: null } | null> {
   if (!id.startsWith(ONIGIRI_PREFIX) || !id.endsWith(ONIGIRI_SUFFIX)) return null
 
-  const { config, sourceMap, isCustomElement } = opts
+  const { config, sourceMap, isCustomElement, additionalImports } = opts
   const encoded = id.slice(ONIGIRI_PREFIX.length, -ONIGIRI_SUFFIX.length)
   const filePath = decodeURIComponent(encoded)
   const fs = await import('node:fs/promises')
@@ -66,6 +67,7 @@ export async function loadVirtualOnigiriModule(
     bindingMetadata,
     scopeId,
     importMap,
+    additionalImports,
     isCustomElement,
   })
 

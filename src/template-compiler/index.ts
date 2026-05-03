@@ -60,12 +60,17 @@ export interface OnigiriCompilerOptions extends CompilerOptions {
   scopeId?: string | null
   /**
    * Map of local identifier → root-relative source path for components
-   * statically imported in this SFC's `<script>` block.
-   * When a `v-load-client` component's tag matches a key, the compiler
-   * emits the literal path as `__chunk` instead of a runtime property
-   * lookup. Unmapped identifiers fall back to `Component.__chunk`.
+   * statically imported in this SFC's `<script>` block. The compiler
+   * inlines the literal path for matching `v-load-client` targets.
    */
   importMap?: Map<string, string>
+  /**
+   * Tag → root-relative module path supplied externally — for
+   * components the SFC doesn't import statically (Nuxt auto-imports,
+   * `app.component()` globals). Looked up under PascalCase / camelCase /
+   * kebab-case variants.
+   */
+  additionalImports?: Map<string, string>
 }
 
 export interface OnigiriCodegenResult {
@@ -103,6 +108,7 @@ export function compileOnigiri(
     bindingMetadata: options.bindingMetadata,
     scopeId: options.scopeId,
     importMap: options.importMap,
+    additionalImports: options.additionalImports,
     isCustomElement: options.isCustomElement,
   })
 
@@ -111,6 +117,7 @@ export function compileOnigiri(
     bindingMetadata: options.bindingMetadata,
     scopeId: options.scopeId,
     importMap: options.importMap,
+    additionalImports: options.additionalImports,
     isCustomElement: options.isCustomElement,
   })
   if (ast.children.length === 0) {
@@ -198,6 +205,7 @@ export function compileOnigiriInline(
     bindingMetadata: options.bindingMetadata,
     scopeId: options.scopeId,
     importMap: options.importMap,
+    additionalImports: options.additionalImports,
     isCustomElement: options.isCustomElement,
   })
 
