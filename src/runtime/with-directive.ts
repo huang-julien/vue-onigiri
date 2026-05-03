@@ -1,4 +1,4 @@
-import type { ObjectDirective } from 'vue'
+import { mergeProps, type ObjectDirective } from 'vue'
 import type { VServerComponentBuffered, VServerComponent } from './shared'
 import { VServerComponentType } from './shared'
 
@@ -7,6 +7,8 @@ export interface ObjectDirectiveBinding<V = any> {
   arg?: string
   modifiers: Record<string, boolean>
 }
+
+// `transformOnigiri` augmentation lives in `src/types.ts`.
 
 /**
  * Directive resolver function type.
@@ -72,6 +74,27 @@ export function withDirective(
     // variant is structurally identical but may contain Promises in children;
     // transforms that only touch props/tag are safe to apply here.
     return dir.transformOnigiri(node as VServerComponent, normalizedBinding) as VServerComponentBuffered
+  }
+
+  // Compatibility path for stock Vue directives (`{ mounted, updated, … }`).
+  // Vue's official SSR contribution hook is `getSSRProps` — same one Vue's
+  // own `vShow` uses — so honor it here when no onigiri-specific transform
+  // is provided. The returned props are merged onto the element's attrs.
+  if (dir?.getSSRProps && node[0] === VServerComponentType.Element) {
+    // `getSSRProps` expects Vue's `DirectiveBinding` (with `instance`,
+    // `oldValue`, `dir` fields). At serialize time only value/arg/modifiers
+    // are meaningful, so we pass the same shape with the rest as `null`.
+    const ssrBinding = {
+      ...normalizedBinding,
+      instance: null,
+      oldValue: null,
+      dir,
+    }
+    const ssrProps = dir.getSSRProps(ssrBinding as any, node as any)
+    if (ssrProps) {
+      const [type, tag, props, children] = node as [number, string, Record<string, any> | undefined, any]
+      return [type, tag, mergeProps(props || {}, ssrProps), children] as VServerComponentBuffered
+    }
   }
 
   return node

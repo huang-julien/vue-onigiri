@@ -12,6 +12,23 @@ describe('compileOnigiri', () => {
       }"
     `)
   })
+
+  it('treats hyphenated tags as Vue components by default', () => {
+    const result = compileOnigiri(`<my-widget />`)
+    // Default heuristic: hyphenated tag → resolveComponent path
+    expect(result.code).toContain('__onigiri_resolveComponent')
+    expect(result.code).toContain('"my-widget"')
+  })
+
+  it('isCustomElement skips the resolveComponent path', () => {
+    const result = compileOnigiri(`<my-widget />`, {
+      isCustomElement: tag => tag === 'my-widget',
+    })
+    // With isCustomElement → emitted as a plain HTML element
+    expect(result.code).not.toContain('__onigiri_resolveComponent')
+    expect(result.code).toContain('"my-widget"')
+    expect(result.code).toContain('[0, "my-widget"')
+  })
 })
 
 describe('props', () => {
@@ -20,11 +37,11 @@ describe('props', () => {
     const result = compileOnigiri(template)
     expect(result).toBeDefined()
     expect(result.code).toMatchInlineSnapshot(`
-      "import { resolveComponent as _resolveComponent } from "vue";
+      "import { resolveComponentInInstance as __onigiri_resolveComponent } from "vue-onigiri/runtime/resolve-component";
       import { serializeComponentInContext as __serializeComponentInContext } from "vue-onigiri/runtime/serialize";
 
       export function renderOnigiri(_ctx, __instance) {
-      const _component_MyComponent = _resolveComponent("MyComponent")
+      const _component_MyComponent = __onigiri_resolveComponent(__instance, "MyComponent")
         return __serializeComponentInContext(_component_MyComponent, {"prop": _ctx.value}, __instance, undefined);
       }"
     `)
@@ -35,11 +52,11 @@ describe('props', () => {
     const result = compileOnigiri(template)
     expect(result).toBeDefined()
     expect(result.code).toMatchInlineSnapshot(`
-      "import { resolveComponent as _resolveComponent } from "vue";
+      "import { resolveComponentInInstance as __onigiri_resolveComponent } from "vue-onigiri/runtime/resolve-component";
       import { serializeComponentInContext as __serializeComponentInContext } from "vue-onigiri/runtime/serialize";
 
       export function renderOnigiri(_ctx, __instance) {
-      const _component_MyComponent = _resolveComponent("MyComponent")
+      const _component_MyComponent = __onigiri_resolveComponent(__instance, "MyComponent")
         return __serializeComponentInContext(_component_MyComponent, {"prop": "value"}, __instance, undefined);
       }"
     `)
@@ -50,11 +67,11 @@ describe('props', () => {
     const result = compileOnigiri(template)
     expect(result).toBeDefined()
     expect(result.code).toMatchInlineSnapshot(`
-      "import { resolveComponent as _resolveComponent } from "vue";
+      "import { resolveComponentInInstance as __onigiri_resolveComponent } from "vue-onigiri/runtime/resolve-component";
       import { serializeComponentInContext as __serializeComponentInContext } from "vue-onigiri/runtime/serialize";
 
       export function renderOnigiri(_ctx, __instance) {
-      const _component_MyComponent = _resolveComponent("MyComponent")
+      const _component_MyComponent = __onigiri_resolveComponent(__instance, "MyComponent")
         return __serializeComponentInContext(_component_MyComponent, {"prop": 'value'}, __instance, undefined);
       }"
     `)
@@ -65,11 +82,11 @@ describe('props', () => {
     const result = compileOnigiri(template)
     expect(result).toBeDefined()
     expect(result.code).toMatchInlineSnapshot(`
-      "import { resolveComponent as _resolveComponent } from "vue";
+      "import { resolveComponentInInstance as __onigiri_resolveComponent } from "vue-onigiri/runtime/resolve-component";
       import { serializeComponentInContext as __serializeComponentInContext } from "vue-onigiri/runtime/serialize";
 
       export function renderOnigiri(_ctx, __instance) {
-      const _component_MyComponent = _resolveComponent("MyComponent")
+      const _component_MyComponent = __onigiri_resolveComponent(__instance, "MyComponent")
         return __serializeComponentInContext(_component_MyComponent, {"prop": _ctx.value}, __instance, undefined);
       }"
     `)
@@ -80,11 +97,11 @@ describe('props', () => {
     const result = compileOnigiri(template)
     expect(result).toBeDefined()
     expect(result.code).toMatchInlineSnapshot(`
-      "import { resolveComponent as _resolveComponent } from "vue";
+      "import { resolveComponentInInstance as __onigiri_resolveComponent } from "vue-onigiri/runtime/resolve-component";
       import { serializeComponentInContext as __serializeComponentInContext } from "vue-onigiri/runtime/serialize";
 
       export function renderOnigiri(_ctx, __instance) {
-      const _component_MyComponent = _resolveComponent("MyComponent")
+      const _component_MyComponent = __onigiri_resolveComponent(__instance, "MyComponent")
         return __serializeComponentInContext(_component_MyComponent, _ctx.value, __instance, undefined);
       }"
     `)
@@ -95,12 +112,12 @@ describe('props', () => {
     const result = compileOnigiri(template)
     expect(result).toBeDefined()
     expect(result.code).toMatchInlineSnapshot(`
-      "import { resolveComponent as _resolveComponent } from "vue";
+      "import { resolveComponentInInstance as __onigiri_resolveComponent } from "vue-onigiri/runtime/resolve-component";
       import { serializeComponentInContext as __serializeComponentInContext } from "vue-onigiri/runtime/serialize";
       import { mergeProps as _mergeProps } from "vue";
 
       export function renderOnigiri(_ctx, __instance) {
-      const _component_MyComponent = _resolveComponent("MyComponent")
+      const _component_MyComponent = __onigiri_resolveComponent(__instance, "MyComponent")
         return __serializeComponentInContext(_component_MyComponent, _mergeProps(_ctx.value, {"class": "test"}), __instance, undefined);
       }"
     `)

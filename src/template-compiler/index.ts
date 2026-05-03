@@ -7,10 +7,15 @@
 
 import {
   baseParse,
+  isFnExpression,
+  isMemberExpression,
+  NodeTypes,
   transform,
   getBaseTransformPreset,
   type CompilerOptions,
+  type NodeTransform,
   type RootNode,
+  type SimpleExpressionNode,
 } from '@vue/compiler-dom'
 import { isVoidTag } from '@vue/shared'
 import { VServerComponentType } from '../runtime/shared'
@@ -18,6 +23,35 @@ import { createCodegenContext, genNode } from './codegen'
 
 // Get Vue's default transforms (includes v-if, v-for, etc.)
 const [baseNodeTransforms] = getBaseTransformPreset(true)
+
+/**
+ * Vue's `transformExpression` skips `v-on` (defers to `transformOn`) and we
+ * stub out `directiveTransforms`, so v-on expressions reach codegen
+ * unclassified. Mirror Vue's own decision: use `isMemberExpression` /
+ * `isFnExpression` from `@vue/compiler-dom`, which parse with `@babel/parser`
+ * under the hood. Stash the verdict on the expression so codegen reads it
+ * back without needing a `TransformContext`.
+ */
+type EventKind = 'member' | 'fn' | 'statement'
+type ClassifiedExp = SimpleExpressionNode & { _onigiriEventKind?: EventKind }
+
+const transformVOnEventKind: NodeTransform = (node, context) => {
+  if (node.type !== NodeTypes.ELEMENT) return
+  for (const prop of node.props) {
+    if (prop.type !== NodeTypes.DIRECTIVE) continue
+    if (prop.name !== 'on' || !prop.exp) continue
+    if (prop.exp.type !== NodeTypes.SIMPLE_EXPRESSION) continue
+    const exp = prop.exp as ClassifiedExp
+    if (exp.isStatic) continue
+    exp._onigiriEventKind = isMemberExpression(exp, context)
+      ? 'member'
+      : (isFnExpression(exp, context)
+          ? 'fn'
+          : 'statement')
+  }
+}
+
+const onigiriNodeTransforms: NodeTransform[] = [...baseNodeTransforms, transformVOnEventKind]
 
 export interface OnigiriCompilerOptions extends CompilerOptions {
   /** Additional compiler options specific to onigiri */
@@ -54,10 +88,13 @@ export function compileOnigiri(
   })
 
   // Transform the AST with Vue's default transforms (v-if, v-for, expressions, etc.)
+  // `expressionPlugins: ['typescript']` lets template expressions contain
+  // TS-only syntax like `(x as any)?.foo` (from SFCs with `lang="ts"`).
   transform(ast, {
     ...options,
     prefixIdentifiers: true,
-    nodeTransforms: baseNodeTransforms,
+    expressionPlugins: ['typescript'],
+    nodeTransforms: onigiriNodeTransforms,
     directiveTransforms: {},
   })
 
@@ -66,6 +103,7 @@ export function compileOnigiri(
     bindingMetadata: options.bindingMetadata,
     scopeId: options.scopeId,
     importMap: options.importMap,
+    isCustomElement: options.isCustomElement,
   })
 
   // First, generate the return expression to collect component references
@@ -73,6 +111,7 @@ export function compileOnigiri(
     bindingMetadata: options.bindingMetadata,
     scopeId: options.scopeId,
     importMap: options.importMap,
+    isCustomElement: options.isCustomElement,
   })
   if (ast.children.length === 0) {
     bodyContext.push('null')
@@ -105,9 +144,8 @@ export function compileOnigiri(
   context.newline()
   context.indent()
 
-  // Inject component declarations
   for (const [tag, varName] of bodyContext.components) {
-    context.push(`const ${varName} = _resolveComponent("${tag}")`)
+    context.push(`const ${varName} = __onigiri_resolveComponent(__instance, "${tag}")`)
     context.newline()
   }
 
@@ -146,11 +184,12 @@ export function compileOnigiriInline(
     isVoidTag,
   })
 
-  // Transform the AST with Vue's default transforms
+  // Transform the AST with Vue's default transforms.
   transform(ast, {
     ...options,
     prefixIdentifiers: true,
-    nodeTransforms: baseNodeTransforms,
+    expressionPlugins: ['typescript'],
+    nodeTransforms: onigiriNodeTransforms,
     directiveTransforms: {},
   })
 
@@ -159,6 +198,7 @@ export function compileOnigiriInline(
     bindingMetadata: options.bindingMetadata,
     scopeId: options.scopeId,
     importMap: options.importMap,
+    isCustomElement: options.isCustomElement,
   })
 
   if (ast.children.length === 0) {

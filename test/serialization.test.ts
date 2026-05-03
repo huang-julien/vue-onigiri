@@ -300,8 +300,14 @@ describe('revive', () => {
         },
       })
       await promise
-      await flushPromises()
-      await nextTick()
+      // Inner Suspense (in the Loader) needs its async load to settle
+      // after the outer Suspense resolves. Poll until the rendered HTML
+      // contains the expected content rather than guessing tick counts.
+      for (let i = 0; i < 20 && !wrapper.html().includes('Success'); i++) {
+        await flushPromises()
+        await nextTick()
+        await new Promise(r => setTimeout(r, 10))
+      }
       const html = wrapper.html()
       expect(html).toMatchInlineSnapshot(`"<div>injection: Success !</div>"`)
     })

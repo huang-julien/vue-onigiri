@@ -1,26 +1,27 @@
-import { h, defineAsyncComponent, defineComponent } from 'vue'
+import { h, defineAsyncComponent, defineComponent, inject, Suspense } from 'vue'
 import type { VServerComponent, VServerComponentComponent } from './shared'
 import { renderChildren } from './deserialize'
-import { _getInstalledImportFn, type ImportFn } from './utils'
-// Provided by `onigiriManifestPlugin`. Consumers must register that plugin
-// in their Vite / Nuxt config. A custom runtime (no Vite) can override the
-// resolver at boot with `setOnigiriImportFn(fn)`.
+import {
+  _getInstalledImportFn,
+  ONIGIRI_IMPORT_FN_KEY,
+  type ImportFn,
+} from './utils'
 import { importFn as manifestImportFn } from 'virtual:onigiri/manifest'
 
+/**
+ * Resolution order:
+ *   1. App-scoped `importFn` (`provideOnigiriImportFn`)
+ *   2. Module-scoped `importFn` (`setOnigiriImportFn`)
+ *   3. Built-in manifest from `virtual:onigiri/manifest`
+ *
+ * Must be called synchronously inside `setup()` because of `inject()`.
+ */
 function resolveImportFn(): ImportFn {
+  const injectedFn = inject(ONIGIRI_IMPORT_FN_KEY, null)
+  if (injectedFn) return injectedFn
   return _getInstalledImportFn() ?? manifestImportFn
 }
 
-/**
- * Component loader — one per Component marker in the AST.
- *
- * Uses `defineAsyncComponent` to wrap the dynamic import. This is what Vue
- * expects for SSR hydration of async-loaded components: the server awaits
- * the loader and renders the resolved component; the client creates a
- * matching async component wrapper that hydrates against the server HTML
- * once the import resolves. A plain `async setup()` on this loader would
- * cause hydration mismatches outside of a Suspense boundary.
- */
 export default defineComponent({
   name: 'vue-onigiri:component-loader',
   props: {
@@ -30,12 +31,10 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const chunkPath = props.data[2]
-    const exportName = props.data[3] ?? 'default'
-
+    // Resolve once at setup time so `inject()` runs in the right context.
+    const importFn = resolveImportFn()
     const AsyncInner = defineAsyncComponent(async () => {
-      const importFn = resolveImportFn()
-      return await importFn(chunkPath, exportName)
+      return await importFn(props.data[2], props.data[3] ?? 'default')
     })
 
     return () => {
@@ -53,7 +52,15 @@ export default defineComponent({
           ]
         }),
       )
-      return h(AsyncInner, props.data[1], slots)
+
+      return h(
+        Suspense,
+        null,
+        {
+          default: () => h(AsyncInner, props.data[1], slots),
+          fallback: () => h('div'),
+        },
+      )
     }
   },
 })

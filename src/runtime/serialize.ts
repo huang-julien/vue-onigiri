@@ -18,7 +18,6 @@ import {
   mergeProps,
   type DirectiveBinding,
   type VNodeProps,
-  getCurrentInstance,
 } from 'vue'
 import { isPromise, ShapeFlags } from '@vue/shared'
 import {
@@ -35,7 +34,6 @@ declare module 'vue' {
   }
 }
 
-// todo better way to detect SSR
 declare global {
   interface ImportMeta {
     server: boolean
@@ -72,10 +70,7 @@ export async function serializeComponent(
   return serializeApp(input, slots, context)
 }
 
-/**
- * Alias for `serializeComponent` kept for the inject-setup ABI tests and
- * any external consumers that adopted the earlier name.
- */
+/** @deprecated Use `serializeComponent`. */
 export const renderToSerializedVNode = serializeComponent
 
 type OnigiriComponent = Component & {
@@ -85,12 +80,10 @@ type OnigiriComponent = Component & {
 }
 
 /**
- * serialize a child component, either as a hydration marker
- * *for __renderOnigiri function usage
- *
- * When loadClient=true, slots are pre-serialized arrays attached to the marker.
- * When loadClient=false, slots are functions forwarded as vnode.children so
- * the server render can invoke them at serialize time.
+ * Serialize a child component. When `loadClient` is true and the
+ * component has chunk metadata, emits a hydration marker that the
+ * client deserializer mounts via the loader. Otherwise serializes
+ * the rendered VNode tree inline.
  */
 export async function serializeChildComponent(
   component: OnigiriComponent,
@@ -99,7 +92,6 @@ export async function serializeChildComponent(
   loadClient?: boolean,
   slots?: Record<string, VServerComponent[] | ((props?: any) => any)>,
 ): Promise<VServerComponent | undefined> {
-  // If loadClient is true and component has chunk info, return a hydration marker
   if (loadClient && component.__chunk && component.__export) {
     return [
       VServerComponentType.Component,
@@ -109,17 +101,12 @@ export async function serializeChildComponent(
       slots as Record<string, VServerComponent[]> | undefined,
     ]
   }
-
-  // Otherwise, serialize the component inline
   return serializeComponentInContext(component, props, parentInstance, slots)
 }
 
 /**
- * Serialize a component within an existing render context.
- * for compiler __renderonigiri usage
- *
- * `slots` is an object of slot functions produced by the compiler. They are
- * attached as vnode.children so Vue's setupComponent populates instance.slots.
+ * Serialize a component within an existing render context. Called by
+ * the compiled `__onigiriRender` function for each child component.
  */
 export function serializeComponentInContext(
   component: OnigiriComponent,
@@ -127,28 +114,9 @@ export function serializeComponentInContext(
   parentInstance?: ComponentInternalInstance,
   slots?: Record<string, ((props?: any) => any) | VServerComponent[]>,
 ): Promise<VServerComponent | undefined> {
-  // Create a vnode with slots as children so setupComponent wires instance.slots
   const vnode = createVNode(component, props, slots as any)
   const instance = createComponentInstance(vnode, parentInstance ?? null, null)
-  // Walk up the parent chain to find a usable appContext / provides. When
-  // rendering a child inside an async-setup parent, the `app.runWithContext`
-  // frame has unwound and Vue's default wiring may have cleared these on
-  // the parent by the time the child is instantiated. Carrying them down
-  // restores the `inject(ssrContextKey)` chain Nuxt's SSR relies on.
-  if (!instance.appContext || !instance.provides) {
-    let p: ComponentInternalInstance | null | undefined = parentInstance
-    while (p) {
-      if (!instance.appContext && p.appContext) {
-        // @ts-expect-error internal
-        instance.appContext = p.appContext
-      }
-      if (!instance.provides && p.provides) {
-        instance.provides = p.provides
-      }
-      if (instance.appContext && instance.provides) break
-      p = p.parent
-    }
-  }
+  inheritAppContext(instance, parentInstance)
   const res = setupComponent(instance, true)
 
   const hasAsyncSetup = isPromise(res)
@@ -157,19 +125,9 @@ export function serializeComponentInContext(
     = instance.sp as unknown as Promise[] | undefined
 
   const doRender = (): Promise<VServerComponent | undefined> => {
-    // If component has __onigiriRender, use it directly (attach-property path)
-    if (typeof component.__onigiriRender === 'function') {
-      const result = runOnigiriRender(component.__onigiriRender, instance)
-      return unrollServerComponentBufferPromises(result)
-    }
-
-    // Inject-setup path: setup returned a tagged onigiri render fn.
-    // @ts-expect-error internal
-    if (instance.render?.__onigiri) {
-      const rendered = withInstance(instance, () =>
-        // @ts-expect-error internal
-        instance.render.call(instance.proxy, instance.proxy, instance),
-      )
+    const taggedRender = pickTaggedRender(instance)
+    if (taggedRender) {
+      const rendered = taggedRender.call(instance.proxy, instance.proxy, instance)
       if (isPromise(rendered)) {
         return rendered.then((r: VServerComponentBuffered) =>
           unrollServerComponentBufferPromises(r),
@@ -178,7 +136,11 @@ export function serializeComponentInContext(
       return unrollServerComponentBufferPromises(rendered as VServerComponentBuffered)
     }
 
-    // Fallback: render the component and serialize the vnode tree
+    if (typeof component.__onigiriRender === 'function') {
+      const result = runOnigiriRender(component.__onigiriRender, instance)
+      return unrollServerComponentBufferPromises(result)
+    }
+
     const child = renderComponentRoot(instance)
     return Promise.resolve(serializeVNode(child, instance)).then((result) => {
       if (result) {
@@ -187,7 +149,6 @@ export function serializeComponentInContext(
     })
   }
 
-  // Wait for async setup and prefetches
   if (hasAsyncSetup || prefetches) {
     return Promise.resolve(res).then(() => {
       if (hasAsyncSetup) {
@@ -206,31 +167,59 @@ export function serializeComponentInContext(
   return doRender()
 }
 
+function inheritAppContext(
+  instance: ComponentInternalInstance,
+  parentInstance?: ComponentInternalInstance,
+): void {
+  // @ts-expect-error internal API
+  if (instance.appContext && instance.provides) return
+  let p: ComponentInternalInstance | null | undefined = parentInstance
+  while (p) {
+    if (!instance.appContext && p.appContext) {
+      instance.appContext = p.appContext
+    }
+    // @ts-expect-error internal API
+
+    if (!instance.provides && p.provides) {
+    // @ts-expect-error internal API
+      instance.provides = p.provides
+    } // @ts-expect-error internal API
+
+    if (instance.appContext && instance.provides) break
+    p = p.parent
+  }
+}
+
 /**
- * Call the compiled onigiri render with the stable ABI (_ctx, __instance).
- * - `_ctx` is the component instance proxy (props/setup/data/options unified).
- * - `__instance` is the raw ComponentInternalInstance, forwarded as parent
- *   context to any child `__serializeComponentInContext` calls.
+ * Prefer the inject-setup tagged render (closure-bound) over the
+ * standalone `__onigiriRender` property. The standalone reads bindings
+ * via `_ctx.foo`, which is empty when plugin-vue inlines the SSR render
+ * (`__ssrInlineRender: true`). For inline-render components Vue assigns
+ * the setup-returned function to `instance.ssrRender`; for split-module
+ * components it goes to `instance.render`.
  */
+function pickTaggedRender(
+  instance: ComponentInternalInstance,
+): ((...args: any[]) => any) | undefined {
+  return ((instance.render as any)?.__onigiri && instance.render)
+    // @ts-expect-error internal SSR-mode field
+    || ((instance.ssrRender as any)?.__onigiri && instance.ssrRender)
+    || undefined
+}
+
 /**
- * Build the onigiri `_ctx` proxy. It unifies setupState, props, data and
- * context lookups so compiled templates can use `_ctx.foo` for any binding.
+ * build a ctx.proxy to run the tagged render function with, which provides access to props, data, setup state, and public instance properties. This is necessary for the tagged render to be able to read bindings when plugin-vue inlines the SSR render.
  *
- * `instance.proxy` (Vue's public proxy) should in theory already cover this,
- * but in SSR mode with manually created instances it sometimes fails to
- * resolve setupState keys — so we build our own proxy that's guaranteed
- * to work in the serialize path.
+ * simulates the behavior of vue in dev mode
  */
 function createOnigiriCtx(instance: ComponentInternalInstance): any {
   return new Proxy({ _: instance }, {
     get(_target, key) {
       if (key === '_') return instance
-      // Vue's well-known namespaces
+      // @ts-expect-error internal API
       if (key === '$setup') return instance.setupState
       if (key === '$props') return instance.props
-      // @ts-expect-error internal
       if (key === '$data') return instance.data
-      // @ts-expect-error internal
       if (key === '$options') return instance.type
       if (key === '$slots') return instance.slots
       if (key === '$emit') return instance.emit
@@ -238,22 +227,20 @@ function createOnigiriCtx(instance: ComponentInternalInstance): any {
       if (key === '$attrs') return instance.attrs
       if (key === '$parent') return instance.parent
       if (key === '$root') return instance.root
-      // Lookup in binding sources in priority order
-      const setupState = instance.setupState as any
+      // @ts-expect-error internal API
+      const setupState = instance.setupState
       if (setupState && typeof key === 'string' && key in setupState) return setupState[key]
-      // @ts-expect-error internal
       const data = instance.data as any
       if (data && typeof key === 'string' && key in data) return data[key]
       const props = instance.props as any
       if (props && typeof key === 'string' && key in props) return props[key]
-      // Fall through to the Vue proxy (options, methods, etc.)
       return (instance.proxy as any)?.[key]
     },
     has(_target, key) {
       if (typeof key !== 'string') return false
-      const setupState = instance.setupState as any
+      // @ts-expect-error internal API
+      const setupState = instance.setupState
       if (setupState && key in setupState) return true
-      // @ts-expect-error internal
       const data = instance.data as any
       if (data && key in data) return true
       const props = instance.props as any
@@ -263,40 +250,11 @@ function createOnigiriCtx(instance: ComponentInternalInstance): any {
   })
 }
 
-/**
- * Temporarily install `instance` as Vue's `currentInstance` for the
- * duration of a callback. Vue's `resolveComponent(name)` (emitted by the
- * compiler for globally-registered components like Nuxt's auto-imports)
- * uses `currentRenderingInstance || currentInstance` to locate the app
- * context's component registry. Manually-created instances via
- * `createComponentInstance` + `setupComponent` reset `currentInstance`
- * after setup returns, so by the time our onigiri render runs, the
- * lookup falls back to the name string — which then reaches
- * `serializeComponentInContext` as the `component` arg and Vue throws
- * `render is not a function`.
- *
- * Uses the `__VUE_INSTANCE_SETTERS__` global that Vue registers for
- * cross-Vue safety (same mechanism `setCurrentInstance` uses internally).
- */
-function withInstance<T>(instance: ComponentInternalInstance, fn: () => T): T {
-  const g = globalThis as any
-  const setters = g.__VUE_INSTANCE_SETTERS__ as Array<(v: any) => void> | undefined
-  if (!setters) return fn()
-  const prev = getCurrentInstance()
-  for (const s of setters) s(instance)
-  try {
-    return fn()
-  }
-  finally {
-    for (const s of setters) s(prev)
-  }
-}
-
 function runOnigiriRender(
   onigiriRender: (...args: any[]) => VServerComponentBuffered,
   instance: ComponentInternalInstance,
 ): VServerComponentBuffered {
-  return withInstance(instance, () => onigiriRender(createOnigiriCtx(instance), instance))
+  return onigiriRender(createOnigiriCtx(instance), instance)
 }
 
 export function serializeApp(
@@ -306,9 +264,6 @@ export function serializeApp(
 ) {
   const input = app
   app.provide(ssrContextKey, context)
-  // Signal the inject-setup path that we're serializing. Components compiled
-  // via the Vite plugin's setup-inject route check for this symbol and
-  // return an onigiri render fn instead of the normal VNode render.
   app.provide(ONIGIRI_RENDER_SYMBOL, true as const)
   applyDirective(app)
   const vnode = createVNode(input._component, input._props, slots as any)
@@ -330,7 +285,6 @@ export function serializeApp(
         // @ts-expect-error internal API
         = instance.sp as unknown as Promise[] | undefined
 
-      // Wait for async setup and prefetches
       if (hasAsyncSetup || prefetches) {
         await Promise.resolve(res).then(() => {
           if (hasAsyncSetup) {
@@ -345,18 +299,10 @@ export function serializeApp(
         })
       }
 
-      // If component has __onigiriRender, use it directly (attach path)
-      if (typeof componentType.__onigiriRender === 'function') {
-        const result = app.runWithContext(() => runOnigiriRender(componentType.__onigiriRender!, instance))
-        return unrollServerComponentBufferPromises(result)
-      }
-
-      // Inject-setup path: setup returned a tagged onigiri render fn.
-      // @ts-expect-error internal
-      if (instance.render?.__onigiri) {
+      const taggedRootRender = pickTaggedRender(instance)
+      if (taggedRootRender) {
         const injectRendered = app.runWithContext(() =>
-          // @ts-expect-error internal
-          instance.render!.call(instance.proxy, instance.proxy, instance),
+          taggedRootRender.call(instance.proxy, instance.proxy, instance),
         )
         if (isPromise(injectRendered)) {
           const r = await injectRendered
@@ -365,7 +311,11 @@ export function serializeApp(
         return unrollServerComponentBufferPromises(injectRendered as VServerComponentBuffered)
       }
 
-      // Fallback: render the component and serialize the vnode tree
+      if (typeof componentType.__onigiriRender === 'function') {
+        const result = app.runWithContext(() => runOnigiriRender(componentType.__onigiriRender!, instance))
+        return unrollServerComponentBufferPromises(result)
+      }
+
       const child = renderComponentRoot(instance)
       const result = await app.runWithContext(() => serializeVNode(child, instance))
       if (result) {
@@ -405,7 +355,6 @@ export function unrollServerComponentBufferPromises(
       )
     }
     else if (Array.isArray(item)) {
-      // Recursively handle nested arrays (like children arrays that may contain Promises)
       promises.push(
         Promise.all(
           item.map((v) => {
@@ -454,31 +403,19 @@ export async function serializeVNode(
         __chunk?: string
         __export?: string
       }
-      // Check if component has pre-compiled onigiri render function
       if (typeof componentType.__onigiriRender === 'function') {
-        // Create instance to run setup and get reactive context
         const instance = createComponentInstance(vnode, parentInstance ?? null, null)
-        // Re-assert appContext + provides from the parent chain so inject()
-        // (used by Vue's SSR context setup) works inside nested components,
-        // including children of async-setup parents where the runWithContext
-        // frame has already unwound.
-        if (!instance.appContext || !instance.provides) {
-          let p: ComponentInternalInstance | null | undefined = parentInstance
-          while (p) {
-            if (!instance.appContext && p.appContext) {
-              // @ts-expect-error internal
-              instance.appContext = p.appContext
-            }
-            if (!instance.provides && p.provides) {
-              instance.provides = p.provides
-            }
-            if (instance.appContext && instance.provides) break
-            p = p.parent
-          }
-        }
+        inheritAppContext(instance, parentInstance)
         const res = setupComponent(instance, true)
 
-        // Handle async setup
+        const runPicked = (): any => {
+          const tagged = pickTaggedRender(instance)
+          if (tagged) {
+            return tagged.call(instance.proxy, instance.proxy, instance)
+          }
+          return runOnigiriRender(componentType.__onigiriRender!, instance)
+        }
+
         if (isPromise(res)) {
           return res.then(async () => {
             // @ts-expect-error internal API
@@ -488,7 +425,7 @@ export async function serializeVNode(
                 prefetches.map(prefetch => prefetch.call(instance.proxy)),
               )
             }
-            return runOnigiriRender(componentType.__onigiriRender!, instance)
+            return runPicked()
           })
         }
 
@@ -500,10 +437,9 @@ export async function serializeVNode(
           )
         }
 
-        return runOnigiriRender(componentType.__onigiriRender!, instance)
+        return runPicked()
       }
 
-      // Fallback to runtime VNode serialization
       return Promise.resolve(renderComponent(vnode, parentInstance)).then(
         (child) => {
           // @ts-expect-error
@@ -525,7 +461,7 @@ export async function serializeVNode(
               ?? 'anonymous'
             throw new Error(
               `[vue-onigiri] Component "${componentName}" is marked with v-load-client but has no __chunk / __export metadata. `
-              + `Make sure the onigiriClientPlugin / onigiriServerPlugin is registered in your Vite config.`,
+              + `Make sure onigiriChunkPlugin is registered in your Vite config.`,
             )
           }
 
@@ -675,7 +611,6 @@ function renderComponent(
 
   if (hasAsyncSetup || prefetches) {
     const p: Promise<unknown> = Promise.resolve(res).then(() => {
-      // instance.sp may be null until an async setup resolves, so evaluate it here
       if (hasAsyncSetup) {
         // @ts-expect-error internal API
         prefetches = instance.sp
@@ -712,7 +647,6 @@ function renderComponent(
   return isVNode(child.children) ? child.children : child
 }
 
-// todo test this
 function applySSRDirectives(
   vnode: VNode,
   rawProps: VNodeProps | null,

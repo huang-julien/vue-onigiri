@@ -61,6 +61,7 @@
   },
   "packageManager": "pnpm@10.7.0",
   "dependencies": {
+    "@babel/parser": "^7.27.0",
     "@module-federation/vite": "^1.2.7",
     "@types/estree": "1.0.7",
     "@vitejs/plugin-vue": "^5.2.3",

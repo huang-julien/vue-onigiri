@@ -37,57 +37,57 @@ return [0, "div", undefined, [[2, "Hello World"]]];
 `;
 
 exports[`onigiri compiler > snapshots > components > component WITHOUT v-load-client (server-rendered) 1`] = `
-"import { resolveComponent as _resolveComponent } from "vue";
+"import { resolveComponentInInstance as __onigiri_resolveComponent } from "vue-onigiri/runtime/resolve-component";
 import { serializeComponentInContext as __serializeComponentInContext } from "vue-onigiri/runtime/serialize";
 
 export function renderOnigiri(_ctx, __instance) {
-const _component_MyComponent = _resolveComponent("MyComponent")
+const _component_MyComponent = __onigiri_resolveComponent(__instance, "MyComponent")
   return __serializeComponentInContext(_component_MyComponent, {"title": _ctx.title, "count": 42}, __instance, undefined);
 }"
 `;
 
 exports[`onigiri compiler > snapshots > components > component WITHOUT v-load-client with slot 1`] = `
-"import { resolveComponent as _resolveComponent } from "vue";
+"import { resolveComponentInInstance as __onigiri_resolveComponent } from "vue-onigiri/runtime/resolve-component";
 import { serializeComponentInContext as __serializeComponentInContext } from "vue-onigiri/runtime/serialize";
 
 export function renderOnigiri(_ctx, __instance) {
-const _component_MyComponent = _resolveComponent("MyComponent")
+const _component_MyComponent = __onigiri_resolveComponent(__instance, "MyComponent")
   return __serializeComponentInContext(_component_MyComponent, undefined, __instance, { "default": () => [[2, "Slot content"]] });
 }"
 `;
 
 exports[`onigiri compiler > snapshots > components > component with default slot 1`] = `
-"import { resolveComponent as _resolveComponent } from "vue";
+"import { resolveComponentInInstance as __onigiri_resolveComponent } from "vue-onigiri/runtime/resolve-component";
 
 export function renderOnigiri(_ctx, __instance) {
-const _component_MyComponent = _resolveComponent("MyComponent")
+const _component_MyComponent = __onigiri_resolveComponent(__instance, "MyComponent")
   return [1, undefined, _component_MyComponent.__chunk, _component_MyComponent.__export, { "default": [2, "Default slot content"] }];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > components > component with named slots 1`] = `
-"import { resolveComponent as _resolveComponent } from "vue";
+"import { resolveComponentInInstance as __onigiri_resolveComponent } from "vue-onigiri/runtime/resolve-component";
 
 export function renderOnigiri(_ctx, __instance) {
-const _component_MyComponent = _resolveComponent("MyComponent")
+const _component_MyComponent = __onigiri_resolveComponent(__instance, "MyComponent")
   return [1, undefined, _component_MyComponent.__chunk, _component_MyComponent.__export, { "header": [2, "Header content"], "default": [2, "Main content"], "footer": [2, "Footer content"] }];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > components > component with props 1`] = `
-"import { resolveComponent as _resolveComponent } from "vue";
+"import { resolveComponentInInstance as __onigiri_resolveComponent } from "vue-onigiri/runtime/resolve-component";
 
 export function renderOnigiri(_ctx, __instance) {
-const _component_MyComponent = _resolveComponent("MyComponent")
+const _component_MyComponent = __onigiri_resolveComponent(__instance, "MyComponent")
   return [1, {"title": _ctx.title, "count": 42}, _component_MyComponent.__chunk, _component_MyComponent.__export, undefined];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > components > kebab-case component with v-load-client 1`] = `
-"import { resolveComponent as _resolveComponent } from "vue";
+"import { resolveComponentInInstance as __onigiri_resolveComponent } from "vue-onigiri/runtime/resolve-component";
 
 export function renderOnigiri(_ctx, __instance) {
-const _component_my_component = _resolveComponent("my-component")
+const _component_my_component = __onigiri_resolveComponent(__instance, "my-component")
   return [1, {"prop": _ctx.value}, _component_my_component.__chunk, _component_my_component.__export, { "default": [2, "Content"] }];
 }"
 `;
@@ -268,7 +268,7 @@ return [0, "nav", {"class": "navbar"}, [[0, "a", {"href": "/", "class": "logo"},
 
 exports[`onigiri compiler > snapshots > real-world examples > todo item 1`] = `
 "export function renderOnigiri(_ctx, __instance) {
-return [0, "li", {"class": "todo-item", "class": { completed: _ctx.todo.done }}, [[0, "input", {"type": "checkbox", "checked": _ctx.todo.done, "onChange": _ctx.toggle(_ctx.todo.id)}], [0, "span", undefined, [[2, _ctx.todo.text]]], [0, "button", {"onClick": _ctx.remove(_ctx.todo.id)}, [[2, "×"]]]]];
+return [0, "li", {"class": "todo-item", "class": { completed: _ctx.todo.done }}, [[0, "input", {"type": "checkbox", "checked": _ctx.todo.done, "onChange": $event => (_ctx.toggle(_ctx.todo.id))}], [0, "span", undefined, [[2, _ctx.todo.text]]], [0, "button", {"onClick": $event => (_ctx.remove(_ctx.todo.id))}, [[2, "×"]]]]];
 }"
 `;
 

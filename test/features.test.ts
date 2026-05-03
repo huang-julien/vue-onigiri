@@ -2,12 +2,10 @@
 
 import { describe, expect, it } from 'vitest'
 import { defineComponent, h, inject, provide, Suspense } from 'vue'
-import { mount, flushPromises } from '@vue/test-utils'
 import { renderToString } from '@vue/server-renderer'
 import { compileOnigiri } from '../src/template-compiler'
 import { serializeComponent } from '../src/runtime/serialize'
 import { renderOnigiri } from '../src/runtime/deserialize'
-import { removeCommentsFromHtml } from './utils'
 
 describe('built-in components', () => {
   it('Suspense compiles to [VServerComponentType.Suspense, ...]', () => {

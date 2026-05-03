@@ -2,6 +2,7 @@ import type { BindingMetadata } from '@vue/compiler-dom'
 
 /**
  * Simple context for code generation
+ * See vue's compiler codegen context
  */
 export interface CodegenContext {
   code: string
@@ -26,12 +27,14 @@ export interface CodegenContext {
    * `Component.__chunk` property lookup.
    */
   importMap: Map<string, string>
+  isCustomElement: (tag: string) => boolean
 }
 
 export interface CodegenContextOptions {
   bindingMetadata?: BindingMetadata
   scopeId?: string | null
   importMap?: Map<string, string>
+  isCustomElement?: (tag: string) => boolean
 }
 
 /**
@@ -47,6 +50,7 @@ export function createCodegenContext(opts: CodegenContextOptions = {}): CodegenC
     localVars: new Set<string>(),
     scopeId: opts.scopeId ?? null,
     importMap: opts.importMap ?? new Map<string, string>(),
+    isCustomElement: opts.isCustomElement ?? (() => false),
     push(code: string) {
       this.code += code
     },
