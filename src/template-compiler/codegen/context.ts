@@ -33,7 +33,7 @@ export interface CodegenContext {
    * resolve a `v-load-client` target.
    */
   additionalImports: Map<string, string>
-  isCustomElement: (tag: string) => boolean
+  isCustomElement: (tag: string) => boolean | void
 }
 
 export interface CodegenContextOptions {
@@ -41,7 +41,7 @@ export interface CodegenContextOptions {
   scopeId?: string | null
   importMap?: Map<string, string>
   additionalImports?: Map<string, string>
-  isCustomElement?: (tag: string) => boolean
+  isCustomElement?: (tag: string) => boolean | void
 }
 
 /**

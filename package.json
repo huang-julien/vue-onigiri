@@ -36,7 +36,8 @@
   "devDependencies": {
     "@stylistic/eslint-plugin": "^5.7.1",
     "@types/node": "^22.13.13",
-    "@vitest/coverage-v8": "^3.0.9",
+    "@vitest/coverage-v8": "^3.2.4",
+    "@vitest/ui": "^3.2.4",
     "@vue/server-renderer": "^3.5.13",
     "automd": "^0.4.0",
     "changelogen": "^0.6.1",
@@ -46,7 +47,7 @@
     "typescript": "^5.8.2",
     "unbuild": "^3.5.0",
     "vite-plugin-mcp": "^0.3.1",
-    "vitest": "^3.1.4",
+    "vitest": "^3.2.4",
     "vue": "^3.5.13",
     "vue-tsc": "^2.2.8"
   },
@@ -64,8 +65,7 @@
     "@babel/parser": "^7.27.0",
     "@module-federation/vite": "^1.2.7",
     "@types/estree": "1.0.7",
-    "@vitejs/plugin-vue": "^5.2.3",
-    "@vitest/ui": "^3.2.4",
+    "@vitejs/plugin-vue": "^6.0.6",
     "@vue/compiler-core": "^3.5.18",
     "@vue/compiler-dom": "^3.5.13",
     "@vue/compiler-sfc": "^3.5.13",

@@ -33,12 +33,12 @@ export type VServerComponentComponent = [
   VServerComponentType.Component,
   Props,
   ChunkPath,
-  // export name
-  string,
-  Slots,
+  // export name (defaults to "default" at the loader)
+  string?,
+  Slots?,
 ]
 type VServerComponentText = [VServerComponentType.Text, string]
-type VServerComponentFragment = [VServerComponentType.Fragment, Children[]]
+type VServerComponentFragment = [VServerComponentType.Fragment, Children]
 type VServerComponentSuspense = [
   VServerComponentType.Suspense,
   VServerComponent[] | undefined,

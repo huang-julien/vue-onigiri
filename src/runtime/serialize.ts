@@ -203,9 +203,11 @@ function inheritAppContext(
 function pickTaggedRender(
   instance: ComponentInternalInstance,
 ): ((...args: any[]) => any) | undefined {
-  return ((instance.render as any)?.__onigiri && instance.render)
-    // @ts-expect-error internal SSR-mode field
-    || ((instance.ssrRender as any)?.__onigiri && instance.ssrRender)
+  const render = (instance as any).render
+  // @ts-expect-error internal SSR-mode field
+  const ssrRender = instance.ssrRender
+  return (render?.__onigiri && render)
+    || (ssrRender?.__onigiri && ssrRender)
     || undefined
 }
 
