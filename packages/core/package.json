@@ -2,10 +2,13 @@
   "name": "vue-onigiri",
   "version": "0.2.1",
   "description": "Serialize and deserialize Vue component trees (VNodes) for Vue Server Components and cross-application component sharing",
-  "repository": "vue-onigiri",
   "license": "MIT",
-  "sideEffects": false,
+  "repository": "vue-onigiri",
+  "files": [
+    "dist"
+  ],
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -20,39 +23,13 @@
       "require": "./dist/runtime/*.js"
     }
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "unbuild",
     "lint": "eslint .",
     "lint:fix": "automd && eslint . --fix",
     "prepack": "pnpm build",
-    "test": "pnpm lint && pnpm test:types && vitest run --coverage",
+    "test": "pnpm lint && pnpm test:types && vp test run --coverage",
     "test:types": "vue-tsc"
-  },
-  "devDependencies": {
-    "@types/node": "^22.19.17",
-    "@vitest/coverage-v8": "^4.1.5",
-    "@vitest/ui": "^4.1.5",
-    "@vue/server-renderer": "^3.5.33",
-    "automd": "^0.4.3",
-    "happy-dom": "^20.9.0",
-    "typescript": "^6.0.3",
-    "unbuild": "^3.6.1",
-    "vite-plugin-mcp": "^0.3.2",
-    "vitest": "^4.1.5",
-    "vue": "^3.5.33",
-    "vue-tsc": "^3.2.8"
-  },
-  "peerDependencies": {
-    "@vue/server-renderer": "^3.5.0",
-    "vue": "^3.5.0"
-  },
-  "peerDependenciesMeta": {
-    "@vue/server-renderer": {
-      "optional": true
-    }
   },
   "dependencies": {
     "@babel/parser": "^7.29.3",
@@ -75,6 +52,30 @@
     "rollup": "^4.60.3",
     "source-map-js": "^1.2.1",
     "unplugin": "^3.0.0",
-    "vite": "^8.0.10"
+    "vite": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.17",
+    "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/ui": "^4.1.5",
+    "@vue/server-renderer": "^3.5.33",
+    "automd": "^0.4.3",
+    "happy-dom": "^20.9.0",
+    "typescript": "^6.0.3",
+    "unbuild": "^3.6.1",
+    "vite-plugin-mcp": "^0.3.2",
+    "vite-plus": "catalog:",
+    "vitest": "catalog:",
+    "vue": "^3.5.33",
+    "vue-tsc": "^3.2.8"
+  },
+  "peerDependencies": {
+    "@vue/server-renderer": "^3.5.0",
+    "vue": "^3.5.0"
+  },
+  "peerDependenciesMeta": {
+    "@vue/server-renderer": {
+      "optional": true
+    }
   }
 }

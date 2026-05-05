@@ -1,8 +1,8 @@
-import type { App, DefineComponent, Directive, InjectionKey } from 'vue'
+import type { App, DefineComponent, Directive, InjectionKey } from "vue";
 
-export type ImportFn = (src: string, exportName?: string) => Promise<DefineComponent>
+export type ImportFn = (src: string, exportName?: string) => Promise<DefineComponent>;
 
-export const ONIGIRI_IMPORT_FN_KEY: InjectionKey<ImportFn> = Symbol('onigiri-importFn')
+export const ONIGIRI_IMPORT_FN_KEY: InjectionKey<ImportFn> = Symbol("onigiri-importFn");
 
 /**
  * Attach an app-scoped resolver for `v-load-client` chunks. The function
@@ -18,7 +18,7 @@ export const ONIGIRI_IMPORT_FN_KEY: InjectionKey<ImportFn> = Symbol('onigiri-imp
  * doesn't bleed across concurrent SSR requests.
  */
 export function provideOnigiriImportFn(app: App, fn: ImportFn): void {
-  app.provide(ONIGIRI_IMPORT_FN_KEY, fn)
+  app.provide(ONIGIRI_IMPORT_FN_KEY, fn);
 }
 
 /**
@@ -26,30 +26,30 @@ export function provideOnigiriImportFn(app: App, fn: ImportFn): void {
  * consumers (custom bundlers, non-standard SSR entrypoints) need to set
  * this. Prefer `provideOnigiriImportFn` for app-scoped overrides.
  */
-let installedImportFn: ImportFn | undefined
+let installedImportFn: ImportFn | undefined;
 
 export function setOnigiriImportFn(fn: ImportFn | undefined): void {
-  installedImportFn = fn
+  installedImportFn = fn;
 }
 
 /** @internal — used by the loader. */
 export function _getInstalledImportFn(): ImportFn | undefined {
-  return installedImportFn
+  return installedImportFn;
 }
 
 export const loadClientDirective: Directive = {
   getSSRProps(binding, vnode) {
     if (binding.value !== false) {
       // @ts-ignore
-      vnode._onigiriLoadClient = true
+      vnode._onigiriLoadClient = true;
     }
-    return {}
+    return {};
   },
   created(_, binding, vnode) {
     if (binding.value !== false) {
       // @ts-ignore
-      vnode._onigiriLoadClient = true
+      vnode._onigiriLoadClient = true;
     }
-    return binding
+    return binding;
   },
-}
+};

@@ -4,26 +4,35 @@ import {
   type ExpressionNode,
   type SimpleExpressionNode,
   NodeTypes,
-} from '@vue/compiler-dom'
-import type { CodegenContext } from './context'
-import { genExpressionAsValue } from './expressions'
+} from "@vue/compiler-dom";
+import type { CodegenContext } from "./context";
+import { genExpressionAsValue } from "./expressions";
 
 /** Structural / client-only directives — never serialized. */
 export const STRIPPED_DIRECTIVES = new Set([
-  'if', 'else', 'else-if', 'for', 'slot', 'once', 'memo', 'cloak',
-])
+  "if",
+  "else",
+  "else-if",
+  "for",
+  "slot",
+  "once",
+  "memo",
+  "cloak",
+]);
 
 export function shouldWrapDirective(name: string): boolean {
-  if (name === 'on' || name === 'bind') return false
-  if (STRIPPED_DIRECTIVES.has(name)) return false
-  return true
+  if (name === "on" || name === "bind") return false;
+  if (STRIPPED_DIRECTIVES.has(name)) return false;
+  return true;
 }
 
-export function extractWrappedDirectives(props: (AttributeNode | DirectiveNode)[]): DirectiveNode[] {
+export function extractWrappedDirectives(
+  props: (AttributeNode | DirectiveNode)[],
+): DirectiveNode[] {
   return props.filter(
     (prop): prop is DirectiveNode =>
       prop.type === NodeTypes.DIRECTIVE && shouldWrapDirective(prop.name),
-  )
+  );
 }
 
 export function filterPropsForSerialization(
@@ -31,56 +40,55 @@ export function filterPropsForSerialization(
 ): (AttributeNode | DirectiveNode)[] {
   return props.filter((prop) => {
     if (prop.type === NodeTypes.DIRECTIVE) {
-      return !shouldWrapDirective(prop.name)
+      return !shouldWrapDirective(prop.name);
     }
-    return true
-  })
+    return true;
+  });
 }
 
 export function getDirectiveRef(name: string, context: CodegenContext): string {
-  const vName = 'v' + name.charAt(0).toUpperCase() + name.slice(1)
+  const vName = "v" + name.charAt(0).toUpperCase() + name.slice(1);
   if (context.bindingMetadata?.[vName]) {
-    return `_ctx.${vName}`
+    return `_ctx.${vName}`;
   }
-  const camelName = 'v' + name.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
+  const camelName = "v" + name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
   if (context.bindingMetadata?.[camelName]) {
-    return `_ctx.${camelName}`
+    return `_ctx.${camelName}`;
   }
-  return JSON.stringify(name)
+  return JSON.stringify(name);
 }
 
 export function genDirectiveBinding(dir: DirectiveNode, context: CodegenContext): void {
-  context.push('{')
+  context.push("{");
 
-  let first = true
+  let first = true;
 
   if (dir.exp) {
-    context.push('"value": ')
-    genExpressionAsValue(dir.exp, context)
-    first = false
+    context.push('"value": ');
+    genExpressionAsValue(dir.exp, context);
+    first = false;
   }
 
   if (dir.arg) {
-    if (!first) context.push(', ')
-    context.push('"arg": ')
-    if (typeof dir.arg === 'object' && 'isStatic' in dir.arg && dir.arg.isStatic) {
-      context.push(JSON.stringify((dir.arg as SimpleExpressionNode).content))
+    if (!first) context.push(", ");
+    context.push('"arg": ');
+    if (typeof dir.arg === "object" && "isStatic" in dir.arg && dir.arg.isStatic) {
+      context.push(JSON.stringify((dir.arg as SimpleExpressionNode).content));
+    } else {
+      genExpressionAsValue(dir.arg as ExpressionNode, context);
     }
-    else {
-      genExpressionAsValue(dir.arg as ExpressionNode, context)
-    }
-    first = false
+    first = false;
   }
 
   if (dir.modifiers && dir.modifiers.length > 0) {
-    if (!first) context.push(', ')
-    context.push('"modifiers": {')
+    if (!first) context.push(", ");
+    context.push('"modifiers": {');
     for (let i = 0; i < dir.modifiers.length; i++) {
-      if (i > 0) context.push(', ')
-      context.push(`"${dir.modifiers[i]}": true`)
+      if (i > 0) context.push(", ");
+      context.push(`"${dir.modifiers[i]}": true`);
     }
-    context.push('}')
+    context.push("}");
   }
 
-  context.push('}')
+  context.push("}");
 }

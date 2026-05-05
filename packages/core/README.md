@@ -33,17 +33,13 @@ npm install vue-onigiri
 
 ```js
 // vite.config.js
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import { onigiriCompilerPlugin, onigiriManifestPlugin } from 'vue-onigiri'
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+import { onigiriCompilerPlugin, onigiriManifestPlugin } from "vue-onigiri";
 
 export default defineConfig({
-  plugins: [
-    vue(),
-    onigiriCompilerPlugin(),
-    onigiriManifestPlugin(),
-  ],
-})
+  plugins: [vue(), onigiriCompilerPlugin(), onigiriManifestPlugin()],
+});
 ```
 
 ### 2. Mark client-loaded components
@@ -59,7 +55,7 @@ Add `v-load-client` to any component that should hydrate on the client. The comp
 </template>
 
 <script setup>
-import Counter from './Counter.vue'
+import Counter from "./Counter.vue";
 </script>
 ```
 
@@ -68,25 +64,25 @@ The compiler reads the import and inlines `/components/Counter.vue` into the ser
 ### 3. Serialize on the server
 
 ```js
-import { serializeApp } from 'vue-onigiri/runtime/serialize'
-import { createSSRApp } from 'vue'
-import App from './App.vue'
+import { serializeApp } from "vue-onigiri/runtime/serialize";
+import { createSSRApp } from "vue";
+import App from "./App.vue";
 
-const app = createSSRApp(App)
-const data = await serializeApp(app, undefined, { url: req.url })
+const app = createSSRApp(App);
+const data = await serializeApp(app, undefined, { url: req.url });
 // send `data` to the client (inlined in HTML, JSON endpoint, etc.)
 ```
 
 ### 4. Render on the client
 
 ```js
-import { renderOnigiri } from 'vue-onigiri/runtime/deserialize'
-import { createApp } from 'vue'
+import { renderOnigiri } from "vue-onigiri/runtime/deserialize";
+import { createApp } from "vue";
 
 const app = createApp({
   setup: () => () => renderOnigiri(data),
-})
-app.mount('#app')
+});
+app.mount("#app");
 ```
 
 Wrap the mount point in `<Suspense>` if your tree contains `v-load-client` components — each loader uses its own internal `<Suspense>`, but a top-level boundary keeps the initial render hydration-safe.
@@ -100,13 +96,13 @@ Generates the per-SFC `__onigiriRender` function from each `<template>`. This is
 ```ts
 interface OnigiriCompilerOptions {
   /** @default true */
-  sourceMap?: boolean
+  sourceMap?: boolean;
   /**
    * Predicate for native custom elements / web components. Tags it
    * returns `true` for skip the Vue-component dispatch path and emit
    * as plain HTML. Mirrors Vue's `CompilerOptions.isCustomElement`.
    */
-  isCustomElement?: (tag: string) => boolean
+  isCustomElement?: (tag: string) => boolean;
   /**
    * Tag → root-relative module path for components the SFC doesn't
    * import statically. Lets `v-load-client` resolve to the right
@@ -117,7 +113,7 @@ interface OnigiriCompilerOptions {
   additionalImports?:
     | Record<string, string>
     | Map<string, string>
-    | (() => Record<string, string> | Map<string, string>)
+    | (() => Record<string, string> | Map<string, string>);
 }
 ```
 
@@ -131,7 +127,7 @@ interface OnigiriManifestPluginOptions {
    * Glob (relative to root) for the **server** lazy-load fallback.
    * Default: `/**\/*.vue`. Set to `false` to disable.
    */
-  serverInclude?: string | false
+  serverInclude?: string | false;
   /**
    * Glob for the **client** lazy-load fallback. Default: `false`.
    * Exposing `import.meta.glob` to the browser leaks every matching
@@ -140,13 +136,13 @@ interface OnigiriManifestPluginOptions {
    * have client islands that aren't reachable through your app's
    * static import graph; scope it as narrowly as possible.
    */
-  clientInclude?: string | false
+  clientInclude?: string | false;
   /**
    * Force a no-glob manifest in **all** environments. Required for
    * bundlers that can't preprocess `import.meta.glob` or compile
    * `.vue` imports (e.g. Nitro's prerender rollup).
    */
-  stub?: boolean
+  stub?: boolean;
 }
 ```
 
@@ -161,9 +157,9 @@ Nuxt integrates onigiri directly: wire is handled inside Nuxt core, which feeds 
 Serialize an entire Vue app instance.
 
 ```js
-import { serializeApp } from 'vue-onigiri/runtime/serialize'
+import { serializeApp } from "vue-onigiri/runtime/serialize";
 
-const data = await serializeApp(app, undefined, { url: '/page' })
+const data = await serializeApp(app, undefined, { url: "/page" });
 ```
 
 ### `serializeComponent(component, props?, slots?, ssrContext?)`
@@ -171,9 +167,9 @@ const data = await serializeApp(app, undefined, { url: '/page' })
 Serialize a single component without mounting an app.
 
 ```js
-import { serializeComponent } from 'vue-onigiri/runtime/serialize'
+import { serializeComponent } from "vue-onigiri/runtime/serialize";
 
-const data = await serializeComponent(MyComponent, { title: 'Hello' })
+const data = await serializeComponent(MyComponent, { title: "Hello" });
 ```
 
 ### `renderOnigiri(data)`
@@ -181,9 +177,9 @@ const data = await serializeComponent(MyComponent, { title: 'Hello' })
 Deserialize a payload back into a VNode tree.
 
 ```js
-import { renderOnigiri } from 'vue-onigiri/runtime/deserialize'
+import { renderOnigiri } from "vue-onigiri/runtime/deserialize";
 
-const vnode = renderOnigiri(data)
+const vnode = renderOnigiri(data);
 ```
 
 ### `provideOnigiriImportFn(app, fn)`
@@ -194,12 +190,12 @@ Attach an app-scoped resolver for `v-load-client` chunks. Wins over the built-in
 - you want a per-request (per-app) override that doesn't bleed across concurrent SSR
 
 ```js
-import { provideOnigiriImportFn } from 'vue-onigiri/runtime/utils'
+import { provideOnigiriImportFn } from "vue-onigiri/runtime/utils";
 
-provideOnigiriImportFn(app, async (src, exportName = 'default') => {
-  const mod = await myCustomLoader(src)
-  return mod[exportName] ?? mod.default ?? mod
-})
+provideOnigiriImportFn(app, async (src, exportName = "default") => {
+  const mod = await myCustomLoader(src);
+  return mod[exportName] ?? mod.default ?? mod;
+});
 ```
 
 ### `setOnigiriImportFn(fn)`
@@ -207,12 +203,12 @@ provideOnigiriImportFn(app, async (src, exportName = 'default') => {
 Module-scoped fallback resolver. Prefer `provideOnigiriImportFn` — `setOnigiriImportFn` is for non-Vite consumers (custom bundlers, exotic SSR entrypoints) where you can't get an app instance to inject onto.
 
 ```js
-import { setOnigiriImportFn } from 'vue-onigiri/runtime/utils'
+import { setOnigiriImportFn } from "vue-onigiri/runtime/utils";
 
-setOnigiriImportFn(async (src, exportName = 'default') => {
-  const mod = await import(/* @vite-ignore */ src)
-  return mod[exportName] ?? mod.default ?? mod
-})
+setOnigiriImportFn(async (src, exportName = "default") => {
+  const mod = await import(/* @vite-ignore */ src);
+  return mod[exportName] ?? mod.default ?? mod;
+});
 ```
 
 ## How It Works
@@ -232,7 +228,7 @@ Client: AST → deserialize → VNode tree (lazy chunks resolved via importFn)
 - `v-load-client` requires compile-time path resolution: the target component must be statically imported in the SFC, or registered through `additionalImports` (Nuxt module handles this automatically for auto-imported components).
 - `<component :is="x" v-load-client />` with a runtime `is` value isn't supported — the compiler can't resolve the path at build time.
 - Components used outside an onigiri-compiled SFC (e.g. via Vue's vnode fallback path) can't carry `v-load-client`.
-- Scoped slots can't be passed *into* `v-load-client` components (the slot scope only exists on the client at runtime and can't be embedded in the frozen AST).
+- Scoped slots can't be passed _into_ `v-load-client` components (the slot scope only exists on the client at runtime and can't be embedded in the frozen AST).
 - Payload size grows with tree size; deeply server-rendered pages produce larger responses than equivalent SSR HTML.
 
 ## Migrating from 0.2.x

@@ -10,5 +10,5 @@
 import { loadClientDirective } from "vue-onigiri/runtime/utils";
 import Counter from "./Counter.vue";
 import TsSlot from "./TsSlot";
-const vLoadClient = loadClientDirective
+const vLoadClient = loadClientDirective;
 </script>

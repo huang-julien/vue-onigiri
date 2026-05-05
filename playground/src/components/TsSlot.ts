@@ -1,12 +1,12 @@
-import { defineComponent, h } from 'vue'
+import { defineComponent, h } from "vue";
 
 export default defineComponent({
-
-  name: 'TsSlot',
+  name: "TsSlot",
   setup(props, ctx) {
-    return () => h('div', null, [
-      h('div', null, 'TsSlot component'),
-      ctx.slots.default ? ctx.slots.default() : null,
-    ])
+    return () =>
+      h("div", null, [
+        h("div", null, "TsSlot component"),
+        ctx.slots.default ? ctx.slots.default() : null,
+      ]);
   },
-})
+});

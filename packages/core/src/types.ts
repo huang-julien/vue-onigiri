@@ -1,9 +1,14 @@
-import type { VServerComponent } from './runtime/shared'
-import type { ObjectDirectiveBinding } from './runtime/with-directive'
+import type { VServerComponent } from "./runtime/shared";
+import type { ObjectDirectiveBinding } from "./runtime/with-directive";
 
-declare module 'vue' {
+declare module "vue" {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  interface ObjectDirective<HostElement = any, Value = any, Modifiers extends string = string, Arg extends string = string> {
+  interface ObjectDirective<
+    HostElement = any,
+    Value = any,
+    Modifiers extends string = string,
+    Arg = any,
+  > {
     /**
      * vue-onigiri serialize-time hook. Receives the resolved
      * `VServerComponent` for the element and returns a transformed copy.
@@ -13,6 +18,9 @@ declare module 'vue' {
      *
      * Only `value`, `arg`, and `modifiers` are populated at serialize time.
      */
-    transformOnigiri?: (node: VServerComponent, binding: ObjectDirectiveBinding<Value>) => VServerComponent
+    transformOnigiri?: (
+      node: VServerComponent,
+      binding: ObjectDirectiveBinding<Value>,
+    ) => VServerComponent;
   }
 }

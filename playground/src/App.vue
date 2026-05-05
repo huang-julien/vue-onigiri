@@ -1,14 +1,14 @@
-<script setup lang="ts"> 
+<script setup lang="ts">
 import { ref, computed, type VNode } from "vue";
 import AstViewer from "./components/AstViewer.vue";
 import Counter from "./components/Counter.vue";
 import LoadComponent from "./components/LoadComponent.vue";
 
-const vnode = ref()
-const activeTab = ref<'live' | 'compiled'>('live');
+const vnode = ref();
+const activeTab = ref<"live" | "compiled">("live");
 
 function onVnodeUpdated(_vnode: VNode) {
-  vnode.value = _vnode
+  vnode.value = _vnode;
 }
 
 // Access the compile-time onigiri render attached by the plugin
@@ -41,7 +41,11 @@ const compiledAst = computed(() => {
       <div v-if="activeTab === 'live'" class="panel-grid">
         <div class="panel">
           <h2>Live Component</h2>
-          <LoadComponent ref="counterRef" @vue:mounted="onVnodeUpdated" @vue:updated="onVnodeUpdated" />
+          <LoadComponent
+            ref="counterRef"
+            @vue:mounted="onVnodeUpdated"
+            @vue:updated="onVnodeUpdated"
+          />
         </div>
         <div class="panel">
           <h2>Runtime VNode AST</h2>
@@ -52,7 +56,8 @@ const compiledAst = computed(() => {
       <div v-else-if="activeTab === 'compiled'" class="panel">
         <h2>Compile-time Serialized AST</h2>
         <p class="description">
-          Pre-compiled via <code>LoadComponent.__onigiriRender()</code> - automatically attached by the Vite plugin
+          Pre-compiled via <code>LoadComponent.__onigiriRender()</code> - automatically attached by
+          the Vite plugin
         </p>
         <pre class="ast">{{ JSON.stringify(compiledAst, null, 2) }}</pre>
       </div>
@@ -135,4 +140,3 @@ const compiledAst = computed(() => {
   line-height: 1.5;
 }
 </style>
- 

@@ -1,9 +1,9 @@
-import { type BindingMetadata, compileScript, parse } from '@vue/compiler-sfc'
-import type { ResolvedConfig } from 'vite'
-import MagicString from 'magic-string'
-import { compileOnigiriInline } from '../../template-compiler'
-import { generateScopeId } from './scope-id'
-import { buildImportMap } from './imports'
+import { type BindingMetadata, compileScript, parse } from "@vue/compiler-sfc";
+import type { ResolvedConfig } from "vite";
+import MagicString from "magic-string";
+import { compileOnigiriInline } from "../../template-compiler";
+import { generateScopeId } from "./scope-id";
+import { buildImportMap } from "./imports";
 
 /**
  * Build a `_ctx` bridge mapping setup-script bindings to their
@@ -13,28 +13,28 @@ import { buildImportMap } from './imports'
  * those locals via the same `_ctx.foo` shape our codegen emits.
  */
 function buildBridgeObject(bindingMetadata: BindingMetadata): string {
-  const entries: string[] = []
+  const entries: string[] = [];
   for (const [name, type] of Object.entries(bindingMetadata || {})) {
-    if (typeof type !== 'string' || name.startsWith('__')) continue
+    if (typeof type !== "string" || name.startsWith("__")) continue;
     switch (type) {
-      case 'props': {
-        entries.push(`get ${name}() { return __props.${name} }`)
-        break
+      case "props": {
+        entries.push(`get ${name}() { return __props.${name} }`);
+        break;
       }
-      case 'setup-ref':
-      case 'setup-let':
-      case 'setup-maybe-ref':
-      case 'setup-reactive-const': {
-        entries.push(`get ${name}() { return __onigiri_unref(${name}) }`)
-        break
+      case "setup-ref":
+      case "setup-let":
+      case "setup-maybe-ref":
+      case "setup-reactive-const": {
+        entries.push(`get ${name}() { return __onigiri_unref(${name}) }`);
+        break;
       }
-      case 'setup-const': {
-        entries.push(`get ${name}() { return ${name} }`)
-        break
+      case "setup-const": {
+        entries.push(`get ${name}() { return ${name} }`);
+        break;
       }
     }
   }
-  return `{ ${entries.join(', ')} }`
+  return `{ ${entries.join(", ")} }`;
 }
 
 /**
@@ -51,38 +51,39 @@ export async function injectIntoSetupAsync(
   config: ResolvedConfig,
   isCustomElement?: (tag: string) => boolean,
   additionalImports?: Map<string, string>,
-): Promise<{ code: string, map: any } | null> {
-  const setupMatch = code.match(/setup\s*\(\s*([^,)]*?)(?:,\s*\{[^}]*\})?\s*\)\s*\{/)
-  if (!setupMatch || setupMatch.index === undefined) return null
+): Promise<{ code: string; map: any } | null> {
+  const setupMatch = code.match(/setup\s*\(\s*([^,)]*?)(?:,\s*\{[^}]*\})?\s*\)\s*\{/);
+  if (!setupMatch || setupMatch.index === undefined) return null;
 
   // Inject AFTER all setup-script bindings are declared but BEFORE the
   // SSR render's `return (_ctx, _push, …) => {…}` — otherwise the closure
   // would be empty when the render runs.
-  const ssrRenderReturnMatch = code.slice(setupMatch.index).match(
-    /return\s*\(\s*_ctx\s*,\s*_push\s*,\s*_parent\s*(?:,\s*_attrs\s*)?\)\s*=>\s*\{/,
-  )
+  const ssrRenderReturnMatch = code
+    .slice(setupMatch.index)
+    .match(/return\s*\(\s*_ctx\s*,\s*_push\s*,\s*_parent\s*(?:,\s*_attrs\s*)?\)\s*=>\s*\{/);
 
-  const fs = await import('node:fs/promises')
-  const source = await fs.readFile(filePath, 'utf8')
-  const { descriptor } = parse(source, { filename: filePath })
-  if (!descriptor.template) return null
+  const fs = await import("node:fs/promises");
+  const source = await fs.readFile(filePath, "utf8");
+  const { descriptor } = parse(source, { filename: filePath });
+  if (!descriptor.template) return null;
 
-  let bindingMetadata: BindingMetadata = {}
+  let bindingMetadata: BindingMetadata = {};
   if (descriptor.scriptSetup || descriptor.script) {
     try {
-      const scriptResult = compileScript(descriptor, { id: filePath, sourceMap })
-      bindingMetadata = scriptResult.bindings || {}
-    }
-    catch (error_) {
-      console.warn(`[vue-onigiri] Failed to compile script for ${filePath}:`, error_)
+      const scriptResult = compileScript(descriptor, { id: filePath, sourceMap });
+      bindingMetadata = scriptResult.bindings || {};
+    } catch (error_) {
+      console.warn(`[vue-onigiri] Failed to compile script for ${filePath}:`, error_);
     }
   }
 
-  const hasScoped = descriptor.styles.some(style => style.scoped)
-  const scopeId = hasScoped ? generateScopeId(filePath, source, config.root, config.isProduction) : null
+  const hasScoped = descriptor.styles.some((style) => style.scoped);
+  const scopeId = hasScoped
+    ? generateScopeId(filePath, source, config.root, config.isProduction)
+    : null;
 
-  const scriptContent = descriptor.scriptSetup?.content || descriptor.script?.content || ''
-  const importMap = buildImportMap(scriptContent, filePath, config.root)
+  const scriptContent = descriptor.scriptSetup?.content || descriptor.script?.content || "";
+  const importMap = buildImportMap(scriptContent, filePath, config.root);
 
   // We don't actually use `onigiriResult.expression` directly — we
   // delegate to the standalone `__onigiriRender` attached to the
@@ -96,15 +97,15 @@ export async function injectIntoSetupAsync(
     importMap,
     additionalImports,
     isCustomElement,
-  })
+  });
 
-  const s = new MagicString(code)
+  const s = new MagicString(code);
 
   const imports = `import { inject as __onigiri_inject, getCurrentInstance as __getCurrentInstance, unref as __onigiri_unref } from "vue";
 import { ONIGIRI_RENDER_SYMBOL as __ONIGIRI_SYMBOL } from "vue-onigiri/runtime/shared";
-`
+`;
 
-  const bridgeObject = buildBridgeObject(bindingMetadata)
+  const bridgeObject = buildBridgeObject(bindingMetadata);
 
   // The injected render delegates to the file's standalone
   // `__onigiriRender` (referenced through `__instance.type` to survive
@@ -129,16 +130,17 @@ import { ONIGIRI_RENDER_SYMBOL as __ONIGIRI_SYMBOL } from "vue-onigiri/runtime/s
     __render.__onigiri = true;
     return __render;
   }
-`
+`;
 
-  const injectAt = ssrRenderReturnMatch && ssrRenderReturnMatch.index !== undefined
-    ? setupMatch.index + ssrRenderReturnMatch.index
-    : setupMatch.index + setupMatch[0].length
-  s.appendLeft(injectAt, injectionCode)
-  s.prepend(imports)
+  const injectAt =
+    ssrRenderReturnMatch && ssrRenderReturnMatch.index !== undefined
+      ? setupMatch.index + ssrRenderReturnMatch.index
+      : setupMatch.index + setupMatch[0].length;
+  s.appendLeft(injectAt, injectionCode);
+  s.prepend(imports);
 
   return {
     code: s.toString(),
     map: sourceMap ? s.generateMap({ hires: true }) : null,
-  }
+  };
 }

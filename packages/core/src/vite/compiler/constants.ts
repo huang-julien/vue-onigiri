@@ -7,5 +7,5 @@
  * suffix keeps `@vitejs/plugin-vue`'s `.vue` filter from claiming our
  * generated JS.
  */
-export const ONIGIRI_PREFIX = 'virtual:onigiri:'
-export const ONIGIRI_SUFFIX = '.mjs'
+export const ONIGIRI_PREFIX = "virtual:onigiri:";
+export const ONIGIRI_SUFFIX = ".mjs";

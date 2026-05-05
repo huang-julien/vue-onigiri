@@ -7,7 +7,7 @@
 ### 🚀 Enhancements
 
 - Expose emitted client chunks and override vue plugin config hook (696d4f1)
-- ⚠️  Add export name to components serialization (cff3efc)
+- ⚠️ Add export name to components serialization (cff3efc)
 - Emit virtual:vue-onigiri for server-client chunk (8666906)
 
 ### 🩹 Fixes
@@ -46,7 +46,7 @@
 
 #### ⚠️ Breaking Changes
 
-- ⚠️  Add export name to components serialization (cff3efc)
+- ⚠️ Add export name to components serialization (cff3efc)
 
 ### ❤️ Contributors
 

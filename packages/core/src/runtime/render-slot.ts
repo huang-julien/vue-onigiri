@@ -1,6 +1,6 @@
-import { isVNode, type VNodeChild } from 'vue'
-import { serializeVNode, unrollServerComponentBufferPromises } from './serialize'
-import type { VServerComponent, VServerComponentBuffered } from './shared'
+import { isVNode, type VNodeChild } from "vue";
+import { serializeVNode, unrollServerComponentBufferPromises } from "./serialize";
+import type { VServerComponent, VServerComponentBuffered } from "./shared";
 
 /**
  * Render a slot for onigiri serialization.
@@ -26,18 +26,22 @@ export function renderSlot(
   name: string,
   props?: Record<string, any>,
   fallback?: () => VServerComponentBuffered | VServerComponentBuffered[],
-): VServerComponentBuffered | VServerComponentBuffered[] | Promise<VServerComponent | VServerComponent[]> | undefined {
-  const slot = slots?.[name]
+):
+  | VServerComponentBuffered
+  | VServerComponentBuffered[]
+  | Promise<VServerComponent | VServerComponent[]>
+  | undefined {
+  const slot = slots?.[name];
 
   if (slot === undefined) {
-    return fallback?.()
+    return fallback?.();
   }
 
-  if (typeof slot === 'function') {
-    const content = slot(props)
+  if (typeof slot === "function") {
+    const content = slot(props);
 
     if (content == null) {
-      return fallback?.()
+      return fallback?.();
     }
 
     if (Array.isArray(content)) {
@@ -45,35 +49,35 @@ export function renderSlot(
       // (first is a VServerComponentType number), arrays of such tuples,
       // or Promises returned by nested __serializeComponentInContext calls.
       // unrollServerComponentBufferPromises will flatten everything later.
-      const first = content[0]
-      const isBuffered
-        = typeof first === 'number'
-          || (Array.isArray(first) && typeof first[0] === 'number')
-          || first instanceof Promise
+      const first = content[0];
+      const isBuffered =
+        typeof first === "number" ||
+        (Array.isArray(first) && typeof first[0] === "number") ||
+        first instanceof Promise;
       if (isBuffered) {
-        return content as VServerComponentBuffered[]
+        return content as VServerComponentBuffered[];
       }
       if (isVNode(first)) {
         return Promise.all(
           content.map(async (child: VNodeChild) => {
-            const serialized = await serializeVNode(child)
+            const serialized = await serializeVNode(child);
             if (serialized) {
-              return unrollServerComponentBufferPromises(serialized)
+              return unrollServerComponentBufferPromises(serialized);
             }
-            return undefined
+            return undefined;
           }),
-        ).then(results => results.filter(Boolean) as VServerComponent[])
+        ).then((results) => results.filter(Boolean) as VServerComponent[]);
       }
-      return content as VServerComponentBuffered[]
+      return content as VServerComponentBuffered[];
     }
 
     return serializeVNode(content as VNodeChild).then((serialized) => {
       if (serialized) {
-        return unrollServerComponentBufferPromises(serialized)
+        return unrollServerComponentBufferPromises(serialized);
       }
-      return unrollServerComponentBufferPromises(fallback?.() as VServerComponentBuffered)
-    })
+      return unrollServerComponentBufferPromises(fallback?.() as VServerComponentBuffered);
+    });
   }
 
-  return slot as VServerComponentBuffered
+  return slot as VServerComponentBuffered;
 }

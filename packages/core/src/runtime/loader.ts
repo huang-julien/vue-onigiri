@@ -1,12 +1,8 @@
-import { h, defineAsyncComponent, defineComponent, inject, Suspense } from 'vue'
-import type { VServerComponent, VServerComponentComponent } from './shared'
-import { renderChildren } from './deserialize'
-import {
-  _getInstalledImportFn,
-  ONIGIRI_IMPORT_FN_KEY,
-  type ImportFn,
-} from './utils'
-import { importFn as manifestImportFn } from 'virtual:onigiri/manifest'
+import { h, defineAsyncComponent, defineComponent, inject, Suspense } from "vue";
+import type { VServerComponent, VServerComponentComponent } from "./shared";
+import { renderChildren } from "./deserialize";
+import { _getInstalledImportFn, ONIGIRI_IMPORT_FN_KEY, type ImportFn } from "./utils";
+import { importFn as manifestImportFn } from "virtual:onigiri/manifest";
 
 /**
  * Resolution order:
@@ -17,13 +13,13 @@ import { importFn as manifestImportFn } from 'virtual:onigiri/manifest'
  * Must be called synchronously inside `setup()` because of `inject()`.
  */
 function resolveImportFn(): ImportFn {
-  const injectedFn = inject(ONIGIRI_IMPORT_FN_KEY, null)
-  if (injectedFn) return injectedFn
-  return _getInstalledImportFn() ?? manifestImportFn
+  const injectedFn = inject(ONIGIRI_IMPORT_FN_KEY, null);
+  if (injectedFn) return injectedFn;
+  return _getInstalledImportFn() ?? manifestImportFn;
 }
 
 export default defineComponent({
-  name: 'vue-onigiri:component-loader',
+  name: "vue-onigiri:component-loader",
   props: {
     data: {
       type: Object as () => VServerComponentComponent,
@@ -32,10 +28,10 @@ export default defineComponent({
   },
   setup(props) {
     // Resolve once at setup time so `inject()` runs in the right context.
-    const importFn = resolveImportFn()
+    const importFn = resolveImportFn();
     const AsyncInner = defineAsyncComponent(async () => {
-      return await importFn(props.data[2], props.data[3] ?? 'default')
-    })
+      return await importFn(props.data[2], props.data[3] ?? "default");
+    });
 
     return () => {
       const slots = Object.fromEntries(
@@ -43,24 +39,21 @@ export default defineComponent({
           return [
             key,
             () => {
-              if (!value) return undefined
-              const asArr = Array.isArray(value) && typeof value[0] === 'number'
-                ? [value as unknown as VServerComponent]
-                : (value as VServerComponent[])
-              return renderChildren(asArr)
+              if (!value) return undefined;
+              const asArr =
+                Array.isArray(value) && typeof value[0] === "number"
+                  ? [value as unknown as VServerComponent]
+                  : (value as VServerComponent[]);
+              return renderChildren(asArr);
             },
-          ]
+          ];
         }),
-      )
+      );
 
-      return h(
-        Suspense,
-        null,
-        {
-          default: () => h(AsyncInner, props.data[1], slots),
-          fallback: () => h('div'),
-        },
-      )
-    }
+      return h(Suspense, null, {
+        default: () => h(AsyncInner, props.data[1], slots),
+        fallback: () => h("div"),
+      });
+    };
   },
-})
+});

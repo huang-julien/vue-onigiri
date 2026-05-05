@@ -1,14 +1,14 @@
-import type { Plugin } from 'vite'
+import type { Plugin } from "vite";
 
-const MANIFEST_VIRTUAL_ID = 'virtual:onigiri/manifest'
-const MANIFEST_RESOLVED_ID = '\0' + MANIFEST_VIRTUAL_ID
+const MANIFEST_VIRTUAL_ID = "virtual:onigiri/manifest";
+const MANIFEST_RESOLVED_ID = "\0" + MANIFEST_VIRTUAL_ID;
 
 export interface OnigiriManifestOptions {
   /**
    * Glob (relative to root) for the **server** lazy-load fallback.
    * Defaults to `/**\/*.vue`. Set to `false` to disable.
    */
-  serverInclude?: string | false
+  serverInclude?: string | false;
   /**
    * Glob (relative to root) for the **client** lazy-load fallback.
    * Defaults to `false` — exposing `import.meta.glob` to the browser
@@ -21,7 +21,7 @@ export interface OnigiriManifestOptions {
    * through your app's static import graph; scope it as narrowly as
    * possible.
    */
-  clientInclude?: string | false
+  clientInclude?: string | false;
 }
 
 export interface OnigiriManifestPluginOptions extends OnigiriManifestOptions {
@@ -30,7 +30,7 @@ export interface OnigiriManifestPluginOptions extends OnigiriManifestOptions {
    * bundlers that can't preprocess `import.meta.glob` or compile `.vue`
    * imports (Nitro's pure-Node rollup, including its prerender pass).
    */
-  stub?: boolean
+  stub?: boolean;
 }
 
 /**
@@ -43,35 +43,35 @@ export interface OnigiriManifestPluginOptions extends OnigiriManifestOptions {
  * browser by default).
  */
 export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}): Plugin {
-  const stub = options.stub ?? false
-  const serverInclude = stub ? false : (options.serverInclude ?? '/**/*.vue')
-  const clientInclude = stub ? false : (options.clientInclude ?? false)
+  const stub = options.stub ?? false;
+  const serverInclude = stub ? false : (options.serverInclude ?? "/**/*.vue");
+  const clientInclude = stub ? false : (options.clientInclude ?? false);
   return {
-    name: 'vite:vue-onigiri-manifest',
+    name: "vite:vue-onigiri-manifest",
     // `order: 'pre'` so we claim this id before any default resolver
     // externalizes the unknown `virtual:` protocol — critical for
     // Nitro's rollup (where vue-onigiri is inlined and a missed
     // resolution crashes Node with `protocol 'virtual:'`).
     resolveId: {
-      order: 'pre',
+      order: "pre",
       handler(id) {
-        if (id === MANIFEST_VIRTUAL_ID) return MANIFEST_RESOLVED_ID
+        if (id === MANIFEST_VIRTUAL_ID) return MANIFEST_RESOLVED_ID;
       },
     },
     load(id, opts) {
-      if (id !== MANIFEST_RESOLVED_ID) return
+      if (id !== MANIFEST_RESOLVED_ID) return;
       // Treat undefined `ssr` as server: tests / non-Vite consumers don't
       // set the flag, and a client bundle always sets it explicitly to false.
-      const isClient = opts?.ssr === false
-      const include = isClient ? clientInclude : serverInclude
-      const useGlob = include !== false
+      const isClient = opts?.ssr === false;
+      const include = isClient ? clientInclude : serverInclude;
+      const useGlob = include !== false;
       return `
-${useGlob ? `const __glob = import.meta.glob(${JSON.stringify(include)})\n` : ''}
-export const manifest = ${useGlob ? '__glob' : '{}'}
+${useGlob ? `const __glob = import.meta.glob(${JSON.stringify(include)})\n` : ""}
+export const manifest = ${useGlob ? "__glob" : "{}"}
 
 export async function importFn(src, exportName = 'default') {
   const key = src.startsWith('/') ? src : '/' + src
-  const loader = ${useGlob ? '__glob[key]' : 'undefined'}
+  const loader = ${useGlob ? "__glob[key]" : "undefined"}
   if (!loader) {
     throw new Error(
       '[vue-onigiri] No loader registered for chunk "' + src + '". ' +
@@ -81,9 +81,9 @@ export async function importFn(src, exportName = 'default') {
   const mod = await loader()
   return mod[exportName] ?? mod.default ?? mod
 }
-`
+`;
     },
-  }
+  };
 }
 
 /**
@@ -91,5 +91,5 @@ export async function importFn(src, exportName = 'default') {
  * callers using `[...onigiriPlugins()]` keep working.
  */
 export function onigiriPlugins(options: OnigiriManifestPluginOptions = {}): Plugin[] {
-  return [onigiriManifestPlugin(options)]
+  return [onigiriManifestPlugin(options)];
 }
