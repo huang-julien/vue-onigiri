@@ -9,255 +9,263 @@
 
 ⚠️ **This is a proof of concept.**
 
-Vue Onigiri enables Vue Server Components by serializing and deserializing Vue component trees (VNodes). You can capture snapshots of Vue components either on the server or client side and reconstruct them on another client, allowing for server-side rendering patterns and component sharing between Vue applications.
+Vue Onigiri brings React Server Components-style rendering to Vue. Components render on the server into a transferable AST; the client deserializes that AST back into VNodes, and only components marked with `v-load-client` ship their JS to the browser.
 
 ## Features
 
-- **Vue Server Components** - Render components on the server and send serialized VNodes to the client
-- **VNode Serialization** - Serialize any Vue component tree into a transferable format
-- **Cross-Application Sharing** - Share serialized components between different Vue applications
-- **Slot Support** - Handles Vue slots and scoped slots in serialized components
-- **Async Components** - Support for async components and Suspense boundaries
+- **Server Components** — render on the server, send a serialized VNode tree to the client
+- **Selective hydration** — only components tagged with `v-load-client` are loaded client-side
+- **Slot support** — named and scoped slots survive serialization
+- **Async / Suspense** — async components and `<Suspense>` boundaries are preserved
+- **Compile-time chunk resolution** — `v-load-client` paths are resolved during compilation, no runtime tagging required
+- **Bundler-agnostic** — works with Vite by default; `provideOnigiriImportFn` lets you plug in any loader
+
+## Installation
+
+```sh
+npm install vue-onigiri
+# or: pnpm add vue-onigiri / yarn add vue-onigiri / bun add vue-onigiri
+```
 
 ## Quick Start
 
-### Installation
-
-```sh
-# npm
-npm install vue-onigiri
-
-# yarn
-yarn add vue-onigiri
-
-# pnpm
-pnpm add vue-onigiri
-
-# bun
-bun add vue-onigiri
-```
-
-### Basic Usage
-
-**Serializing a Component:**
-
-```js
-import { serializeComponent } from "vue-onigiri/runtime/serialize";
-import MyComponent from "./MyComponent.vue";
-
-// Serialize a component to transferable data
-const serializedData = await serializeComponent(MyComponent, {
-  message: "Hello from server!",
-});
-
-// Send this data to the client...
-```
-
-**Deserializing and Rendering:**
-
-```js
-import { renderOnigiri } from "vue-onigiri/runtime/deserialize";
-import { createApp, h } from "vue";
-
-// Receive serialized data from server
-const app = createApp({
-  setup() {
-    return () => renderOnigiri(serializedData);
-  },
-});
-
-app.mount("#app");
-```
-
-## Vite Integration
-
-Vue Onigiri provides Vite plugins for both client and server environments:
-
-### Client & Server Setup
+### 1. Configure Vite
 
 ```js
 // vite.config.js
-import { defineConfig } from "vite";
-import { vueOnigiriPluginFactory } from "vue-onigiri";
-
-const { client, server } = vueOnigiriPluginFactory({
-  includeClientChunks: ["**/*.vue"], // Components to include as client chunks
-  serverAssetsDir: "server-chunks",
-  clientAssetsDir: "client-chunks",
-});
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import { onigiriCompilerPlugin, onigiriManifestPlugin } from 'vue-onigiri'
 
 export default defineConfig({
   plugins: [
-    // Use client() for client build, server() for server build
-    process.env.BUILD_TARGET === "server" ? server() : client(),
+    vue(),
+    onigiriCompilerPlugin(),
+    onigiriManifestPlugin(),
   ],
-});
+})
 ```
 
-### Plugin Options
+### 2. Mark client-loaded components
 
-```typescript
-interface VSCOptions {
-  includeClientChunks: string[]; // Glob patterns for components to chunk
-  rootDir?: string; // Root directory (default: cwd)
-  vueServerOptions?: Options; // Vue plugin options for server
-  serverAssetsDir?: string; // Server chunks directory
-  clientAssetsDir?: string; // Client chunks directory
+Add `v-load-client` to any component that should hydrate on the client. The component **must** be statically imported in the same SFC (or registered through `additionalImports` / the Nuxt module):
+
+```vue
+<template>
+  <div>
+    <h1>Rendered on the server</h1>
+    <Counter v-load-client />
+  </div>
+</template>
+
+<script setup>
+import Counter from './Counter.vue'
+</script>
+```
+
+The compiler reads the import and inlines `/components/Counter.vue` into the serialized payload. Components without `v-load-client` are rendered on the server and inlined — their source never reaches the browser.
+
+### 3. Serialize on the server
+
+```js
+import { serializeApp } from 'vue-onigiri/runtime/serialize'
+import { createSSRApp } from 'vue'
+import App from './App.vue'
+
+const app = createSSRApp(App)
+const data = await serializeApp(app, undefined, { url: req.url })
+// send `data` to the client (inlined in HTML, JSON endpoint, etc.)
+```
+
+### 4. Render on the client
+
+```js
+import { renderOnigiri } from 'vue-onigiri/runtime/deserialize'
+import { createApp } from 'vue'
+
+const app = createApp({
+  setup: () => () => renderOnigiri(data),
+})
+app.mount('#app')
+```
+
+Wrap the mount point in `<Suspense>` if your tree contains `v-load-client` components — each loader uses its own internal `<Suspense>`, but a top-level boundary keeps the initial render hydration-safe.
+
+## Vite Plugins
+
+### `onigiriCompilerPlugin(options?)`
+
+Generates the per-SFC `__onigiriRender` function from each `<template>`. This is the only plugin doing real codegen work.
+
+```ts
+interface OnigiriCompilerOptions {
+  /** @default true */
+  sourceMap?: boolean
+  /**
+   * Predicate for native custom elements / web components. Tags it
+   * returns `true` for skip the Vue-component dispatch path and emit
+   * as plain HTML. Mirrors Vue's `CompilerOptions.isCustomElement`.
+   */
+  isCustomElement?: (tag: string) => boolean
+  /**
+   * Tag → root-relative module path for components the SFC doesn't
+   * import statically. Lets `v-load-client` resolve to the right
+   * chunk for Nuxt auto-imports, globally-registered components, or
+   * any other case the compiler can't see in `<script>`. Pass either
+   * a static map or a getter (re-evaluated per transform).
+   */
+  additionalImports?:
+    | Record<string, string>
+    | Map<string, string>
+    | (() => Record<string, string> | Map<string, string>)
 }
 ```
 
+### `onigiriManifestPlugin(options?)`
+
+Emits the `virtual:onigiri/manifest` virtual module that the runtime loader imports. It exposes an `importFn(src, exportName?)` that resolves a root-relative `.vue` path via `import.meta.glob`.
+
+```ts
+interface OnigiriManifestPluginOptions {
+  /**
+   * Glob (relative to root) for the **server** lazy-load fallback.
+   * Default: `/**\/*.vue`. Set to `false` to disable.
+   */
+  serverInclude?: string | false
+  /**
+   * Glob for the **client** lazy-load fallback. Default: `false`.
+   * Exposing `import.meta.glob` to the browser leaks every matching
+   * file path into the bundle, so the safer default is to require
+   * `provideOnigiriImportFn` on the host app. Only set this if you
+   * have client islands that aren't reachable through your app's
+   * static import graph; scope it as narrowly as possible.
+   */
+  clientInclude?: string | false
+  /**
+   * Force a no-glob manifest in **all** environments. Required for
+   * bundlers that can't preprocess `import.meta.glob` or compile
+   * `.vue` imports (e.g. Nitro's prerender rollup).
+   */
+  stub?: boolean
+}
+```
+
+## Nuxt
+
+Nuxt integrates onigiri directly: wire is handled inside Nuxt core, which feeds its component registry into the compiler's `additionalImports` so auto-imported components work with `v-load-client` without further setup. No separate module to install.
+
 ## API Reference
 
-### Serialization
+### `serializeApp(app, slots?, ssrContext?)`
 
-#### `serializeComponent(component, props?, context?)`
-
-Serializes a Vue component with optional props and SSR context.
+Serialize an entire Vue app instance.
 
 ```js
-import { serializeComponent } from "vue-onigiri/runtime/serialize";
+import { serializeApp } from 'vue-onigiri/runtime/serialize'
 
-const data = await serializeComponent(
-  MyComponent,
-  { title: "Hello" }, // Props
-  { url: "/current-page" }, // SSR Context
-);
+const data = await serializeApp(app, undefined, { url: '/page' })
 ```
 
-#### `serializeApp(app, context?)`
+### `serializeComponent(component, props?, slots?, ssrContext?)`
 
-Serializes an entire Vue application VNode.
+Serialize a single component without mounting an app.
 
 ```js
-import { serializeApp } from "vue-onigiri/runtime/serialize";
-import { createApp } from "vue";
+import { serializeComponent } from 'vue-onigiri/runtime/serialize'
 
-const app = createApp(RootComponent);
-const data = await serializeApp(app, { url: "/current-page" });
+const data = await serializeComponent(MyComponent, { title: 'Hello' })
 ```
 
-### Deserialization
+### `renderOnigiri(data)`
 
-#### `renderOnigiri(data, importFn?)`
-
-Renders serialized VNode data back into actual VNodes.
+Deserialize a payload back into a VNode tree.
 
 ```js
-import { renderOnigiri } from "vue-onigiri/runtime/deserialize";
+import { renderOnigiri } from 'vue-onigiri/runtime/deserialize'
 
-// Custom import function for loading components
-// can be useful server side as client chunks are loaded by default
-// made to be used by Nuxt
-const customImportFn = (chunkPath) => import(chunkPath);
-
-const vnode = renderOnigiri(serializedData, customImportFn);
+const vnode = renderOnigiri(data)
 ```
 
-## Component Types
+### `provideOnigiriImportFn(app, fn)`
 
-Vue Onigiri handles different types of Vue components during serialization:
+Attach an app-scoped resolver for `v-load-client` chunks. Wins over the built-in manifest. Use this when:
 
-- **Elements** - Regular HTML elements with props and children
-- **Components** - Vue components with props and slots
-- **Text** - Text nodes
-- **Fragments** - Vue fragments
-- **Suspense** - Suspense boundaries for async components
+- you need full control over how chunk paths map to modules (CDN-served bundles, federation, custom path normalization)
+- you want a per-request (per-app) override that doesn't bleed across concurrent SSR
+
+```js
+import { provideOnigiriImportFn } from 'vue-onigiri/runtime/utils'
+
+provideOnigiriImportFn(app, async (src, exportName = 'default') => {
+  const mod = await myCustomLoader(src)
+  return mod[exportName] ?? mod.default ?? mod
+})
+```
+
+### `setOnigiriImportFn(fn)`
+
+Module-scoped fallback resolver. Prefer `provideOnigiriImportFn` — `setOnigiriImportFn` is for non-Vite consumers (custom bundlers, exotic SSR entrypoints) where you can't get an app instance to inject onto.
+
+```js
+import { setOnigiriImportFn } from 'vue-onigiri/runtime/utils'
+
+setOnigiriImportFn(async (src, exportName = 'default') => {
+  const mod = await import(/* @vite-ignore */ src)
+  return mod[exportName] ?? mod.default ?? mod
+})
+```
 
 ## How It Works
 
-1. **Serialization Phase**: Vue Onigiri traverses your component tree and converts VNodes into a serializable format
-2. **Transfer**: The serialized data can be sent over the network (JSON, etc.)
-3. **Deserialization Phase**: On the client, the data is reconstructed back into VNodes
-4. **Hydration**: Vue renders the reconstructed VNodes as if they were created locally
+1. **Compile time** — `onigiriCompilerPlugin` generates a per-SFC `__onigiriRender` function. For `<X v-load-client />`, the chunk path is resolved from the SFC's static imports (or `additionalImports`) and embedded as a literal string. Unresolvable targets fail compilation with an explicit error.
+2. **Server render** — `serializeApp` walks the rendered tree. Server components inline as HTML/AST; client components emit a marker `[Component, props, chunkPath, exportName, slots]`.
+3. **Client render** — `renderOnigiri` recreates the VNode tree. Each `Component` marker mounts a loader that wraps `defineAsyncComponent` in its own `<Suspense>`, so hydration matches the server's empty fallback before swapping in the real component.
 
 ```
-Server Side:
-VNode Tree → Serialize → JSON Data
-
-Client Side:
-JSON Data → Deserialize → VNode Tree → Render
+Server: VNode tree → serialize → AST + client markers
+Client: AST → deserialize → VNode tree (lazy chunks resolved via importFn)
 ```
 
-## Testing
+## Limitations
 
-```sh
-# Run all tests
-pnpm test
+- Proof of concept — API is unstable, not production-ready.
+- `v-load-client` requires compile-time path resolution: the target component must be statically imported in the SFC, or registered through `additionalImports` (Nuxt module handles this automatically for auto-imported components).
+- `<component :is="x" v-load-client />` with a runtime `is` value isn't supported — the compiler can't resolve the path at build time.
+- Components used outside an onigiri-compiled SFC (e.g. via Vue's vnode fallback path) can't carry `v-load-client`.
+- Scoped slots can't be passed *into* `v-load-client` components (the slot scope only exists on the client at runtime and can't be embedded in the frozen AST).
+- Payload size grows with tree size; deeply server-rendered pages produce larger responses than equivalent SSR HTML.
 
-# Run tests with coverage
-pnpm test --coverage
+## Migrating from 0.2.x
 
-# Run tests in watch mode
-pnpm test --watch
+`0.3` is a breaking change focused on shrinking the runtime surface:
 
-# Run development playground
-pnpm dev
-```
+- **Removed** `onigiriChunkPlugin` / `onigiriClientPlugin` / `onigiriServerPlugin` and the `onigiriPlugins()` factory. The chunk plugin's job (tagging SFCs with `__chunk` / `__export` and self-registering into `__ONIGIRI_REGISTRY__`) is gone — paths are now resolved at compile time.
+- **Removed** the `OnigiriRegistryEntry` / `OnigiriChunkInclude` types and the `registryInclude` / `registryExclude` options.
+- **Removed** runtime `Component.__chunk` / `Component.__export` reads. The compiler always inlines a literal path; if it can't, it errors at build time.
+- **Added** `additionalImports` on `onigiriCompilerPlugin` — pass a map of `{ tag: path }` for components the SFC doesn't import statically.
+- **Renamed** `src/vite/chunk.ts` → `src/vite/manifest.ts` (just an internal rename, not user-visible).
 
-## Limitations & Considerations
+If your app worked because `onigiriChunkPlugin` was tagging components for you, the fix is one of:
 
-- **Proof of Concept**: This library is experimental and not recommended for production use
-- **Bundle Size**: Serialized data can be large for complex component trees. Server-side components are duplicated to render VNodes
-
-## Use Cases
-
-- **Enhanced SSR**: Component-level caching for server-side rendering
-- **Component sharing**: Distribute components between Vue applications
-- **Static site generation**: Pre-render components and hydrate when needed
-- **Micro-frontends**: Share Vue components across different applications
-- **A/B testing**: Serve different component versions from the server
+1. Add a static `import` for the component in the SFC where you use `v-load-client`.
+2. For Nuxt: upgrade to a Nuxt version that integrates onigiri directly (auto-imports work without further setup).
+3. For globally-registered components: pass them through `onigiriCompilerPlugin({ additionalImports: { Foo: '/components/Foo.vue' } })`.
 
 ## Development
 
-### Local Development
-
-1. Clone this repository
-2. Install latest LTS version of [Node.js](https://nodejs.org/en/)
-3. Enable [Corepack](https://github.com/nodejs/corepack) using `corepack enable`
-4. Install dependencies using `pnpm install`
-5. Run interactive tests using `pnpm dev`
-
-### Available Scripts
-
 ```sh
-# Build the library
-pnpm build
-
-# Run development server with playground
-pnpm dev
-
-# Run linting
-pnpm lint
-
-# Fix linting issues
+pnpm install
+pnpm dev          # interactive playground
+pnpm test         # vitest
+pnpm build        # build the library
+pnpm lint         # eslint
 pnpm lint:fix
-
-# Run tests
-pnpm test
-
-# Run tests with type checking
-pnpm test:types
-
-# Release new version
-pnpm release
 ```
 
 ## License
 
-<!-- automd:contributors license=MIT -->
-
-<!-- ⚠️  (contributors) `github` is required! -->
-
-<!-- /automd -->
-
-<!-- automd:with-automd -->
-
----
-
-_🤖 auto updated with [automd](https://automd.unjs.io)_
-
-<!-- /automd -->
+MIT — see `LICENSE`.
 
 ## Credits
 
-- @antfu for naming this package ! 💖
+- [@antfu](https://github.com/antfu) for naming this package 💖

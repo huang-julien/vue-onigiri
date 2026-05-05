@@ -1,50 +1,66 @@
-import { h, type DefineComponent, defineComponent, inject } from "vue";
-import type { VServerComponent, VServerComponentComponent } from "./shared";
-import { renderChildren } from "./deserialize";
-import { INJECTION_KEY } from "./plugin";
-import { defaultImportFn, type ImportFn } from "./utils";
+import { h, defineAsyncComponent, defineComponent, inject, Suspense } from 'vue'
+import type { VServerComponent, VServerComponentComponent } from './shared'
+import { renderChildren } from './deserialize'
+import {
+  _getInstalledImportFn,
+  ONIGIRI_IMPORT_FN_KEY,
+  type ImportFn,
+} from './utils'
+import { importFn as manifestImportFn } from 'virtual:onigiri/manifest'
+
+/**
+ * Resolution order:
+ *   1. App-scoped `importFn` (`provideOnigiriImportFn`)
+ *   2. Module-scoped `importFn` (`setOnigiriImportFn`)
+ *   3. Built-in manifest from `virtual:onigiri/manifest`
+ *
+ * Must be called synchronously inside `setup()` because of `inject()`.
+ */
+function resolveImportFn(): ImportFn {
+  const injectedFn = inject(ONIGIRI_IMPORT_FN_KEY, null)
+  if (injectedFn) return injectedFn
+  return _getInstalledImportFn() ?? manifestImportFn
+}
 
 export default defineComponent({
-  name: "vue-onigiri:component-loader",
+  name: 'vue-onigiri:component-loader',
   props: {
     data: {
       type: Object as () => VServerComponentComponent,
       required: true,
     },
-    importFn: {
-      type: Function as unknown as () => ImportFn,
-      default: defaultImportFn,
-    },
   },
-  async setup(props) {
-    const componentMap = inject(
-      INJECTION_KEY,
-      new Map<string, DefineComponent>(),
-    );
-    const importFn = props.importFn;
-    const hasComponent = componentMap.has(props.data[2]);
-    if (!hasComponent) {
-      const component = await importFn(props.data[2], props.data[3] ?? 'default');
-      componentMap.set(props.data[2], component);
-    }
+  setup(props) {
+    // Resolve once at setup time so `inject()` runs in the right context.
+    const importFn = resolveImportFn()
+    const AsyncInner = defineAsyncComponent(async () => {
+      return await importFn(props.data[2], props.data[3] ?? 'default')
+    })
+
     return () => {
-      const component = componentMap.get(props.data[2]);
       const slots = Object.fromEntries(
         Object.entries(props.data[4] || {}).map(([key, value]) => {
           return [
             key,
             () => {
-              return renderChildren(
-                value as VServerComponent[] | undefined,
-                importFn,
-              );
+              if (!value) return undefined
+              const asArr = Array.isArray(value) && typeof value[0] === 'number'
+                ? [value as unknown as VServerComponent]
+                : (value as VServerComponent[])
+              return renderChildren(asArr)
             },
-          ];
+          ]
         }),
-      );
-      if (component) {
-        return h(component, props.data[1], slots);
-      }
-    };
+      )
+
+      return h(
+        Suspense,
+        null,
+        {
+          default: () => h(AsyncInner, props.data[1], slots),
+          fallback: () => h('div'),
+        },
+      )
+    }
   },
-});
+})

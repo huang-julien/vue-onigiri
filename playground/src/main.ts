@@ -1,17 +1,17 @@
-import "./assets/main.css";
-import { loadClientDirective} from "vue-onigiri/runtime/utils"
-import { createApp, Suspense, h } from "vue";
-import App from "./App.vue";
+import './assets/main.css'
+import { loadClientDirective } from 'vue-onigiri/runtime/utils'
+import { createApp, Suspense, h } from 'vue'
+import App from './App.vue'
 
 createApp({
-    setup() {
-        return () =>  h(Suspense, null, {
+  setup() {
+    return () => h(Suspense, null, {
 
-            default: () => h(App)
-        }
-        )
+      default: () => h(App),
     },
-    directives: {
-        'load-client': loadClientDirective
-    }
-}).mount("#app");
+    )
+  },
+  directives: {
+    'load-client': loadClientDirective,
+  },
+}).mount('#app')

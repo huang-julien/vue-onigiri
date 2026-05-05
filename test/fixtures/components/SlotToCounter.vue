@@ -1,11 +1,9 @@
 <template>
   <div>
     <Counter v-load-client>
-      <template #default="{ count }">
-        <div>
-          <p>Slot to Counter: {{ count }}</p>
-        </div>
-      </template>
+      <div>
+        <p>Slot content (static)</p>
+      </div>
     </Counter>
   </div>
 </template>
