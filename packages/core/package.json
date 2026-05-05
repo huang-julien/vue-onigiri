@@ -1,0 +1,80 @@
+{
+  "name": "vue-onigiri",
+  "version": "0.2.1",
+  "description": "Serialize and deserialize Vue component trees (VNodes) for Vue Server Components and cross-application component sharing",
+  "repository": "vue-onigiri",
+  "license": "MIT",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./*": {
+      "import": "./dist/*.js",
+      "require": "./dist/*.js"
+    },
+    "./runtime/*": {
+      "import": "./dist/runtime/*.js",
+      "require": "./dist/runtime/*.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "unbuild",
+    "lint": "eslint .",
+    "lint:fix": "automd && eslint . --fix",
+    "prepack": "pnpm build",
+    "test": "pnpm lint && pnpm test:types && vitest run --coverage",
+    "test:types": "vue-tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.17",
+    "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/ui": "^4.1.5",
+    "@vue/server-renderer": "^3.5.33",
+    "automd": "^0.4.3",
+    "happy-dom": "^20.9.0",
+    "typescript": "^6.0.3",
+    "unbuild": "^3.6.1",
+    "vite-plugin-mcp": "^0.3.2",
+    "vitest": "^4.1.5",
+    "vue": "^3.5.33",
+    "vue-tsc": "^3.2.8"
+  },
+  "peerDependencies": {
+    "@vue/server-renderer": "^3.5.0",
+    "vue": "^3.5.0"
+  },
+  "peerDependenciesMeta": {
+    "@vue/server-renderer": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@babel/parser": "^7.29.3",
+    "@module-federation/vite": "^1.15.2",
+    "@types/estree": "1.0.7",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/compiler-core": "^3.5.33",
+    "@vue/compiler-dom": "^3.5.33",
+    "@vue/compiler-sfc": "^3.5.33",
+    "@vue/compiler-ssr": "^3.5.33",
+    "@vue/shared": "^3.5.33",
+    "@vue/test-utils": "^2.4.10",
+    "acorn": "^8.16.0",
+    "defu": "^6.1.7",
+    "estree-walker": "^3.0.3",
+    "knitwork": "^1.3.0",
+    "magic-string": "^0.30.21",
+    "ohash": "^2.0.11",
+    "pathe": "^2.0.3",
+    "rollup": "^4.60.3",
+    "source-map-js": "^1.2.1",
+    "unplugin": "^3.0.0",
+    "vite": "^8.0.10"
+  }
+}

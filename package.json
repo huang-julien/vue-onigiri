@@ -1,87 +1,25 @@
 {
-  "name": "vue-onigiri",
-  "version": "0.2.1",
-  "description": "Serialize and deserialize Vue component trees (VNodes) for Vue Server Components and cross-application component sharing",
-  "repository": "vue-onigiri",
+  "name": "vue-onigiri-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "vue-onigiri monorepo root",
   "license": "MIT",
-  "sideEffects": false,
   "type": "module",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.js"
-    },
-    "./*": {
-      "import": "./dist/*.js",
-      "require": "./dist/*.js"
-    },
-    "./runtime/*": {
-      "import": "./dist/runtime/*.js",
-      "require": "./dist/runtime/*.js"
-    }
-  },
-  "files": [
-    "dist"
-  ],
   "scripts": {
-    "build": "unbuild",
-    "dev": "vite ./playground",
-    "lint": "eslint .",
-    "lint:fix": "automd && eslint . --fix",
-    "prepack": "pnpm build",
-    "release": "pnpm test && changelogen --release && npm publish && git push --follow-tags",
-    "test": "pnpm lint && pnpm test:types && vitest run --coverage",
-    "test:types": "vue-tsc"
+    "build": "pnpm --filter vue-onigiri build",
+    "dev": "pnpm --filter playground dev",
+    "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint:fix",
+    "test": "pnpm --filter vue-onigiri test",
+    "test:types": "pnpm -r test:types",
+    "release": "pnpm test && changelogen --release --cwd packages/vue-onigiri && cd packages/vue-onigiri && npm publish && cd ../.. && git push --follow-tags"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^5.10.0",
-    "@types/node": "^22.19.17",
-    "@vitest/coverage-v8": "^4.1.5",
-    "@vitest/ui": "^4.1.5",
-    "@vue/server-renderer": "^3.5.33",
-    "automd": "^0.4.3",
     "changelogen": "^0.6.2",
     "eslint": "^9.39.4",
     "eslint-config-unjs": "^0.6.2",
-    "happy-dom": "^20.9.0",
-    "typescript": "^6.0.3",
-    "unbuild": "^3.6.1",
-    "vite-plugin-mcp": "^0.3.2",
-    "vitest": "^4.1.5",
-    "vue": "^3.5.33",
-    "vue-tsc": "^3.2.8"
+    "vitest": "^4.1.5"
   },
-  "peerDependencies": {
-    "@vue/server-renderer": "^3.5.0",
-    "vue": "^3.5.0"
-  },
-  "peerDependenciesMeta": {
-    "@vue/server-renderer": {
-      "optional": true
-    }
-  },
-  "packageManager": "pnpm@10.7.0",
-  "dependencies": {
-    "@babel/parser": "^7.29.3",
-    "@module-federation/vite": "^1.15.2",
-    "@types/estree": "1.0.7",
-    "@vitejs/plugin-vue": "^6.0.6",
-    "@vue/compiler-core": "^3.5.33",
-    "@vue/compiler-dom": "^3.5.33",
-    "@vue/compiler-sfc": "^3.5.33",
-    "@vue/compiler-ssr": "^3.5.33",
-    "@vue/shared": "^3.5.33",
-    "@vue/test-utils": "^2.4.10",
-    "acorn": "^8.16.0",
-    "defu": "^6.1.7",
-    "estree-walker": "^3.0.3",
-    "knitwork": "^1.3.0",
-    "magic-string": "^0.30.21",
-    "ohash": "^2.0.11",
-    "pathe": "^2.0.3",
-    "rollup": "^4.60.3",
-    "source-map-js": "^1.2.1",
-    "unplugin": "^3.0.0",
-    "vite": "^8.0.10"
-  }
+  "packageManager": "pnpm@10.7.0"
 }
