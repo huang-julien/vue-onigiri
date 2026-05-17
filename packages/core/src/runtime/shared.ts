@@ -15,6 +15,8 @@ export const enum VServerComponentType {
   Suspense,
   /** Raw HTML string - rendered using createStaticVNode */
   StaticHtml,
+  /** Comment vnode - rendered using createCommentVNode */
+  Comment,
 }
 type Tag = string;
 type ChunkPath = string;
@@ -33,6 +35,7 @@ export type VServerComponentComponent = [
   Slots?,
 ];
 type VServerComponentText = [VServerComponentType.Text, string];
+type VServerComponentComment = [VServerComponentType.Comment, string];
 type VServerComponentFragment = [VServerComponentType.Fragment, Children];
 type VServerComponentSuspense = [VServerComponentType.Suspense, VServerComponent[] | undefined];
 
@@ -66,6 +69,7 @@ type VServerComponentComponentBuffered = [
   MaybePromise<Record<string, VServerComponent[] | undefined>> | undefined,
 ];
 type VServerComponentTextBuffered = [VServerComponentType.Text, string];
+type VServerComponentCommentBuffered = [VServerComponentType.Comment, string];
 type VServerComponentFragmentBuffered = [
   VServerComponentType.Fragment,
   MaybePromise<VServerComponentBuffered[]> | undefined,
@@ -81,6 +85,7 @@ export type VServerComponentBuffered =
   | VServerComponentElementBuffered
   | VServerComponentComponentBuffered
   | VServerComponentTextBuffered
+  | VServerComponentCommentBuffered
   | VServerComponentFragmentBuffered
   | VServerComponentSuspenseBuffered
   | VServerComponentStaticHtmlBuffered;
@@ -89,6 +94,7 @@ export type VServerComponent =
   | VServerComponentElement
   | VServerComponentComponent
   | VServerComponentText
+  | VServerComponentComment
   | VServerComponentFragment
   | VServerComponentSuspense
   | VServerComponentStaticHtml;

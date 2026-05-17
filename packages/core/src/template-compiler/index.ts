@@ -142,7 +142,22 @@ export function compileOnigiri(
   if (ast.children.length === 0) {
     bodyContext.push("null");
   } else if (ast.children.length === 1) {
+    const before = bodyContext.code.length;
     genNode(ast.children[0], bodyContext);
+    const produced = bodyContext.code.slice(before);
+    // A single root `v-for` emits `...(source.map(...))` so the spread can
+    // be inlined into an enclosing array literal. There's no array around
+    // the body's return value, so wrap it in a Fragment tuple so the
+    // render function returns a valid expression.
+    if (produced.startsWith("...")) {
+      bodyContext.code =
+        bodyContext.code.slice(0, before) +
+        "[" +
+        VServerComponentType.Fragment.toString() +
+        ", [" +
+        produced +
+        "]]";
+    }
   } else {
     // Multiple root nodes - wrap in fragment
     bodyContext.push("[");
@@ -231,7 +246,22 @@ export function compileOnigiriInline(
   if (ast.children.length === 0) {
     context.push("null");
   } else if (ast.children.length === 1) {
+    const before = context.code.length;
     genNode(ast.children[0], context);
+    const produced = context.code.slice(before);
+    // Same Fragment-wrap fix as `compileOnigiri` — a root-level `v-for`
+    // emits a `...(arr.map(...))` spread that's only valid inside an
+    // array literal. The inline expression has no enclosing array, so
+    // wrap into a Fragment tuple.
+    if (produced.startsWith("...")) {
+      context.code =
+        context.code.slice(0, before) +
+        "[" +
+        VServerComponentType.Fragment.toString() +
+        ", [" +
+        produced +
+        "]]";
+    }
   } else {
     // Multiple root nodes - wrap in fragment
     context.push("[");

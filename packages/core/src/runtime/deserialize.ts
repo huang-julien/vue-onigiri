@@ -1,4 +1,12 @@
-import { createTextVNode, createStaticVNode, type VNode, h, Fragment, Suspense } from "vue";
+import {
+  createTextVNode,
+  createCommentVNode,
+  createStaticVNode,
+  type VNode,
+  h,
+  Fragment,
+  Suspense,
+} from "vue";
 import { VServerComponentType, type VServerComponent } from "./shared";
 import loader from "./loader";
 import type { ImportFn } from "./utils";
@@ -15,6 +23,9 @@ export function renderOnigiri(
 
   if (input[0] === VServerComponentType.Text) {
     return createTextVNode(input[1]);
+  }
+  if (input[0] === VServerComponentType.Comment) {
+    return createCommentVNode(input[1]);
   }
   if (input[0] === VServerComponentType.Element) {
     return h(

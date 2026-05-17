@@ -42,8 +42,14 @@ export async function loadVirtualOnigiriModule(
   }
 
   if (!descriptor.template) {
+    // Templateless SFC (script-only render fn, or pure setup-returning-fn).
+    // Stamp `__onigiriEmpty` so the runtime serializer knows to fall through
+    // to Vue's real `render`/`ssrRender` instead of taking this no-op path.
     return {
-      code: `export default function __onigiriRender(_ctx, __instance) { return null; }`,
+      code:
+        `function __onigiriRender(_ctx, __instance) { return null; }\n` +
+        `__onigiriRender.__onigiriEmpty = true;\n` +
+        `export default __onigiriRender;\n`,
       map: null,
     };
   }

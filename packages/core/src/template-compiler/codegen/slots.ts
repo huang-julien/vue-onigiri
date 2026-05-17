@@ -17,6 +17,17 @@ interface ParsedSlot {
   children: any[];
 }
 
+/**
+ * Drop nodes that codegen-to-nothing (HTML comments). Without this,
+ * a slot whose only fallback/body is `<!-- ... -->` produces broken
+ * JS like `() => )` or `"name": ,`. Other "empty" nodes (TEXT_CALL,
+ * VNODE_CALL with no tag, etc.) still emit `null` from `genNode`, so
+ * we don't filter them — only the `case COMMENT: break` path.
+ */
+function dropRenderlessChildren(children: any[]): any[] {
+  return children.filter((c) => c?.type !== NodeTypes.COMMENT);
+}
+
 function parseSlots(children: any[]): ParsedSlot[] {
   const slots: ParsedSlot[] = [];
   const defaultChildren: any[] = [];
@@ -47,7 +58,7 @@ function parseSlots(children: any[]): ParsedSlot[] {
         slots.push({
           name: slotName,
           slotProps,
-          children: child.children || [],
+          children: dropRenderlessChildren(child.children || []),
         });
         continue;
       }
@@ -56,11 +67,12 @@ function parseSlots(children: any[]): ParsedSlot[] {
     defaultChildren.push(child);
   }
 
-  if (defaultChildren.length > 0) {
+  const renderableDefaults = dropRenderlessChildren(defaultChildren);
+  if (renderableDefaults.length > 0) {
     slots.push({
       name: "default",
       slotProps: null,
-      children: defaultChildren,
+      children: renderableDefaults,
     });
   }
 
@@ -171,18 +183,19 @@ export function genSlotOutlet(node: ElementNode, context: CodegenContext): void 
   }
   context.push(", ");
 
-  if (children.length > 0) {
-    context.push("() => ");
-    if (children.length === 1) {
-      genNode(children[0], context);
-    } else {
-      context.push("[");
-      for (const [i, child] of children.entries()) {
-        if (i > 0) context.push(", ");
-        genNode(child, context);
-      }
-      context.push("]");
+  const renderableChildren = dropRenderlessChildren(children);
+  if (renderableChildren.length > 0) {
+    // Always wrap in an array literal. A bare `genNode(child)` for a single
+    // child breaks when that child is a `v-for` (which emits `...(arr.map(...))`),
+    // producing `() => ...(arr.map(...))` — a syntax error. The `renderSlot`
+    // runtime normalises both single- and multi-element fallbacks through
+    // `wrapSlotResult`, so wrapping is always safe.
+    context.push("() => [");
+    for (const [i, child] of renderableChildren.entries()) {
+      if (i > 0) context.push(", ");
+      genNode(child, context);
     }
+    context.push("]");
   } else {
     context.push("undefined");
   }

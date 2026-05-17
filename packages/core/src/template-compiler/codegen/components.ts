@@ -48,7 +48,13 @@ export function getComponentRef(tag: string, context: CodegenContext): string {
     return importedName;
   }
 
-  const varName = "_component_" + tag.replace(/-/g, "_");
+  // Sanitise every character that isn't a valid JS identifier part — Vue
+  // legally allows dotted tags via namespace member-access (e.g.
+  // `<Calendar.Root />`), so just stripping hyphens isn't enough.
+  // `resolveComponentInInstance` is still called with the original tag
+  // (see `context.components.set(tag, varName)` below) — only the local
+  // identifier is sanitised here.
+  const varName = "_component_" + tag.replace(/[^a-zA-Z0-9_$]/g, "_");
 
   if (!context.components.has(tag)) {
     context.components.set(tag, varName);
