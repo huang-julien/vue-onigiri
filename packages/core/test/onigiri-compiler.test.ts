@@ -700,6 +700,42 @@ defineProps<{ title: string }>()
         expect(result.code).toMatchSnapshot();
       });
 
+      it("v-if branch with a single v-for child emits valid JS", () => {
+        const result = compileOnigiri(`
+          <template v-if="show">
+            <li v-for="item in items" :key="item">{{ item }}</li>
+          </template>
+        `);
+
+        expect(result.code).not.toMatch(/\?\s*\.\.\.\(/);
+        expect(result.code).toContain("? [3, [");
+      });
+
+      it("nested v-for body containing only v-for emits valid JS", () => {
+        const result = compileOnigiri(`
+          <template v-for="group in groups" :key="group.id">
+            <li v-for="item in group.items" :key="item">{{ item }}</li>
+          </template>
+        `);
+
+        expect(result.code).not.toMatch(/=>\s*\.\.\.\(/);
+        expect(result.code).toContain("=> [3, [");
+      });
+
+      it("v-else branch with a single v-for child emits valid JS", () => {
+        const result = compileOnigiri(`
+          <template v-if="show">
+            <div>shown</div>
+          </template>
+          <template v-else>
+            <li v-for="item in items" :key="item">{{ item }}</li>
+          </template>
+        `);
+
+        expect(result.code).not.toMatch(/:\s*\.\.\.\(/);
+        expect(result.code).toContain(": [3, [");
+      });
+
       it("v-show", () => {
         const result = compileOnigiri(`<div v-show="visible">Visible content</div>`);
         expect(result.code).toMatchSnapshot();

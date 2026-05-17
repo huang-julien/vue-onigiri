@@ -184,11 +184,18 @@ export function prefixIdentifiers(
 
   walkIdentifiers(
     ast,
-    (node, _parent, _parentStack, isReference, isLocal) => {
+    (node, parent, _parentStack, isReference, isLocal) => {
       if (!isReference || isLocal) return;
       if (JS_KEYWORDS.has(node.name)) return;
       const start = (node as any).start as number | undefined;
       if (start == null) return;
+
+      // Shorthand object props need expansion: `{ foo }` -> `{ foo: _ctx.foo }`.
+      if (parent && (parent as any).type === "ObjectProperty" && (parent as any).shorthand) {
+        s.appendLeft(start, `${node.name}: _ctx.`);
+        return;
+      }
+
       s.appendLeft(start, "_ctx.");
     },
     true,

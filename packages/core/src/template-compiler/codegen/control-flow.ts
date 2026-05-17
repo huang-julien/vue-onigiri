@@ -10,6 +10,25 @@ import type { CodegenContext } from "./context";
 import { genNode } from "./vnode";
 import { genExpressionAsValue } from "./expressions";
 
+function genChildrenAsNodeOrFragment(
+  children: Array<IfNode["branches"][number]["children"][number]>,
+  context: CodegenContext,
+): void {
+  if (children.length === 1 && children[0]?.type !== NodeTypes.FOR) {
+    genNode(children[0], context);
+    return;
+  }
+
+  context.push("[");
+  context.push(VServerComponentType.Fragment.toString());
+  context.push(", [");
+  for (let i = 0; i < children.length; i++) {
+    if (i > 0) context.push(", ");
+    genNode(children[i], context);
+  }
+  context.push("]]");
+}
+
 /** v-if / v-else-if / v-else compiled to a chain of ternaries. */
 export function genIf(node: IfNode, context: CodegenContext): void {
   const firstBranch = node.branches[0];
@@ -26,19 +45,7 @@ export function genIf(node: IfNode, context: CodegenContext): void {
   }
 
   context.push(" ? ");
-
-  if (firstBranch.children.length === 1) {
-    genNode(firstBranch.children[0], context);
-  } else {
-    context.push("[");
-    context.push(VServerComponentType.Fragment.toString());
-    context.push(", [");
-    for (let i = 0; i < firstBranch.children.length; i++) {
-      if (i > 0) context.push(", ");
-      genNode(firstBranch.children[i], context);
-    }
-    context.push("]]");
-  }
+  genChildrenAsNodeOrFragment(firstBranch.children, context);
 
   context.push(" : ");
 
@@ -48,18 +55,7 @@ export function genIf(node: IfNode, context: CodegenContext): void {
       const newIfNode = { ...node, branches: node.branches.slice(1) };
       genIf(newIfNode, context);
     } else {
-      if (elseBranch.children.length === 1) {
-        genNode(elseBranch.children[0], context);
-      } else {
-        context.push("[");
-        context.push(VServerComponentType.Fragment.toString());
-        context.push(", [");
-        for (let i = 0; i < elseBranch.children.length; i++) {
-          if (i > 0) context.push(", ");
-          genNode(elseBranch.children[i], context);
-        }
-        context.push("]]");
-      }
+      genChildrenAsNodeOrFragment(elseBranch.children, context);
     }
   } else {
     context.push("null");
@@ -123,18 +119,7 @@ export function genFor(node: ForNode, context: CodegenContext): void {
   }
 
   try {
-    if (node.children.length === 1) {
-      genNode(node.children[0], context);
-    } else {
-      context.push("[");
-      context.push(VServerComponentType.Fragment.toString());
-      context.push(", [");
-      for (let i = 0; i < node.children.length; i++) {
-        if (i > 0) context.push(", ");
-        genNode(node.children[i], context);
-      }
-      context.push("]]");
-    }
+    genChildrenAsNodeOrFragment(node.children, context);
   } finally {
     for (const v of loopVars) {
       context.localVars.delete(v);
