@@ -18,7 +18,7 @@ Vue Onigiri brings React Server Components-style rendering to Vue. Components re
 - **Slot support** — named and scoped slots survive serialization
 - **Async / Suspense** — async components and `<Suspense>` boundaries are preserved
 - **Compile-time chunk resolution** — `v-load-client` paths are resolved during compilation, no runtime tagging required
-- **Bundler-agnostic** — works with Vite by default; `provideOnigiriImportFn` lets you plug in any loader
+- **Bundler-agnostic** — works with Vite by default; pass `renderOnigiri(ast, { importFn })` to plug in any loader
 
 ## Installation
 
@@ -131,10 +131,10 @@ interface OnigiriManifestPluginOptions {
   /**
    * Glob for the **client** lazy-load fallback. Default: `false`.
    * Exposing `import.meta.glob` to the browser leaks every matching
-   * file path into the bundle, so the safer default is to require
-   * `provideOnigiriImportFn` on the host app. Only set this if you
-   * have client islands that aren't reachable through your app's
-   * static import graph; scope it as narrowly as possible.
+   * file path into the bundle, so the safer default is to pass a
+   * custom `importFn` via `renderOnigiri(ast, { importFn })`. Only set
+   * this if you have client islands that aren't reachable through your
+   * app's static import graph; scope it as narrowly as possible.
    */
   clientInclude?: string | false;
   /**
@@ -182,34 +182,27 @@ import { renderOnigiri } from "vue-onigiri/runtime/deserialize";
 const vnode = renderOnigiri(data);
 ```
 
-### `provideOnigiriImportFn(app, fn)`
+### `renderOnigiri(ast, { importFn? })`
 
-Attach an app-scoped resolver for `v-load-client` chunks. Wins over the built-in manifest. Use this when:
+Per-render-tree override for the chunk-loading function. Wins over the built-in `virtual:onigiri/manifest`. Use this when:
 
 - you need full control over how chunk paths map to modules (CDN-served bundles, federation, custom path normalization)
-- you want a per-request (per-app) override that doesn't bleed across concurrent SSR
+- you don't have a Vite-managed manifest at all (non-Vite consumers, hand-rolled SSR, tests)
+
+The fn is forwarded as a prop to every `vue-onigiri:component-loader` the AST contains, so nested `v-load-client` targets inherit it automatically.
 
 ```js
-import { provideOnigiriImportFn } from "vue-onigiri/runtime/utils";
+import { renderOnigiri } from "vue-onigiri/runtime/deserialize";
 
-provideOnigiriImportFn(app, async (src, exportName = "default") => {
-  const mod = await myCustomLoader(src);
-  return mod[exportName] ?? mod.default ?? mod;
+renderOnigiri(ast, {
+  importFn: async (src, exportName = "default") => {
+    const mod = await myCustomLoader(src);
+    return mod[exportName] ?? mod.default ?? mod;
+  },
 });
 ```
 
-### `setOnigiriImportFn(fn)`
-
-Module-scoped fallback resolver. Prefer `provideOnigiriImportFn` — `setOnigiriImportFn` is for non-Vite consumers (custom bundlers, exotic SSR entrypoints) where you can't get an app instance to inject onto.
-
-```js
-import { setOnigiriImportFn } from "vue-onigiri/runtime/utils";
-
-setOnigiriImportFn(async (src, exportName = "default") => {
-  const mod = await import(/* @vite-ignore */ src);
-  return mod[exportName] ?? mod.default ?? mod;
-});
-```
+To centralize this in a Vue plugin pattern, write a tiny wrapper component that closures the importFn and forwards `ast` into `renderOnigiri`.
 
 ## How It Works
 

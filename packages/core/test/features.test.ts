@@ -119,7 +119,7 @@ describe("static chunk-path inlining", () => {
   });
 
   it("resolves via additionalImports when the SFC does not statically import the tag", () => {
-    const additionalImports = new Map([["NuxtAuto", "/components/NuxtAuto.vue"]]);
+    const additionalImports = new Map([["NuxtAuto", { path: "/components/NuxtAuto.vue" }]]);
     const result = compileOnigiri(`<NuxtAuto v-load-client :prop="value" />`, {
       additionalImports,
     });
@@ -128,7 +128,7 @@ describe("static chunk-path inlining", () => {
   });
 
   it("matches additionalImports under PascalCase / camelCase / kebab-case variants", () => {
-    const additionalImports = new Map([["MyWidget", "/components/MyWidget.vue"]]);
+    const additionalImports = new Map([["MyWidget", { path: "/components/MyWidget.vue" }]]);
     const result = compileOnigiri(`<my-widget v-load-client />`, { additionalImports });
     expect(result.code).toContain('"/components/MyWidget.vue"');
   });

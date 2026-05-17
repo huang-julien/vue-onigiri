@@ -171,7 +171,7 @@ defineProps<{ title: string }>()
     it("should handle components with v-load-client", () => {
       const template = `<MyComponent v-load-client :prop="value" />`;
       const result = compileOnigiri(template, {
-        additionalImports: new Map([["MyComponent", "/components/MyComponent.vue"]]),
+        additionalImports: new Map([["MyComponent", { path: "/components/MyComponent.vue" }]]),
       });
 
       expect(result.code).toContain("renderOnigiri");
@@ -510,6 +510,43 @@ defineProps<{ title: string }>()
     });
   });
 
+  describe("typescript syntax stripping", () => {
+    it("strips `as Type` casts", () => {
+      const result = compileOnigiri(`<div :id="(value as string)">Test</div>`);
+      expect(result.code).not.toMatch(/\bas\s+string\b/);
+      expect(result.code).toContain("_ctx.value");
+    });
+
+    it("strips `as` casts in compound member access", () => {
+      const result = compileOnigiri(`<div :name="route.meta._layout as string">Test</div>`);
+      expect(result.code).not.toMatch(/\bas\s+string\b/);
+      expect(result.code).toContain("_ctx.route.meta._layout");
+    });
+
+    it("strips `satisfies` casts", () => {
+      const result = compileOnigiri(`<div :id="(value satisfies string)">Test</div>`);
+      expect(result.code).not.toMatch(/\bsatisfies\b/);
+    });
+
+    it("strips non-null `!` assertions", () => {
+      const result = compileOnigiri(`<div :id="value!">Test</div>`);
+      expect(result.code).not.toMatch(/_ctx\.value!/);
+      expect(result.code).toContain("_ctx.value");
+    });
+
+    it("strips angle-bracket type assertions", () => {
+      const result = compileOnigiri(`<div :id="(<string>value)">Test</div>`);
+      expect(result.code).not.toMatch(/<string>/);
+      expect(result.code).toContain("_ctx.value");
+    });
+
+    it("strips type annotations on v-on inline arrow params", () => {
+      const result = compileOnigiri(`<button @click="(e: MouseEvent) => onClick(e)">x</button>`);
+      expect(result.code).not.toMatch(/:\s*MouseEvent/);
+      expect(result.code).toContain("_ctx.onClick");
+    });
+  });
+
   describe("snapshots", () => {
     describe("basic elements", () => {
       it("simple div with text", () => {
@@ -676,8 +713,8 @@ defineProps<{ title: string }>()
 
     describe("components", () => {
       const additionalImports = new Map([
-        ["MyComponent", "/components/MyComponent.vue"],
-        ["MyList", "/components/MyList.vue"],
+        ["MyComponent", { path: "/components/MyComponent.vue" }],
+        ["MyList", { path: "/components/MyList.vue" }],
       ]);
 
       it("component with props", () => {
@@ -778,7 +815,7 @@ defineProps<{ title: string }>()
 
       it("component with v-load-client", () => {
         const result = compileOnigiriInline(`<Counter v-load-client :initial="5" />`, {
-          additionalImports: new Map([["Counter", "/components/Counter.vue"]]),
+          additionalImports: new Map([["Counter", { path: "/components/Counter.vue" }]]),
         });
         expect(result.expression).toMatchSnapshot();
       });

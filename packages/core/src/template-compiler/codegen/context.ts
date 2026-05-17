@@ -27,21 +27,47 @@ export interface CodegenContext {
    */
   importMap: Map<string, string>;
   /**
-   * Tag name → root-relative module path, supplied externally (Nuxt
-   * components, user-declared globals). Looked up under PascalCase,
-   * camelCase, and kebab-case variants when the SFC's own imports don't
-   * resolve a `v-load-client` target.
+   * Tag name → import entry, supplied externally (Nuxt components,
+   * user-declared globals). Looked up under PascalCase, camelCase, and
+   * kebab-case variants when the SFC's own imports don't resolve.
+   * `export` defaults to `"default"`.
    */
-  additionalImports: Map<string, string>;
+  additionalImports: Map<string, AdditionalImport>;
   isCustomElement: (tag: string) => boolean | void;
+  /**
+   * Optional build-time hook: takes the source path the compiler would
+   * stamp into the AST (e.g. `/components/Counter.vue`) and returns the
+   * public chunk URL (e.g. `/_nuxt/Counter-XXX.js`) the client should
+   * load instead. Returning `undefined` keeps the source path. Wired up
+   * by hosts that have a client manifest at SSR-build time so the
+   * island response doesn't carry source paths to the browser. Without
+   * this, the AST emits the source path and the runtime loader falls
+   * back to `import.meta.glob` keyed by source path.
+   */
+  resolveChunkUrl?: (sourcePath: string) => string | undefined;
+  /**
+   * Called for every `v-load-client` target the codegen emits. The
+   * manifest plugin uses this to build a precise `import.meta.glob`
+   * covering exactly the files the runtime loader can be asked for,
+   * instead of a broad `/**\/*.vue` pattern. Receives the source path
+   * the compiler resolved from the SFC's imports.
+   */
+  registerTarget?: (sourcePath: string) => void;
+}
+
+export interface AdditionalImport {
+  path: string;
+  export?: string;
 }
 
 export interface CodegenContextOptions {
   bindingMetadata?: BindingMetadata;
   scopeId?: string | null;
   importMap?: Map<string, string>;
-  additionalImports?: Map<string, string>;
+  additionalImports?: Map<string, AdditionalImport>;
   isCustomElement?: (tag: string) => boolean | void;
+  resolveChunkUrl?: (sourcePath: string) => string | undefined;
+  registerTarget?: (sourcePath: string) => void;
 }
 
 /**
@@ -57,8 +83,10 @@ export function createCodegenContext(opts: CodegenContextOptions = {}): CodegenC
     localVars: new Set<string>(),
     scopeId: opts.scopeId ?? null,
     importMap: opts.importMap ?? new Map<string, string>(),
-    additionalImports: opts.additionalImports ?? new Map<string, string>(),
+    additionalImports: opts.additionalImports ?? new Map<string, AdditionalImport>(),
     isCustomElement: opts.isCustomElement ?? (() => false),
+    resolveChunkUrl: opts.resolveChunkUrl,
+    registerTarget: opts.registerTarget,
     push(code: string) {
       this.code += code;
     },

@@ -1,15 +1,19 @@
 import { type BindingMetadata, compileScript, parse } from "@vue/compiler-sfc";
 import type { ResolvedConfig } from "vite";
 import { compileOnigiriInline } from "../../template-compiler";
+import type { AdditionalImport } from "../../template-compiler/codegen/context";
 import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "./constants";
 import { generateScopeId } from "./scope-id";
 import { buildImportMap, extractScriptImports } from "./imports";
+import { toRootRelative } from "./paths";
 
 export interface LoadVirtualOptions {
   config: ResolvedConfig;
   sourceMap: boolean;
   isCustomElement?: (tag: string) => boolean;
-  additionalImports?: Map<string, string>;
+  additionalImports?: Map<string, AdditionalImport>;
+  resolveChunkUrl?: (sourcePath: string) => string | undefined;
+  registerTarget?: (sourcePath: string) => void;
 }
 
 /**
@@ -24,7 +28,8 @@ export async function loadVirtualOnigiriModule(
 ): Promise<{ code: string; map: null } | null> {
   if (!id.startsWith(ONIGIRI_PREFIX) || !id.endsWith(ONIGIRI_SUFFIX)) return null;
 
-  const { config, sourceMap, isCustomElement, additionalImports } = opts;
+  const { config, sourceMap, isCustomElement, additionalImports, resolveChunkUrl, registerTarget } =
+    opts;
   const encoded = id.slice(ONIGIRI_PREFIX.length, -ONIGIRI_SUFFIX.length);
   const filePath = decodeURIComponent(encoded);
   const fs = await import("node:fs/promises");
@@ -68,8 +73,10 @@ export async function loadVirtualOnigiriModule(
     bindingMetadata,
     scopeId,
     importMap,
-    additionalImports,
+    additionalImports: normaliseAdditionalImports(additionalImports, config.root),
     isCustomElement,
+    resolveChunkUrl,
+    registerTarget,
   });
 
   const codegenImports = [...onigiriResult.imports].join("\n");
@@ -87,4 +94,27 @@ ${componentDeclarations}
 }`,
     map: null,
   };
+}
+
+/**
+ * Convert externally-supplied `additionalImports` paths (Nuxt
+ * components etc) into root-relative form anchored at Vite's
+ * `config.root`. The codegen needs root-relative for both the
+ * v-load-client chunk literals (matching the runtime importFn's
+ * `import.meta.glob` keys) AND the static SSR import (the resolveId
+ * hook joins `/foo` back to `<config.root>/foo`).
+ *
+ * Paths that don't sit under `config.root` are left absolute — Vite
+ * resolves those directly without needing a root prefix.
+ */
+function normaliseAdditionalImports(
+  raw: Map<string, AdditionalImport> | undefined,
+  root: string,
+): Map<string, AdditionalImport> | undefined {
+  if (!raw) return raw;
+  const out = new Map<string, AdditionalImport>();
+  for (const [tag, entry] of raw) {
+    out.set(tag, { path: toRootRelative(entry.path, root), export: entry.export });
+  }
+  return out;
 }

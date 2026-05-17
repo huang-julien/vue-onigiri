@@ -340,15 +340,17 @@ describe("slots", () => {
         ],
       ]
     `);
-    // Wrap in Suspense so async loader setup resolves before rendering.
+    // The loader's `async setup` awaits `importFn` inside a `<Suspense>`
+    // boundary, so SSR fully renders Counter (and its slot) — same code
+    // path as client hydration. No more SSR↔CSR divergence dance.
     const astHtml = await renderToString(h(Suspense, null, { default: () => renderOnigiri(ast) }));
     expect(removeCommentsFromHtml(astHtml)).toMatchInlineSnapshot(
       `"<div><div> counter : 0 <button>Increment</button><div><p>Slot content (static)</p></div></div></div>"`,
     );
+    // Direct render of the SFC matches: same Counter + slot output.
     const html = await renderToString(h(SlotToCounter));
     expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
       `"<div><div> counter : 0 <button>Increment</button><div><p>Slot content (static)</p></div></div></div>"`,
     );
-    expect(removeCommentsFromHtml(html)).toEqual(removeCommentsFromHtml(astHtml));
   });
 });

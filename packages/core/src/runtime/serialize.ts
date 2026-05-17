@@ -73,32 +73,43 @@ export async function serializeComponent(
 /** @deprecated Use `serializeComponent`. */
 export const renderToSerializedVNode = serializeComponent;
 
+export interface OnigiriASTDescriptor {
+  chunk: string;
+  export?: string;
+}
+
 type OnigiriComponent = Component & {
   __onigiriRender?: (...args: any[]) => VServerComponentBuffered;
+  __onigiriASTDescriptor?: OnigiriASTDescriptor;
 };
 
-/**
- * Serialize a child component. When `loadClient` is true emits a
- * hydration marker pointing at the `chunkPath`/`exportName` resolved
- * by the compiler at compile time; otherwise serializes the rendered
- * VNode tree inline. The compiler always supplies chunk metadata for
- * `v-load-client` targets — runtime fallbacks (`__chunk` on the
- * component constructor) are gone in 0.3.
- */
 export async function serializeChildComponent(
   component: OnigiriComponent,
   props?: any,
   parentInstance?: ComponentInternalInstance,
   loadClient?: boolean,
   slots?: Record<string, VServerComponent[] | ((props?: any) => any)>,
-  chunkPath?: string,
-  exportName: string = "default",
+  fallbackChunk?: string,
+  fallbackExport: string = "default",
 ): Promise<VServerComponent | undefined> {
-  if (loadClient && chunkPath) {
+  if (loadClient) {
+    const descriptor = component.__onigiriASTDescriptor;
+    const chunk = descriptor?.chunk ?? fallbackChunk;
+    const exportName = descriptor?.export ?? fallbackExport;
+    if (!chunk) {
+      const name = (component as any).__name ?? (component as any).name ?? "anonymous component";
+      throw new Error(
+        `[vue-onigiri] Cannot serialize <${name} v-load-client>: no __onigiriASTDescriptor ` +
+          `attached to the component and no fallback descriptor emitted at the call site. ` +
+          `Either compile the component through vue-onigiri's plugin (so the descriptor is ` +
+          `attached at build time), or pass it through additionalImports so the compiler can ` +
+          `bake a call-site fallback.`,
+      );
+    }
     return [
       VServerComponentType.Component,
       filterProps(props),
-      chunkPath,
+      chunk,
       exportName,
       slots as Record<string, VServerComponent[]> | undefined,
     ];
@@ -231,6 +242,7 @@ function createOnigiriCtx(instance: ComponentInternalInstance): any {
         if (key === "$attrs") return instance.attrs;
         if (key === "$parent") return instance.parent;
         if (key === "$root") return instance.root;
+        if (key === "props") return instance.props;
         // @ts-expect-error internal API
         const setupState = instance.setupState;
         if (setupState && typeof key === "string" && key in setupState) return setupState[key];
@@ -242,6 +254,7 @@ function createOnigiriCtx(instance: ComponentInternalInstance): any {
       },
       has(_target, key) {
         if (typeof key !== "string") return false;
+        if (key === "props") return true;
         // @ts-expect-error internal API
         const setupState = instance.setupState;
         if (setupState && key in setupState) return true;
@@ -330,6 +343,25 @@ export function serializeApp(
   });
 }
 
+async function unrollSlotsObject(slots: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const out: Record<string, unknown> = {};
+  await Promise.all(
+    Object.entries(slots).map(async ([key, value]) => {
+      if (isPromise(value)) {
+        const resolved = await value;
+        out[key] = Array.isArray(resolved)
+          ? await unrollServerComponentBufferPromises(resolved as VServerComponentBuffered)
+          : resolved;
+      } else if (Array.isArray(value)) {
+        out[key] = await unrollServerComponentBufferPromises(value as VServerComponentBuffered);
+      } else {
+        out[key] = value;
+      }
+    }),
+  );
+  return out;
+}
+
 export function unrollServerComponentBufferPromises(
   buffer: VServerComponentBuffered | MaybePromise<VServerComponentBuffered>,
 ): Promise<VServerComponent> {
@@ -340,6 +372,10 @@ export function unrollServerComponentBufferPromises(
   }
   const result = [] as unknown as VServerComponent;
   const promises: Promise<any>[] = [];
+  // Index 4 of a `[Component, ...]` tuple is the slots object — recurse
+  // into it specifically so Promises in slot bodies get awaited.
+  const isComponentTuple =
+    Array.isArray(buffer) && (buffer as any)[0] === VServerComponentType.Component;
 
   for (const i in buffer) {
     const item = buffer[i];
@@ -377,6 +413,18 @@ export function unrollServerComponentBufferPromises(
           }),
         ).then((unrolled) => {
           result[i] = unrolled;
+        }),
+      );
+    } else if (
+      isComponentTuple &&
+      i === "4" &&
+      item &&
+      typeof item === "object" &&
+      !Array.isArray(item)
+    ) {
+      promises.push(
+        unrollSlotsObject(item as Record<string, unknown>).then((unrolled) => {
+          result[i] = unrolled as any;
         }),
       );
     } else {

@@ -17,6 +17,7 @@ import {
   type RootNode,
   type SimpleExpressionNode,
 } from "@vue/compiler-dom";
+import type { AdditionalImport } from "./codegen/context";
 import { isVoidTag } from "@vue/shared";
 import { VServerComponentType } from "../runtime/shared";
 import { createCodegenContext, genNode } from "./codegen";
@@ -65,12 +66,26 @@ export interface OnigiriCompilerOptions extends CompilerOptions {
    */
   importMap?: Map<string, string>;
   /**
-   * Tag → root-relative module path supplied externally — for
-   * components the SFC doesn't import statically (Nuxt auto-imports,
-   * `app.component()` globals). Looked up under PascalCase / camelCase /
+   * Tag → import entry, supplied externally for components the SFC
+   * doesn't import statically (Nuxt auto-imports, `app.component()`
+   * globals). Each entry pairs a path with an optional `export` name
+   * (defaults to `"default"`). Looked up under PascalCase / camelCase /
    * kebab-case variants.
    */
-  additionalImports?: Map<string, string>;
+  additionalImports?: Map<string, AdditionalImport>;
+  /**
+   * Optional build-time hook: returns the public chunk URL the client
+   * should load for a given source path (e.g. `/components/Counter.vue`
+   * → `/_nuxt/Counter-XXX.js`). Returning `undefined` keeps the source
+   * path. When wired up, the AST stops carrying source paths to the
+   * browser at all.
+   */
+  resolveChunkUrl?: (sourcePath: string) => string | undefined;
+  /**
+   * Called for every `v-load-client` target the codegen emits.
+   * Forwarded straight to the codegen context.
+   */
+  registerTarget?: (sourcePath: string) => void;
 }
 
 export interface OnigiriCodegenResult {
@@ -110,6 +125,8 @@ export function compileOnigiri(
     importMap: options.importMap,
     additionalImports: options.additionalImports,
     isCustomElement: options.isCustomElement,
+    resolveChunkUrl: options.resolveChunkUrl,
+    registerTarget: options.registerTarget,
   });
 
   // First, generate the return expression to collect component references
@@ -119,6 +136,8 @@ export function compileOnigiri(
     importMap: options.importMap,
     additionalImports: options.additionalImports,
     isCustomElement: options.isCustomElement,
+    resolveChunkUrl: options.resolveChunkUrl,
+    registerTarget: options.registerTarget,
   });
   if (ast.children.length === 0) {
     bodyContext.push("null");
@@ -205,6 +224,8 @@ export function compileOnigiriInline(
     importMap: options.importMap,
     additionalImports: options.additionalImports,
     isCustomElement: options.isCustomElement,
+    resolveChunkUrl: options.resolveChunkUrl,
+    registerTarget: options.registerTarget,
   });
 
   if (ast.children.length === 0) {

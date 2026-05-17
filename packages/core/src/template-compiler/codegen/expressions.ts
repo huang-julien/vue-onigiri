@@ -65,12 +65,66 @@ function classifyExpression(content: string): "member" | "fn" | "statement" {
 }
 
 /**
+ * Walk the Babel AST and remove TypeScript-only syntax positions
+ * (`expr as T`, `expr satisfies T`, `<T>expr`, `expr!`, `expr<T>`,
+ * parameter `: T` annotations). The virtual `.mjs` modules we emit
+ * are parsed by Rollup as plain JavaScript — any leftover TS syntax
+ * is a parse error, so we strip before `prefixIdentifiers` runs.
+ */
+function collectTsStripRanges(node: any, s: MagicString): void {
+  if (!node || typeof node !== "object") return;
+
+  switch (node.type) {
+    case "TSAsExpression":
+    case "TSSatisfiesExpression":
+      // `expr as T` / `expr satisfies T` → keep `expr`, drop the rest.
+      if (node.expression?.end != null && node.end != null) {
+        s.remove(node.expression.end, node.end);
+      }
+      break;
+    case "TSTypeAssertion":
+      // `<T>expr` → keep `expr`.
+      if (node.expression?.start != null && node.start != null) {
+        s.remove(node.start, node.expression.start);
+      }
+      break;
+    case "TSNonNullExpression":
+      // `expr!` → keep `expr`.
+      if (node.expression?.end != null && node.end != null) {
+        s.remove(node.expression.end, node.end);
+      }
+      break;
+    case "TSInstantiationExpression":
+      // `expr<T, U>` → keep `expr`.
+      if (node.expression?.end != null && node.end != null) {
+        s.remove(node.expression.end, node.end);
+      }
+      break;
+    case "TSTypeAnnotation":
+      // `(x: T) => …` → drop `: T` from the param.
+      if (node.start != null && node.end != null) {
+        s.remove(node.start, node.end);
+      }
+      return;
+  }
+
+  for (const key in node) {
+    if (key === "loc" || key === "leadingComments" || key === "trailingComments") continue;
+    const value = (node as any)[key];
+    if (Array.isArray(value)) {
+      for (const child of value) collectTsStripRanges(child, s);
+    } else if (value && typeof value === "object" && typeof value.type === "string") {
+      collectTsStripRanges(value, s);
+    }
+  }
+}
+
+/**
  * Prefix free identifiers with `_ctx.` so the compiled render reads
  * bindings off the instance proxy. Parses with `@babel/parser` (TS
  * plugin) and walks identifiers via Vue's `walkIdentifiers`, which
  * understands JS scope, destructuring, property keys, template
- * literals, and TS type-annotation positions — so we don't need
- * regex masks, TS-cast stripping, or Vue-prefix stripping.
+ * literals, and TS type-annotation positions.
  *
  * `localVars` carries scope from outer constructs the parser doesn't
  * see (e.g. `v-for` loop bindings); they're seeded into `walkIdentifiers`'
@@ -79,6 +133,10 @@ function classifyExpression(content: string): "member" | "fn" | "statement" {
  * `bindingMetadata` is unused — onigiri's `_ctx` proxy resolves all
  * binding namespaces uniformly, so every free identifier gets the
  * same `_ctx.` prefix regardless of where it came from.
+ *
+ * The same AST walk also strips TS-only positions (see
+ * `collectTsStripRanges`) so the emitted virtual `.mjs` parses as
+ * plain JS.
  */
 export function prefixIdentifiers(
   content: string,
@@ -113,13 +171,17 @@ export function prefixIdentifiers(
     }
   }
 
+  const s = new MagicString(content);
+
+  // Strip TS-only syntax first (drops `as T`, `!`, `<T>`, etc).
+  collectTsStripRanges(ast, s);
+
   // Vue's `walkIdentifiers` treats anything in `knownIds` as a local —
   // exactly what we need for v-for vars + our reserved render args.
   const knownIds: Record<string, number> = Object.create(null);
   for (const v of localVars) knownIds[v] = (knownIds[v] || 0) + 1;
   for (const v of ONIGIRI_RESERVED) knownIds[v] = (knownIds[v] || 0) + 1;
 
-  const s = new MagicString(content);
   walkIdentifiers(
     ast,
     (node, _parent, _parentStack, isReference, isLocal) => {

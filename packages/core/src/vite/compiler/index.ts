@@ -3,6 +3,11 @@ import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "./constants";
 import { loadVirtualOnigiriModule } from "./load-virtual";
 import { injectIntoSetupAsync } from "./inject-setup";
 import { attachAsProperty } from "./attach-property";
+import type { AdditionalImport } from "../../template-compiler/codegen/context";
+import { registerOnigiriTarget } from "../shared";
+import { toRootRelative } from "./paths";
+
+export type AdditionalImportInput = string | AdditionalImport;
 
 export interface OnigiriCompilerOptions {
   /** @default true */
@@ -15,18 +20,29 @@ export interface OnigiriCompilerOptions {
    */
   isCustomElement?: (tag: string) => boolean;
   /**
-   * Tag → root-relative module path for components the SFC doesn't
-   * import statically. Lets `v-load-client` resolve to the right
-   * chunk for Nuxt auto-imports, globally-registered components, or
-   * any other case where the compiler can't see the import in
-   * `<script>`. Provide either a static map or a getter (re-evaluated
-   * per transform; cheap to swap out from a parent module that
-   * collects component info dynamically — e.g. the Nuxt module).
+   * Tag → entry for components the SFC doesn't import statically.
+   * Each entry is either a path string (defaulting to the `default`
+   * export) or `{ path, export? }` for named exports. Lets
+   * `v-load-client` resolve to the right chunk for Nuxt auto-imports,
+   * globally-registered components, or any other case where the
+   * compiler can't see the import in `<script>`. Provide either a
+   * static map / object or a getter (re-evaluated per transform).
    */
   additionalImports?:
-    | Record<string, string>
-    | Map<string, string>
-    | (() => Record<string, string> | Map<string, string>);
+    | Record<string, AdditionalImportInput>
+    | Map<string, AdditionalImportInput>
+    | (() => Record<string, AdditionalImportInput> | Map<string, AdditionalImportInput>);
+  /**
+   * Optional build-time hook: returns the public chunk URL the client
+   * should load for a given source path (e.g. `/components/Counter.vue`
+   * → `/_nuxt/Counter-XXX.js`). When wired up, the compiler bakes the
+   * URL into the AST so the SSR response never carries source paths
+   * to the browser. Returning `undefined` keeps the source path, which
+   * the runtime loader resolves via `import.meta.glob`. Re-evaluated
+   * per transform, so a function that reads from a manifest filled in
+   * after the client build will pick it up automatically.
+   */
+  resolveChunkUrl?: (sourcePath: string) => string | undefined;
 }
 
 /**
@@ -42,13 +58,18 @@ export interface OnigiriCompilerOptions {
  *   setup-script closure.
  */
 export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plugin {
-  const { sourceMap = true, isCustomElement, additionalImports } = options;
+  const { sourceMap = true, isCustomElement, additionalImports, resolveChunkUrl } = options;
   let config: ResolvedConfig;
 
-  const resolveAdditionalImports = (): Map<string, string> => {
+  const resolveAdditionalImports = (): Map<string, AdditionalImport> => {
     const raw = typeof additionalImports === "function" ? additionalImports() : additionalImports;
     if (!raw) return new Map();
-    return raw instanceof Map ? raw : new Map(Object.entries(raw));
+    const entries = raw instanceof Map ? [...raw.entries()] : Object.entries(raw);
+    const out = new Map<string, AdditionalImport>();
+    for (const [tag, value] of entries) {
+      out.set(tag, typeof value === "string" ? { path: value } : value);
+    }
+    return out;
   };
 
   return {
@@ -59,6 +80,13 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
     // leaving `virtual:onigiri:*` specifiers unrewritten in the browser.
     enforce: "post",
 
+    config() {
+      return {
+        optimizeDeps: {
+          exclude: ["vue-onigiri"],
+        },
+      };
+    },
     configResolved(resolvedConfig) {
       config = resolvedConfig;
     },
@@ -77,9 +105,24 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
           return ONIGIRI_PREFIX + encoded + ONIGIRI_SUFFIX;
         }
 
-        // Relative imports inside a virtual onigiri module resolve
-        // against the original (decoded) file path on disk.
         if (importer?.startsWith(ONIGIRI_PREFIX) && importer.endsWith(ONIGIRI_SUFFIX)) {
+          // Project-root-relative paths (`/app/components/Foo.vue`) come
+          // from `additionalImports` (Nuxt auto-imports etc). Resolve
+          // against the Vite root so Rollup can find them on disk.
+          // Skip Windows-absolute (`/D:/…`) and `/@…` Vite-internal forms.
+          if (
+            id.startsWith("/") &&
+            !id.startsWith("//") &&
+            !id.startsWith("/@") &&
+            !/^\/[A-Za-z]:/.test(id)
+          ) {
+            const abs = config.root.replace(/[/\\]+$/, "") + id;
+            const resolved = await this.resolve(abs, undefined, { skipSelf: true });
+            if (resolved) return resolved;
+            return { id: abs };
+          }
+          // Anything else (relative `./Foo.vue` etc) resolves against
+          // the original SFC the virtual module was built from.
           const encoded = importer.slice(ONIGIRI_PREFIX.length, -ONIGIRI_SUFFIX.length);
           const originalFilePath = decodeURIComponent(encoded);
           return await this.resolve(id, originalFilePath, { skipSelf: true });
@@ -93,7 +136,14 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
       if (id.includes("devtools")) return null;
       return loadVirtualOnigiriModule(
         id,
-        { config, sourceMap, isCustomElement, additionalImports: resolveAdditionalImports() },
+        {
+          config,
+          sourceMap,
+          isCustomElement,
+          additionalImports: resolveAdditionalImports(),
+          resolveChunkUrl,
+          registerTarget: registerOnigiriTarget,
+        },
         (msg) => this.error(msg),
       );
     },
@@ -105,13 +155,19 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
           return null;
         }
 
-        // Bare `.vue` (dev split-module path): plugin-vue re-exports
-        // script + template, so an external `__onigiriRender` reading
-        // bindings via `_ctx.foo` works against the populated setupState.
+        // Bare `.vue` (dev split-module path AND build mode): plugin-vue
+        // re-exports script + template (dev) or just the inline-render
+        // script (build). In both modes, attaching to the SFC default
+        // export lands on the canonical module — the descriptor here
+        // travels with the SFC wherever it's imported, so the runtime
+        // serializer can look up the chunk URL from the component
+        // instead of relying on a call-site-baked fallback.
         if (!query) {
           if (!code.includes("export default")) return null;
           const onigiriImport = `${ONIGIRI_PREFIX}${encodeURIComponent(filePath)}${ONIGIRI_SUFFIX}`;
-          return attachAsProperty(code, onigiriImport, sourceMap);
+          const sourcePath = toRootRelative(filePath, config.root);
+          const descriptorChunk = resolveChunkUrl?.(sourcePath) ?? sourcePath;
+          return attachAsProperty(code, onigiriImport, sourceMap, descriptorChunk);
         }
 
         // `?vue&type=script` with inline template (build mode): the SSR
@@ -133,6 +189,8 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
               config,
               isCustomElement,
               resolveAdditionalImports(),
+              resolveChunkUrl,
+              registerOnigiriTarget,
             );
           }
           return null;

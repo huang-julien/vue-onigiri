@@ -2,6 +2,7 @@ import { type BindingMetadata, compileScript, parse } from "@vue/compiler-sfc";
 import type { ResolvedConfig } from "vite";
 import MagicString from "magic-string";
 import { compileOnigiriInline } from "../../template-compiler";
+import type { AdditionalImport } from "../../template-compiler/codegen/context";
 import { generateScopeId } from "./scope-id";
 import { buildImportMap } from "./imports";
 
@@ -50,7 +51,9 @@ export async function injectIntoSetupAsync(
   sourceMap: boolean,
   config: ResolvedConfig,
   isCustomElement?: (tag: string) => boolean,
-  additionalImports?: Map<string, string>,
+  additionalImports?: Map<string, AdditionalImport>,
+  resolveChunkUrl?: (sourcePath: string) => string | undefined,
+  registerTarget?: (sourcePath: string) => void,
 ): Promise<{ code: string; map: any } | null> {
   const setupMatch = code.match(/setup\s*\(\s*([^,)]*?)(?:,\s*\{[^}]*\})?\s*\)\s*\{/);
   if (!setupMatch || setupMatch.index === undefined) return null;
@@ -97,6 +100,8 @@ export async function injectIntoSetupAsync(
     importMap,
     additionalImports,
     isCustomElement,
+    resolveChunkUrl,
+    registerTarget,
   });
 
   const s = new MagicString(code);

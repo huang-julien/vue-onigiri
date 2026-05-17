@@ -1,8 +1,16 @@
 import { createTextVNode, createStaticVNode, type VNode, h, Fragment, Suspense } from "vue";
 import { VServerComponentType, type VServerComponent } from "./shared";
 import loader from "./loader";
+import type { ImportFn } from "./utils";
 
-export function renderOnigiri(input?: VServerComponent): VNode | undefined {
+export interface RenderOnigiriOptions {
+  importFn?: ImportFn;
+}
+
+export function renderOnigiri(
+  input?: VServerComponent,
+  options?: RenderOnigiriOptions,
+): VNode | undefined {
   if (!input) return;
 
   if (input[0] === VServerComponentType.Text) {
@@ -12,28 +20,36 @@ export function renderOnigiri(input?: VServerComponent): VNode | undefined {
     return h(
       input[1],
       input[2],
-      input[3]?.map((v) => renderOnigiri(v as VServerComponent)),
+      input[3]?.map((v) => renderOnigiri(v as VServerComponent, options)),
     );
   }
   if (input[0] === VServerComponentType.Component) {
-    return h(loader, {
-      data: input,
-    });
+    // Wrap in `<Suspense>` so the loader's async setup (which awaits
+    // the chunk import) participates in SSR's async render and
+    // client hydration. Without this, async setup throws on hydration
+    // with a "Component <Suspense> requires a default slot" warning.
+    return h(
+      Suspense,
+      {},
+      {
+        default: () => h(loader, { data: input, importFn: options?.importFn }),
+      },
+    );
   }
   if (input[0] === VServerComponentType.Fragment) {
     return Array.isArray(input[1])
       ? h(
           Fragment,
-          input[1].map((v) => renderOnigiri(v)),
+          input[1].map((v) => renderOnigiri(v, options)),
         )
-      : renderOnigiri(input[1]);
+      : renderOnigiri(input[1], options);
   }
   if (input[0] === VServerComponentType.Suspense) {
     return h(
       Suspense,
       {},
       {
-        default: () => renderChildren(input[1]),
+        default: () => renderChildren(input[1], options),
       },
     );
   }
@@ -42,10 +58,13 @@ export function renderOnigiri(input?: VServerComponent): VNode | undefined {
   }
 }
 
-export function renderChildren(data: VServerComponent[] | undefined): VNode | undefined {
+export function renderChildren(
+  data: VServerComponent[] | undefined,
+  options?: RenderOnigiriOptions,
+): VNode | undefined {
   if (!data) return;
   return h(
     Fragment,
-    data.map((v) => renderOnigiri(v)),
+    data.map((v) => renderOnigiri(v, options)),
   );
 }

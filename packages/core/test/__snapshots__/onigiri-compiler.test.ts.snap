@@ -57,38 +57,26 @@ const _component_MyComponent = __onigiri_resolveComponent(__instance, "MyCompone
 `;
 
 exports[`onigiri compiler > snapshots > components > component with default slot 1`] = `
-"import { resolveComponentInInstance as __onigiri_resolveComponent } from "vue-onigiri/runtime/resolve-component";
-
-export function renderOnigiri(_ctx, __instance) {
-const _component_MyComponent = __onigiri_resolveComponent(__instance, "MyComponent")
-  return [1, undefined, "/components/MyComponent.vue", "default", { "default": [2, "Default slot content"] }];
+"export function renderOnigiri(_ctx, __instance) {
+return [1, undefined, "/components/MyComponent.vue", "default", { "default": [2, "Default slot content"] }];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > components > component with named slots 1`] = `
-"import { resolveComponentInInstance as __onigiri_resolveComponent } from "vue-onigiri/runtime/resolve-component";
-
-export function renderOnigiri(_ctx, __instance) {
-const _component_MyComponent = __onigiri_resolveComponent(__instance, "MyComponent")
-  return [1, undefined, "/components/MyComponent.vue", "default", { "header": [2, "Header content"], "default": [2, "Main content"], "footer": [2, "Footer content"] }];
+"export function renderOnigiri(_ctx, __instance) {
+return [1, undefined, "/components/MyComponent.vue", "default", { "header": [2, "Header content"], "default": [2, "Main content"], "footer": [2, "Footer content"] }];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > components > component with props 1`] = `
-"import { resolveComponentInInstance as __onigiri_resolveComponent } from "vue-onigiri/runtime/resolve-component";
-
-export function renderOnigiri(_ctx, __instance) {
-const _component_MyComponent = __onigiri_resolveComponent(__instance, "MyComponent")
-  return [1, {"title": _ctx.title, "count": 42}, "/components/MyComponent.vue", "default", undefined];
+"export function renderOnigiri(_ctx, __instance) {
+return [1, {"title": _ctx.title, "count": 42}, "/components/MyComponent.vue", "default", undefined];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > components > kebab-case component with v-load-client 1`] = `
-"import { resolveComponentInInstance as __onigiri_resolveComponent } from "vue-onigiri/runtime/resolve-component";
-
-export function renderOnigiri(_ctx, __instance) {
-const _component_my_component = __onigiri_resolveComponent(__instance, "my-component")
-  return [1, {"prop": _ctx.value}, "/components/MyComponent.vue", "default", { "default": [2, "Content"] }];
+"export function renderOnigiri(_ctx, __instance) {
+return [1, {"prop": _ctx.value}, "/components/MyComponent.vue", "default", { "default": [2, "Content"] }];
 }"
 `;
 

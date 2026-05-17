@@ -13,15 +13,12 @@ import { genExpressionAsValue, prefixIdentifiers } from "./expressions";
 import { genProps } from "./props";
 import { genSlotsObject } from "./slots";
 
-/**
- * Resolve a tag to a usable identifier — either an imported binding or a
- * `_component_*` variable backed by `resolveComponent()` at runtime.
- */
 export function getComponentRef(tag: string, context: CodegenContext): string {
   const pascalName = tag
     .replace(/-./g, (x) => x[1]?.toUpperCase() ?? "")
     .replace(/^./, (x) => x.toUpperCase());
   const camelName = pascalName.replace(/^./, (x) => x.toLowerCase());
+  const kebabName = tag.replace(/([a-z\d])([A-Z])/g, "$1-$2").toLowerCase();
 
   const isImported =
     context.bindingMetadata[tag] ||
@@ -34,6 +31,21 @@ export function getComponentRef(tag: string, context: CodegenContext): string {
       : context.bindingMetadata[pascalName]
         ? pascalName
         : camelName;
+  }
+
+  const additionalEntry =
+    context.additionalImports.get(tag) ??
+    context.additionalImports.get(pascalName) ??
+    context.additionalImports.get(camelName) ??
+    context.additionalImports.get(kebabName);
+  if (additionalEntry) {
+    const exportName = additionalEntry.export ?? "default";
+    const importedName =
+      "__onigiri_imported_" +
+      pascalName.replace(/[^a-zA-Z0-9_$]/g, "_") +
+      (exportName === "default" ? "" : "_" + exportName.replace(/[^a-zA-Z0-9_$]/g, "_"));
+    context.imports.add(genImport(additionalEntry.path, [{ name: exportName, as: importedName }]));
+    return importedName;
   }
 
   const varName = "_component_" + tag.replace(/-/g, "_");
@@ -198,8 +210,9 @@ function genClientLoadedComponent(
   children: any[],
   context: CodegenContext,
 ): void {
-  const componentRef = getComponentRef(tag, context);
-  const staticSource = resolveClientChunkPath(tag, componentRef, context);
+  const sourcePath = resolveClientChunkPath(tag, context);
+  context.registerTarget?.(sourcePath);
+  const staticSource = context.resolveChunkUrl?.(sourcePath) ?? sourcePath;
 
   context.push("[");
   context.push(VServerComponentType.Component.toString());
@@ -224,26 +237,24 @@ function genClientLoadedComponent(
 }
 
 /**
- * Resolve a `v-load-client` target to a root-relative module path. Tries the
- * SFC's static imports keyed by the resolved ref first, then external
- * `additionalImports` under Pascal / camel / kebab variants of the tag.
+ * Resolve a `v-load-client` target to a root-relative module path
+ * WITHOUT pulling the component into the SSR bundle. Looks up the
+ * tag's various casings (PascalCase / camelCase / kebab-case) in
+ * `importMap` (script statics) and `additionalImports` (Nuxt /
+ * user-supplied). Throws at compile time if neither resolves —
+ * `v-load-client` requires a known compile-time target.
  */
-function resolveClientChunkPath(
-  tag: string,
-  componentRef: string,
-  context: CodegenContext,
-): string {
-  const fromImportMap = context.importMap.get(componentRef);
-  if (fromImportMap) return fromImportMap;
-
+function resolveClientChunkPath(tag: string, context: CodegenContext): string {
   const pascal = tag
     .replace(/-./g, (x) => x[1]?.toUpperCase() ?? "")
     .replace(/^./, (x) => x.toUpperCase());
   const camel = pascal.replace(/^./, (x) => x.toLowerCase());
   const kebab = tag.replace(/([a-z\d])([A-Z])/g, "$1-$2").toLowerCase();
   for (const key of [tag, pascal, camel, kebab]) {
-    const path = context.additionalImports.get(key);
-    if (path) return path;
+    const fromImportMap = context.importMap.get(key);
+    if (fromImportMap) return fromImportMap;
+    const fromAdditional = context.additionalImports.get(key);
+    if (fromAdditional) return fromAdditional.path;
   }
 
   throw new Error(
@@ -295,7 +306,15 @@ function genDynamicLoadClientComponent(
   context: CodegenContext,
 ): void {
   const componentRef = getComponentRef(tag, context);
-  const chunkPath = resolveClientChunkPath(tag, componentRef, context);
+  const sourcePath = resolveClientChunkPath(tag, context);
+  // Auto-detected v-load-client target — registered with the manifest
+  // plugin so it can emit a precise `import.meta.glob([...])` covering
+  // exactly the files that need to be loadable at runtime.
+  context.registerTarget?.(sourcePath);
+  // Bake the public chunk URL into the AST when the host can resolve
+  // it at compile time. Falls back to the source path otherwise — the
+  // runtime loader's `import.meta.glob` then resolves it on the client.
+  const chunkPath = context.resolveChunkUrl?.(sourcePath) ?? sourcePath;
 
   context.imports.add(
     genImport("vue-onigiri/runtime/serialize", [
