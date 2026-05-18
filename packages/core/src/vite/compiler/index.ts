@@ -7,6 +7,35 @@ import type { AdditionalImport } from "../../template-compiler/codegen/context";
 import { registerOnigiriTarget } from "../shared";
 import { toRootRelative } from "./paths";
 
+/**
+ * Detect whether `plugin-vue`'s output for an SFC already contains the
+ * template inline — either as a **client** render function (dev /
+ * inline-template build) or as an **SSR** render function (prod build,
+ * `?vue&type=template` SSR sub-module, etc.). Both shapes need the
+ * setup-bridge injection so onigiri's render closes over the SFC's
+ * setup-script bindings.
+ */
+function hasInlineTemplate(code: string): boolean {
+  return (
+    // Client render-fn codegen
+    code.includes("_createElementVNode") ||
+    code.includes("_createVNode") ||
+    code.includes("_createBlock") ||
+    code.includes("_createElementBlock") ||
+    code.includes("ssrInterpolate") ||
+    code.includes("ssrRenderAttrs") ||
+    // SSR render-fn codegen (production build, ?vue&type=template SSR sub-module)
+    code.includes("_push(`<") ||
+    code.includes("_push(ssr") ||
+    code.includes("ssrRenderComponent") ||
+    code.includes("ssrRenderSlot") ||
+    code.includes("ssrRenderList") ||
+    code.includes("ssrRenderClass") ||
+    code.includes("ssrRenderStyle") ||
+    code.includes("ssrRenderVNode")
+  );
+}
+
 export type AdditionalImportInput = string | AdditionalImport;
 
 export interface OnigiriCompilerOptions {
@@ -156,18 +185,34 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
         }
 
         // Bare `.vue` (dev split-module path AND build mode): plugin-vue
-        // re-exports script + template (dev) or just the inline-render
-        // script (build). In both modes, attaching to the SFC default
-        // export lands on the canonical module — the descriptor here
-        // travels with the SFC wherever it's imported, so the runtime
-        // serializer can look up the chunk URL from the component
-        // instead of relying on a call-site-baked fallback.
+        // re-exports script + template (dev) or inlines the whole SFC
+        // (build, including the SSR render fn). In build mode the SSR
+        // render closes over setup-script bindings whose `setupState` is
+        // never exposed, so attaching `__onigiriRender` alone leaves the
+        // closure dark — inject the setup bridge first when an inline
+        // render is present, then attach so the descriptor + render
+        // property land on the canonical module.
         if (!query) {
           if (!code.includes("export default")) return null;
           const onigiriImport = `${ONIGIRI_PREFIX}${encodeURIComponent(filePath)}${ONIGIRI_SUFFIX}`;
           const sourcePath = toRootRelative(filePath, config.root);
           const descriptorChunk = resolveChunkUrl?.(sourcePath) ?? sourcePath;
-          return attachAsProperty(code, onigiriImport, sourceMap, descriptorChunk);
+
+          let workCode = code;
+          if (hasInlineTemplate(code)) {
+            const injected = await injectIntoSetupAsync(
+              code,
+              filePath,
+              sourceMap,
+              config,
+              isCustomElement,
+              resolveAdditionalImports(),
+              resolveChunkUrl,
+              registerOnigiriTarget,
+            );
+            if (injected) workCode = injected.code;
+          }
+          return attachAsProperty(workCode, onigiriImport, sourceMap, descriptorChunk);
         }
 
         // `?vue&type=script` with inline template (build mode): the SSR
@@ -175,13 +220,7 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
         // empty, so an external render can't reach them. Inject our
         // render INSIDE setup so it shares the closure.
         if (query.includes("type=script")) {
-          const hasInlineTemplate =
-            code.includes("_createElementVNode") ||
-            code.includes("_createVNode") ||
-            code.includes("_createBlock") ||
-            code.includes("ssrInterpolate") ||
-            code.includes("ssrRenderAttrs");
-          if (hasInlineTemplate) {
+          if (hasInlineTemplate(code)) {
             return injectIntoSetupAsync(
               code,
               filePath,

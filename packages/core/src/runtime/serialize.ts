@@ -402,6 +402,7 @@ export function serializeApp(
   app.provide(ONIGIRI_RENDER_SYMBOL, true as const);
   applyDirective(app);
   const vnode = createVNode(input._component, input._props, slots as any);
+  (vnode as any).appContext = input._context;
   const instance = createComponentInstance(vnode, input._instance, null);
   instance.appContext = input._context;
   // @ts-expect-error vue internal API
