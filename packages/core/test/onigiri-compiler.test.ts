@@ -180,6 +180,58 @@ defineProps<{ title: string }>()
       expect(result.code).toContain("[1,");
     });
 
+    it("v-load-client with a named-export additionalImports entry emits that export", () => {
+      // Regression: the codegen used to hardcode `"default"` for the chunk
+      // export name regardless of what `additionalImports[tag].export` said,
+      // so a host registering a named export (e.g. Nuxt's
+      // `addComponent({ export: 'ComarkRenderer', filePath: '@comark/vue' })`)
+      // would resolve to `mod.default` (== undefined) at hydration time and
+      // render as an empty comment placeholder.
+      const result = compileOnigiri(`<ComarkRenderer v-load-client :tree="tree" />`, {
+        additionalImports: new Map([
+          ["ComarkRenderer", { path: "@comark/vue", export: "ComarkRenderer" }],
+        ]),
+      });
+
+      expect(result.code).toContain('"@comark/vue", "ComarkRenderer"');
+      expect(result.code).not.toContain('"@comark/vue", "default"');
+    });
+
+    it("v-load-client resolves the export through any casing of the tag", () => {
+      // Vue normalises template tag names; the additionalImports key may
+      // have been registered as any of PascalCase / kebab-case / camelCase.
+      // The resolver walks all four casings (raw, Pascal, camel, kebab) so
+      // none of those registrations should fall back to `"default"`.
+      const compileWith = (tag: string, registryKey: string) =>
+        compileOnigiri(`<${tag} v-load-client />`, {
+          additionalImports: new Map([
+            [registryKey, { path: "@scope/pkg", export: "NamedExport" }],
+          ]),
+        });
+
+      for (const [tag, key] of [
+        ["NamedExport", "NamedExport"],
+        ["named-export", "NamedExport"],
+        ["NamedExport", "named-export"],
+      ] as const) {
+        const result = compileWith(tag, key);
+        expect(result.code).toContain('"@scope/pkg", "NamedExport"');
+      }
+    });
+
+    it("v-load-client with a dynamic expression honours additionalImports[tag].export", () => {
+      // Same regression as the static path, but for the `v-load-client="expr"`
+      // shape that emits `__serializeChildComponent(..., chunkPath, exportName)`.
+      const result = compileOnigiri(`<ComarkRenderer v-load-client="visible" :tree="tree" />`, {
+        additionalImports: new Map([
+          ["ComarkRenderer", { path: "@comark/vue", export: "ComarkRenderer" }],
+        ]),
+      });
+
+      expect(result.code).toContain('"@comark/vue", "ComarkRenderer"');
+      expect(result.code).not.toContain('"@comark/vue", "default"');
+    });
+
     it("should handle components without v-load-client (server-rendered)", () => {
       const template = `<MyComponent :prop="value" />`;
       const result = compileOnigiri(template);
