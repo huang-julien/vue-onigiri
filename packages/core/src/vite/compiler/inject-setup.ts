@@ -58,30 +58,54 @@ export async function injectIntoSetupAsync(
   const setupMatch = code.match(/setup\s*\(\s*([^,)]*?)(?:,\s*\{[^}]*\})?\s*\)\s*\{/);
   if (!setupMatch || setupMatch.index === undefined) return null;
 
-  // Inject AFTER all setup-script bindings are declared but BEFORE the
-  // returned render arrow — otherwise the closure is in TDZ when the
-  // proxy's getter dereferences a setup binding.
+  // Inject AFTER all setup-script bindings are declared but BEFORE setup's
+  // own `return` statement — otherwise either the closure is in TDZ when
+  // the proxy's getter dereferences a setup binding (injection too early),
+  // or the early `return __render` is unreachable because setup already
+  // returned (injection too late).
   //
-  // The exact arrow shape depends on Vue's render mode:
-  //   - SSR (production):     `(_ctx, _push, _parent, _attrs) => {…}`
-  //     ...where `_attrs` may be renamed (`_attrs2`/`_attrs3`/…) when
-  //     the user's `<script setup>` already declares an `_attrs` binding
-  //     (e.g. `const _attrs = useAttrs()` in `@nuxt/image`'s NuxtPicture).
-  //   - Client inline-render: `(_ctx, _cache, $props, $setup, $data, $options) => {…}`
+  // Two render shapes the @vue/compiler-sfc emits, both anchored on the
+  // first top-level `return` inside the matched `setup(...)` body:
   //
-  // Match any arrow whose first param is `_ctx` so both shapes (and any
-  // bundler-induced renaming of the trailing params) wire up correctly.
-  const ssrRenderReturnMatch = code
-    .slice(setupMatch.index)
-    .match(/return\s*\(\s*_ctx\b[^)]*\)\s*=>\s*\{/);
+  //   A. Inline render arrow — `__ssrInlineRender: true` AND the template
+  //      is small enough that the compiler inlines the SSR render arrow
+  //      directly into setup's return. Anchor:
+  //          `return (_ctx, _push, _parent[, _attrs])  => {…}`
+  //          `return (_ctx, _cache, $props, $setup, $data, $options) => {…}`
+  //      `_attrs` may be renamed (`_attrs2`/`_attrs3`/…) when the user's
+  //      `<script setup>` already declares an `_attrs` binding (e.g.
+  //      `const _attrs = useAttrs()` in `@nuxt/image`'s NuxtPicture).
+  //
+  //   B. Split-template shape — `<script setup>` with top-level `await`
+  //      or a large template. The SSR / client render is a separate
+  //      module-level function; setup just gathers bindings and returns
+  //      `__returned__`. Anchor:
+  //          `return __returned__`
+  //          `return (Object.defineProperty(__returned__, …), __returned__)`
+  //      In this shape, `__returned__` (and every binding it gathers) is
+  //      built immediately before the return, so injecting at this point
+  //      sees all setup-script bindings live in the closure.
+  //
+  // For both, returning `__render` (a function) from setup is what makes
+  // Vue treat setup's return value as the render function rather than as
+  // a binding bag — see `setupStatefulComponent` in `@vue/runtime-core`.
+  const codeFromSetup = code.slice(setupMatch.index);
+  const inlineRenderMatch = codeFromSetup.match(/return\s*\(\s*_ctx\b[^)]*\)\s*=>\s*\{/);
+  const splitTemplateMatch = inlineRenderMatch
+    ? null
+    : codeFromSetup.match(
+        /return\s+(?:__returned__|\(\s*Object\.defineProperty\s*\(\s*__returned__)\b/,
+      );
 
-  // No inline render arrow inside setup → this SFC uses the split-template
-  // shape (`setup` returns `__returned__ = { …bindings… }`, and the SSR /
-  // client render is a separate module-level function). The standalone
-  // `__onigiriRender` already gets the bindings via `instance.setupState`
-  // through `createOnigiriCtx`, so the closure bridge is both unnecessary
-  // and unsafe to splice (would land before the binding `const`s and TDZ).
-  if (!ssrRenderReturnMatch || ssrRenderReturnMatch.index === undefined) {
+  const renderReturnMatch = inlineRenderMatch ?? splitTemplateMatch;
+
+  // Neither anchor matched → likely an Options API SFC, a hand-written
+  // `<script>` whose `setup(...) { ... }` returns nothing under our
+  // regex, or a future compiler shape we don't know yet. Skip injection;
+  // the standalone `__onigiriRender` attached as a property is still
+  // wired up by `attachAsProperty`, and will read bindings via
+  // `instance.setupState` / `instance.proxy` through `createOnigiriCtx`.
+  if (!renderReturnMatch || renderReturnMatch.index === undefined) {
     return null;
   }
 
@@ -187,7 +211,7 @@ import { ONIGIRI_RENDER_SYMBOL as __ONIGIRI_SYMBOL } from "vue-onigiri/runtime/s
   }
 `;
 
-  const injectAt = setupMatch.index + ssrRenderReturnMatch.index;
+  const injectAt = setupMatch.index + renderReturnMatch.index;
   s.appendLeft(injectAt, injectionCode);
   s.prepend(imports);
 

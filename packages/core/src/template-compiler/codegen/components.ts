@@ -234,8 +234,11 @@ function genClientLoadedComponent(
   }
   context.push(", ");
 
+  const exportName = resolveClientChunkExport(tag, context);
   context.push(JSON.stringify(staticSource));
-  context.push(', "default", ');
+  context.push(", ");
+  context.push(JSON.stringify(exportName));
+  context.push(", ");
 
   genSlotsObject(children, context, false);
 
@@ -269,6 +272,31 @@ function resolveClientChunkPath(tag: string, context: CodegenContext): string {
       `Either import the component statically (\`import ${pascal} from './path/to/${pascal}.vue'\`), ` +
       `or pass it through the compiler plugin's \`additionalImports\` option.`,
   );
+}
+
+/**
+ * Resolve the named export to pull off the dynamically-imported chunk
+ * for a `v-load-client` target. Mirrors the multi-casing lookup in
+ * `resolveClientChunkPath` so that a tag registered as `ComarkRenderer`
+ * still resolves when the template wrote `<comark-renderer>`.
+ *
+ * Only `additionalImports` entries carry an explicit `export`; the
+ * script-local `importMap` is path-only (it represents relative `.vue`
+ * imports, which are default-exported), so anything that resolves from
+ * there falls back to `"default"`. The runtime loader handles the
+ * fallback as `mod[exportName] ?? mod.default ?? mod`.
+ */
+function resolveClientChunkExport(tag: string, context: CodegenContext): string {
+  const pascal = tag
+    .replace(/-./g, (x) => x[1]?.toUpperCase() ?? "")
+    .replace(/^./, (x) => x.toUpperCase());
+  const camel = pascal.replace(/^./, (x) => x.toLowerCase());
+  const kebab = tag.replace(/([a-z\d])([A-Z])/g, "$1-$2").toLowerCase();
+  for (const key of [tag, pascal, camel, kebab]) {
+    const entry = context.additionalImports.get(key);
+    if (entry) return entry.export ?? "default";
+  }
+  return "default";
 }
 
 /**
@@ -345,9 +373,11 @@ function genDynamicLoadClientComponent(
 
   genSlotsObject(children, context, false);
 
+  const exportName = resolveClientChunkExport(tag, context);
   context.push(", ");
   context.push(JSON.stringify(chunkPath));
-  context.push(', "default"');
+  context.push(", ");
+  context.push(JSON.stringify(exportName));
 
   context.push(")");
 }
