@@ -27,11 +27,25 @@ describe("manifest-based component loading", () => {
     });
   });
 
-  it("virtual:onigiri/manifest throws for an unknown chunk", async () => {
-    // `/nope` has no `.vue` / `.[mc]?[jt]sx?` extension so the
-    // absolute-URL dynamic-import fallback doesn't fire — the manifest
-    // falls through to the explicit "No loader registered" error.
-    await expect(manifestImportFn("/nope")).rejects.toThrow(/No loader registered/);
+  it("virtual:onigiri/manifest throws for an unknown bare specifier", async () => {
+    // A bare specifier (no leading `/`, no scheme) doesn't match the
+    // glob and doesn't qualify for the absolute-URL fallback. Surface
+    // the friendly diagnostic so the host knows which lever to pull.
+    await expect(manifestImportFn("nope")).rejects.toThrow(/No loader registered/);
+  });
+
+  it("virtual:onigiri/manifest takes the import() fallback for any absolute URL", async () => {
+    // The extension check (`ABSOLUTE_CHUNK_RE`) was dropped so hosts
+    // can bake extension-less URLs (e.g. Vite dev's `/@id/<spec>`
+    // sentinel) into the AST. Any `/`-prefixed `src` should be handed
+    // straight to a native `import()`. The exact failure mode for a
+    // non-existent URL depends on the runtime — we just assert that
+    // it's *not* the friendly "No loader registered" diagnostic, which
+    // would mean the extension check is still gating the fallback.
+    await expect(manifestImportFn("/this/does/not/exist")).rejects.toThrow();
+    await expect(manifestImportFn("/this/does/not/exist")).rejects.not.toThrow(
+      /No loader registered/,
+    );
   });
 
   it("renderOnigiri loads a client-loaded component via the default manifest", async () => {

@@ -44,13 +44,29 @@ export interface OnigiriManifestPluginOptions extends OnigiriManifestOptions {
 
 /**
  * Emit a virtual module `virtual:onigiri/manifest` exporting `manifest`
- * and `importFn`. `importFn(src)` resolves a root-relative `.vue` path
- * via Vite's `import.meta.glob` for the current environment.
+ * and `importFn`. The emitted `importFn(src, exportName)` resolves a
+ * chunk reference into a module in three steps:
+ *
+ *   1. If `src` matches an `import.meta.glob` entry (`__glob[key]`),
+ *      call its loader. This covers the legacy source-path-keyed path,
+ *      e.g. `'/components/Counter.vue'`.
+ *
+ *   2. Otherwise, if `src` starts with `/`, fall through to a native
+ *      `import(/* @vite-ignore *\/ src)`. This is the recommended path
+ *      for hosts that bake fetchable URLs into the AST at compile time
+ *      via `resolveChunkUrl` — the URL can be any browser-fetchable
+ *      form: a hashed chunk (`/_nuxt/Counter.abc123.js`), a dev-server
+ *      sentinel (`/_nuxt/@id/<bare-spec>`), or any other absolute URL.
+ *      No extension is required.
+ *
+ *   3. Otherwise (a bare specifier with no glob entry), throw with a
+ *      pointer to the two escape hatches: a custom `importFn` passed to
+ *      `renderOnigiri(ast, { importFn })`, or an explicit `include`
+ *      pattern on `onigiriManifestPlugin`.
  *
  * Defaults: server auto-detects v-load-client targets; client emits no
- * glob (so we don't leak file paths to the browser by default — pass
- * a custom `importFn` via `renderOnigiri(ast, { importFn })` if you
- * need to control client-side resolution).
+ * glob (so we don't leak file paths to the browser by default — hosts
+ * are expected to bake URLs via `resolveChunkUrl`).
  */
 export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}): Plugin {
   const stub = options.stub ?? false;
@@ -103,8 +119,6 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
 ${useGlob ? `const __glob = import.meta.glob(${JSON.stringify(include)})\n` : ""}
 export const manifest = ${useGlob ? "__glob" : "{}"}
 
-const ABSOLUTE_CHUNK_RE = /\\.(?:m?[jt]sx?|vue)(?:\\?.*)?$/
-
 export async function importFn(src, exportName = 'default') {
   const key = src.startsWith('/') ? src : '/' + src
   const loader = ${useGlob ? "__glob[key]" : "undefined"}
@@ -112,19 +126,21 @@ export async function importFn(src, exportName = 'default') {
     const mod = await loader()
     return mod[exportName] ?? mod.default ?? mod
   }
-  // Fallback: the host (e.g. Nuxt's island response) may have already
-  // resolved the source path to a public chunk URL like
-  // "/_nuxt/Counter.<hash>.js" or a Vite dev URL. Honour it via a
-  // native dynamic import so we can drop source paths from the wire
-  // format.
-  if (src.startsWith('/') && ABSOLUTE_CHUNK_RE.test(src)) {
+  // Fallback for hosts that bake fetchable URLs into the AST at
+  // compile time via \`resolveChunkUrl\` — any absolute URL is fair
+  // game (hashed chunk, dev-server \`/@id/<bare-spec>\` sentinel,
+  // public asset, anything Vite/Node can hand to a native dynamic
+  // import). No file-extension check: hosts may bake URLs without one
+  // (e.g. Vite's bare-spec resolver).
+  if (src.startsWith('/')) {
     const mod = await import(/* @vite-ignore */ src)
     return mod[exportName] ?? mod.default ?? mod
   }
   throw new Error(
     '[vue-onigiri] No loader registered for chunk "' + src + '". ' +
     'Pass a custom \`importFn\` to \`renderOnigiri(ast, { importFn })\`, ' +
-    'or set an \`include\` on \`onigiriManifestPlugin\`.'
+    'or set an \`include\` on \`onigiriManifestPlugin\`, ' +
+    'or have the host bake a fetchable URL via \`resolveChunkUrl\`.'
   )
 }
 `;
