@@ -2,7 +2,7 @@ import type { ElementNode } from "@vue/compiler-dom";
 import { genImport } from "knitwork";
 import { VServerComponentType } from "../../runtime/shared";
 import type { CodegenContext } from "./context";
-import { genNode } from "./vnode";
+import { withoutRenderlessChildren, genNode } from "./vnode";
 import { genComponent } from "./components";
 import { genSlotOutlet } from "./slots";
 import { genPropsWithScopeId } from "./props";
@@ -95,11 +95,14 @@ function genHtmlElement(node: ElementNode, context: CodegenContext): void {
 
   if (!isVoidElement) {
     context.push(", ");
-    if (children.length === 0) {
+    // Comments emit no code. Filter them so a leading or middle comment
+    // doesn't leave a sparse-array hole that JSON turns into a null child.
+    const renderableChildren = withoutRenderlessChildren(children);
+    if (renderableChildren.length === 0) {
       context.push("undefined");
     } else {
       context.push("[");
-      for (const [i, child] of children.entries()) {
+      for (const [i, child] of renderableChildren.entries()) {
         if (i > 0) context.push(", ");
         genNode(child, context);
       }

@@ -7,25 +7,14 @@ import {
 } from "@vue/compiler-dom";
 import { genImport } from "knitwork";
 import type { CodegenContext } from "./context";
-import { genNode } from "./vnode";
-import { genExpressionAsValue } from "./expressions";
+import { withoutRenderlessChildren, genNode } from "./vnode";
+import { collectBindingNames, genExpressionAsValue } from "./expressions";
 import { genProps } from "./props";
 
 interface ParsedSlot {
   name: string;
   slotProps: string | null;
   children: any[];
-}
-
-/**
- * Drop nodes that codegen-to-nothing (HTML comments). Without this,
- * a slot whose only fallback/body is `<!-- ... -->` produces broken
- * JS like `() => )` or `"name": ,`. Other "empty" nodes (TEXT_CALL,
- * VNODE_CALL with no tag, etc.) still emit `null` from `genNode`, so
- * we don't filter them — only the `case COMMENT: break` path.
- */
-function dropRenderlessChildren(children: any[]): any[] {
-  return children.filter((c) => c?.type !== NodeTypes.COMMENT);
 }
 
 function parseSlots(children: any[]): ParsedSlot[] {
@@ -58,7 +47,7 @@ function parseSlots(children: any[]): ParsedSlot[] {
         slots.push({
           name: slotName,
           slotProps,
-          children: dropRenderlessChildren(child.children || []),
+          children: withoutRenderlessChildren(child.children || []),
         });
         continue;
       }
@@ -67,7 +56,7 @@ function parseSlots(children: any[]): ParsedSlot[] {
     defaultChildren.push(child);
   }
 
-  const renderableDefaults = dropRenderlessChildren(defaultChildren);
+  const renderableDefaults = withoutRenderlessChildren(defaultChildren);
   if (renderableDefaults.length > 0) {
     slots.push({
       name: "default",
@@ -104,12 +93,29 @@ export function genSlotsObject(
       } else {
         context.push("() => ");
       }
-      context.push("[");
-      for (const [j, child] of slot.children.entries()) {
-        if (j > 0) context.push(", ");
-        genNode(child, context);
+      // Slot-scope bindings (`#default="{ item }"`) are locals of the
+      // emitted arrow, so register them to stop `prefixIdentifiers` from
+      // rewriting them to `_ctx.item` inside the slot body. Only names not
+      // already local are added (and removed after), so an outer v-for
+      // binding shadowed by a slot param survives the cleanup.
+      const slotLocals = slot.slotProps ? collectBindingNames(slot.slotProps) : [];
+      const added: string[] = [];
+      for (const name of slotLocals) {
+        if (!context.localVars.has(name)) {
+          context.localVars.add(name);
+          added.push(name);
+        }
       }
-      context.push("]");
+      try {
+        context.push("[");
+        for (const [j, child] of slot.children.entries()) {
+          if (j > 0) context.push(", ");
+          genNode(child, context);
+        }
+        context.push("]");
+      } finally {
+        for (const name of added) context.localVars.delete(name);
+      }
     } else {
       // Scoped slots can't cross the client boundary — the scope value only
       // exists on the client at runtime and can't be embedded in frozen AST.
@@ -183,7 +189,7 @@ export function genSlotOutlet(node: ElementNode, context: CodegenContext): void 
   }
   context.push(", ");
 
-  const renderableChildren = dropRenderlessChildren(children);
+  const renderableChildren = withoutRenderlessChildren(children);
   if (renderableChildren.length > 0) {
     // Always wrap in an array literal. A bare `genNode(child)` for a single
     // child breaks when that child is a `v-for` (which emits `...(arr.map(...))`),
