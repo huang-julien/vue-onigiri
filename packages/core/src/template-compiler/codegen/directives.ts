@@ -85,7 +85,12 @@ export function genDirectiveBinding(dir: DirectiveNode, context: CodegenContext)
     context.push('"modifiers": {');
     for (let i = 0; i < dir.modifiers.length; i++) {
       if (i > 0) context.push(", ");
-      context.push(`"${dir.modifiers[i]}": true`);
+      // `DirectiveNode.modifiers` is `SimpleExpressionNode[]` since Vue
+      // 3.4, so interpolating a node directly yields `[object Object]`.
+      // Read `.content`, tolerating a plain string for older shapes.
+      const mod = dir.modifiers[i] as SimpleExpressionNode | string;
+      const modName = typeof mod === "string" ? mod : mod.content;
+      context.push(`${JSON.stringify(modName)}: true`);
     }
     context.push("}");
   }

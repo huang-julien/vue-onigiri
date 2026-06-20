@@ -8,7 +8,7 @@ import {
 import { genImport } from "knitwork";
 import { VServerComponentType } from "../../runtime/shared";
 import type { CodegenContext } from "./context";
-import { genNode } from "./vnode";
+import { withoutRenderlessChildren, genNode } from "./vnode";
 import { genExpressionAsValue, prefixIdentifiers } from "./expressions";
 import { genProps } from "./props";
 import { genSlotsObject } from "./slots";
@@ -124,7 +124,7 @@ function genSuspense(children: any[], context: CodegenContext): void {
   const defaultSlotChildren = children
     .filter((c) => c.type === NodeTypes.ELEMENT && c.tag === "template")
     .flatMap((c) => c.children ?? []);
-  const all = [...filtered, ...defaultSlotChildren];
+  const all = withoutRenderlessChildren([...filtered, ...defaultSlotChildren]);
   for (const [i, child] of all.entries()) {
     if (i > 0) context.push(", ");
     genNode(child, context);
@@ -136,7 +136,7 @@ function genFragmentPassthrough(children: any[], context: CodegenContext): void 
   context.push("[");
   context.push(VServerComponentType.Fragment.toString());
   context.push(", [");
-  for (const [i, child] of children.entries()) {
+  for (const [i, child] of withoutRenderlessChildren(children).entries()) {
     if (i > 0) context.push(", ");
     genNode(child, context);
   }

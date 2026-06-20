@@ -88,13 +88,13 @@ return (_ctx.status === 'loading' ? [0, "div", undefined, [[2, "Loading..."]]] :
 
 exports[`onigiri compiler > snapshots > directives > v-for with index 1`] = `
 "export function renderOnigiri(_ctx, __instance) {
-return ...(_ctx.items.map((item, index) => [0, "li", {"key": index}, [[2, (index + ": " + item)]]]));
+return [3, [...(_ctx.items.map((item, index) => [0, "li", {"key": index}, [[2, (index + ": " + item)]]]))]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > directives > v-for with key 1`] = `
 "export function renderOnigiri(_ctx, __instance) {
-return ...(_ctx.items.map((item) => [0, "li", {"key": item.id}, [[2, item.name]]]));
+return [3, [...(_ctx.items.map((item) => [0, "li", {"key": item.id}, [[2, item.name]]]))]];
 }"
 `;
 
@@ -134,7 +134,7 @@ return [0, "div", {"class": { active: _ctx.isActive, disabled: _ctx.isDisabled }
 
 exports[`onigiri compiler > snapshots > dynamic bindings > dynamic attribute name 1`] = `
 "export function renderOnigiri(_ctx, __instance) {
-return [0, "div", {"_ctx.attrName": _ctx.attrValue}, [[2, "Content"]]];
+return [0, "div", {[_ctx.attrName]: _ctx.attrValue}, [[2, "Content"]]];
 }"
 `;
 
@@ -244,7 +244,7 @@ exports[`onigiri compiler > snapshots > real-world examples > modal dialog 1`] =
 "import { renderSlot as __renderSlot } from "vue-onigiri/runtime/render-slot";
 
 export function renderOnigiri(_ctx, __instance) {
-return (_ctx.isOpen ? [0, "div", {"class": "modal-overlay", "onClick": _ctx.close}, [[0, "div", {"class": "modal", "role": "dialog", "aria-labelledby": _ctx.titleId}, [[0, "header", {"class": "modal-header"}, [[0, "h2", {"id": _ctx.titleId}, [[2, _ctx.title]]], [0, "button", {"onClick": _ctx.close, "aria-label": "Close"}, [[2, "×"]]]]], [0, "div", {"class": "modal-body"}, [__renderSlot(_ctx, _ctx.slots, "default", undefined, undefined)]], [0, "footer", {"class": "modal-footer"}, [__renderSlot(_ctx, _ctx.slots, "footer", undefined, () => [0, "button", {"onClick": _ctx.close}, [[2, "Close"]]])]]]]]] : null);
+return (_ctx.isOpen ? [0, "div", {"class": "modal-overlay", "onClick": _ctx.close}, [[0, "div", {"class": "modal", "role": "dialog", "aria-labelledby": _ctx.titleId}, [[0, "header", {"class": "modal-header"}, [[0, "h2", {"id": _ctx.titleId}, [[2, _ctx.title]]], [0, "button", {"onClick": _ctx.close, "aria-label": "Close"}, [[2, "×"]]]]], [0, "div", {"class": "modal-body"}, [__renderSlot(_ctx, _ctx.slots, "default", undefined, undefined)]], [0, "footer", {"class": "modal-footer"}, [__renderSlot(_ctx, _ctx.slots, "footer", undefined, () => [[0, "button", {"onClick": _ctx.close}, [[2, "Close"]]]])]]]]]] : null);
 }"
 `;
 
@@ -288,6 +288,6 @@ exports[`onigiri compiler > snapshots > slots > slot with fallback 1`] = `
 "import { renderSlot as __renderSlot } from "vue-onigiri/runtime/render-slot";
 
 export function renderOnigiri(_ctx, __instance) {
-return __renderSlot(_ctx, _ctx.slots, "default", undefined, () => [2, "Fallback content"]);
+return __renderSlot(_ctx, _ctx.slots, "default", undefined, () => [[2, "Fallback content"]]);
 }"
 `;

@@ -78,6 +78,65 @@ export function genPropsWithScopeId(
   genPropsObjectWithScopeId(props, context);
 }
 
+/**
+ * `:[name]` / `@[name]` directive args are dynamic expressions
+ * (`isStatic: false`, or compound after transformExpression). Emitting
+ * their raw `content` as a quoted key produces a literal `"_ctx.name"`
+ * prop, so they need a computed key instead.
+ */
+function isDynamicArg(arg: DirectiveNode["arg"]): boolean {
+  if (!arg || typeof arg !== "object") return false;
+  if (arg.type === NodeTypes.SIMPLE_EXPRESSION) return !arg.isStatic;
+  return true;
+}
+
+/** Emit one `key: value` object entry for a `v-on:*` / `v-bind:arg` directive. */
+function genDirectivePropEntry(prop: DirectiveNode, context: CodegenContext): void {
+  if (prop.name === "on") {
+    if (isDynamicArg(prop.arg)) {
+      // `@[eventName]`: computed handler key via Vue's own helper,
+      // matching the `_toHandlerKey(...)` shape Vue's codegen emits.
+      context.imports.add(genImport("vue", [{ name: "toHandlerKey", as: "_toHandlerKey" }]));
+      context.push("[_toHandlerKey(");
+      genExpressionAsValue(prop.arg, context);
+      context.push(")]: ");
+    } else {
+      const eventName =
+        prop.arg && typeof prop.arg === "object" && "content" in prop.arg
+          ? (prop.arg as SimpleExpressionNode).content
+          : "";
+      const onEventName = "on" + eventName.charAt(0).toUpperCase() + eventName.slice(1);
+      context.push(`"${onEventName}": `);
+    }
+
+    if (prop.exp) {
+      genEventHandler(prop.exp, context);
+    } else {
+      context.push("() => {}");
+    }
+    return;
+  }
+
+  // v-bind with an arg (`:name="x"` / `:[name]="x"`).
+  if (isDynamicArg(prop.arg)) {
+    context.push("[");
+    genExpressionAsValue(prop.arg, context);
+    context.push("]: ");
+  } else {
+    const propName =
+      prop.arg && typeof prop.arg === "object" && "content" in prop.arg
+        ? (prop.arg as SimpleExpressionNode).content
+        : "";
+    context.push(`"${propName}": `);
+  }
+
+  if (prop.exp) {
+    genExpressionAsValue(prop.exp, context);
+  } else {
+    context.push("true");
+  }
+}
+
 function genPropsObjectWithScopeId(
   props: (AttributeNode | DirectiveNode)[],
   context: CodegenContext,
@@ -104,40 +163,12 @@ function genPropsObjectWithScopeId(
     } else if (prop.type === NodeTypes.DIRECTIVE) {
       if (STRIPPED_DIRECTIVES.has(prop.name)) continue;
       if (shouldWrapDirective(prop.name)) continue;
+      if (prop.name !== "on" && !(prop.name === "bind" && prop.arg)) continue;
 
       if (!first) context.push(", ");
       first = false;
 
-      if (prop.name === "on") {
-        const eventName =
-          prop.arg && typeof prop.arg === "object" && "content" in prop.arg
-            ? (prop.arg as SimpleExpressionNode).content
-            : "";
-        const onEventName = "on" + eventName.charAt(0).toUpperCase() + eventName.slice(1);
-        context.push(`"${onEventName}": `);
-
-        if (prop.exp) {
-          genEventHandler(prop.exp, context);
-        } else {
-          context.push("() => {}");
-        }
-        continue;
-      }
-
-      if (prop.name === "bind" && prop.arg) {
-        const propName =
-          prop.arg && typeof prop.arg === "object" && "content" in prop.arg
-            ? (prop.arg as SimpleExpressionNode).content
-            : "";
-        context.push(`"${propName}": `);
-
-        if (prop.exp) {
-          genExpressionAsValue(prop.exp, context);
-        } else {
-          context.push("true");
-        }
-        continue;
-      }
+      genDirectivePropEntry(prop, context);
     }
   }
 
@@ -162,40 +193,12 @@ function genPropsObject(props: (AttributeNode | DirectiveNode)[], context: Codeg
     } else if (prop.type === NodeTypes.DIRECTIVE) {
       if (STRIPPED_DIRECTIVES.has(prop.name)) continue;
       if (shouldWrapDirective(prop.name)) continue;
+      if (prop.name !== "on" && !(prop.name === "bind" && prop.arg)) continue;
 
       if (!first) context.push(", ");
       first = false;
 
-      if (prop.name === "on") {
-        const eventName =
-          prop.arg && typeof prop.arg === "object" && "content" in prop.arg
-            ? (prop.arg as SimpleExpressionNode).content
-            : "";
-        const onEventName = "on" + eventName.charAt(0).toUpperCase() + eventName.slice(1);
-        context.push(`"${onEventName}": `);
-
-        if (prop.exp) {
-          genEventHandler(prop.exp, context);
-        } else {
-          context.push("() => {}");
-        }
-        continue;
-      }
-
-      if (prop.name === "bind" && prop.arg) {
-        const attrName =
-          typeof prop.arg === "object" && "content" in prop.arg
-            ? (prop.arg as SimpleExpressionNode).content
-            : "";
-        context.push(`"${attrName}": `);
-
-        if (prop.exp) {
-          genExpressionAsValue(prop.exp, context);
-        } else {
-          context.push("true");
-        }
-        continue;
-      }
+      genDirectivePropEntry(prop, context);
     }
   }
 

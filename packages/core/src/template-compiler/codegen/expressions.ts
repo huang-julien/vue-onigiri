@@ -65,6 +65,60 @@ function classifyExpression(content: string): "member" | "fn" | "statement" {
 }
 
 /**
+ * Extract the identifier names a binding pattern declares. `v-for`
+ * values and slot-scope props are arbitrary destructuring patterns
+ * (`{ id, name }`, `[a, b]`, `{ a: alias = 1, ...rest }`), and
+ * `prefixIdentifiers` needs the individual names in `localVars`.
+ * Seeding the raw pattern string would match nothing, so every binding
+ * would be wrongly rewritten to `_ctx.<name>`.
+ */
+export function collectBindingNames(pattern: string): string[] {
+  const trimmed = pattern.trim();
+  if (!trimmed) return [];
+  if (/^[A-Za-z_$][\w$]*$/.test(trimmed)) return [trimmed];
+
+  try {
+    const arrow: any = parseExpression(`(${trimmed}) => 0`, { plugins: ["typescript"] });
+    const names: string[] = [];
+    const walk = (n: any): void => {
+      if (!n) return;
+      switch (n.type) {
+        case "Identifier": {
+          names.push(n.name);
+          return;
+        }
+        case "ObjectPattern": {
+          for (const p of n.properties) walk(p);
+          return;
+        }
+        case "ObjectProperty": {
+          walk(n.value);
+          return;
+        }
+        case "ArrayPattern": {
+          for (const el of n.elements) walk(el);
+          return;
+        }
+        case "AssignmentPattern": {
+          walk(n.left);
+          return;
+        }
+        case "RestElement": {
+          walk(n.argument);
+          return;
+        }
+      }
+    };
+    for (const param of arrow.params ?? []) walk(param);
+    return names;
+  } catch {
+    // Unparseable pattern: return the raw string. This matches the
+    // previous behavior, and the template is about to error anyway.
+    return [trimmed];
+  }
+}
+
+/**
  * Walk the Babel AST and remove TypeScript-only syntax positions
  * (`expr as T`, `expr satisfies T`, `<T>expr`, `expr!`, `expr<T>`,
  * parameter `: T` annotations). The virtual `.mjs` modules we emit

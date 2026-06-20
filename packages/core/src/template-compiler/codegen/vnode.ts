@@ -9,6 +9,10 @@ const TEXT_CALL = 12;
 const VNODE_CALL = 13;
 const JS_CALL_EXPRESSION = 14;
 
+export function withoutRenderlessChildren(children: any[]): any[] {
+  return children.filter((c) => c?.type !== NodeTypes.COMMENT);
+}
+
 export function genNode(node: any, context: CodegenContext): void {
   switch (node.type) {
     case NodeTypes.ELEMENT: {

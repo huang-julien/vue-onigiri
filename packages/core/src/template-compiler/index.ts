@@ -20,7 +20,7 @@ import {
 import type { AdditionalImport } from "./codegen/context";
 import { isVoidTag } from "@vue/shared";
 import { VServerComponentType } from "../runtime/shared";
-import { createCodegenContext, genNode } from "./codegen";
+import { createCodegenContext, withoutRenderlessChildren, genNode } from "./codegen";
 
 // Get Vue's default transforms (includes v-if, v-for, etc.)
 const [baseNodeTransforms] = getBaseTransformPreset(true);
@@ -139,11 +139,15 @@ export function compileOnigiri(
     resolveChunkUrl: options.resolveChunkUrl,
     registerTarget: options.registerTarget,
   });
-  if (ast.children.length === 0) {
+  // Root comments emit no code. Filter them so a comment-only template
+  // emits `null` (not `return ;`) and a comment between root siblings
+  // doesn't leave a sparse-array hole in the Fragment.
+  const rootChildren = withoutRenderlessChildren(ast.children);
+  if (rootChildren.length === 0) {
     bodyContext.push("null");
-  } else if (ast.children.length === 1) {
+  } else if (rootChildren.length === 1) {
     const before = bodyContext.code.length;
-    genNode(ast.children[0], bodyContext);
+    genNode(rootChildren[0], bodyContext);
     const produced = bodyContext.code.slice(before);
     // A single root `v-for` emits `...(source.map(...))` so the spread can
     // be inlined into an enclosing array literal. There's no array around
@@ -163,9 +167,9 @@ export function compileOnigiri(
     bodyContext.push("[");
     bodyContext.push(VServerComponentType.Fragment.toString());
     bodyContext.push(", [");
-    for (let i = 0; i < ast.children.length; i++) {
+    for (let i = 0; i < rootChildren.length; i++) {
       if (i > 0) bodyContext.push(", ");
-      genNode(ast.children[i], bodyContext);
+      genNode(rootChildren[i], bodyContext);
     }
     bodyContext.push("]]");
   }
@@ -243,11 +247,14 @@ export function compileOnigiriInline(
     registerTarget: options.registerTarget,
   });
 
-  if (ast.children.length === 0) {
+  // Same root-comment filtering as `compileOnigiri`: comment-only
+  // templates must emit `null`, not an empty expression.
+  const rootChildren = withoutRenderlessChildren(ast.children);
+  if (rootChildren.length === 0) {
     context.push("null");
-  } else if (ast.children.length === 1) {
+  } else if (rootChildren.length === 1) {
     const before = context.code.length;
-    genNode(ast.children[0], context);
+    genNode(rootChildren[0], context);
     const produced = context.code.slice(before);
     // Same Fragment-wrap fix as `compileOnigiri` — a root-level `v-for`
     // emits a `...(arr.map(...))` spread that's only valid inside an
@@ -267,9 +274,9 @@ export function compileOnigiriInline(
     context.push("[");
     context.push(VServerComponentType.Fragment.toString());
     context.push(", [");
-    for (let i = 0; i < ast.children.length; i++) {
+    for (let i = 0; i < rootChildren.length; i++) {
       if (i > 0) context.push(", ");
-      genNode(ast.children[i], context);
+      genNode(rootChildren[i], context);
     }
     context.push("]]");
   }
