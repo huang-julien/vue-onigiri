@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import { flushPromises, mount } from "@vue/test-utils";
 import ElementsOnly from "./fixtures/components/ElementsOnly.vue";
-import { defineComponent, h, nextTick, provide, Suspense } from "vue";
+import { defineComponent, h, inject, nextTick, provide, Suspense } from "vue";
 import { renderOnigiri } from "../src/runtime/deserialize";
 import LoadComponent from "./fixtures/components/LoadComponent.vue";
 import { serializeComponent } from "../src/runtime/serialize";
@@ -352,5 +352,67 @@ describe("slots", () => {
     expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
       `"<div><div> counter : 0 <button>Increment</button><div><p>Slot content (static)</p></div></div></div>"`,
     );
+  });
+});
+
+// Non-onigiri components (no __onigiriRender) go through the vnode
+// fallback walk in renderComponent. The async-setup/serverPrefetch
+// branch must produce the same output as the sync branch.
+describe("fallback walk (non-onigiri components)", () => {
+  const wrapperRender = () => h("div", { class: "wrapper" }, [h("span", null, "hi")]);
+  const SyncChild = defineComponent({
+    setup() {
+      return wrapperRender;
+    },
+  });
+  const AsyncChild = defineComponent({
+    async setup() {
+      await Promise.resolve();
+      return wrapperRender;
+    },
+  });
+  const makeParent = (Child: ReturnType<typeof defineComponent>) =>
+    defineComponent({
+      setup: () => () => h("section", null, [h(Child)]),
+    });
+
+  it("preserves the root element of an async-setup child", async () => {
+    const astSync = await serializeComponent(makeParent(SyncChild));
+    const astAsync = await serializeComponent(makeParent(AsyncChild));
+    expect(JSON.stringify(astAsync)).toContain('"wrapper"');
+    expect(astAsync).toEqual(astSync);
+  });
+
+  it("preserves the root element of a serverPrefetch child", async () => {
+    const PrefetchChild = defineComponent({
+      serverPrefetch: () => Promise.resolve(),
+      setup() {
+        return wrapperRender;
+      },
+    });
+    const ast = await serializeComponent(makeParent(PrefetchChild));
+    expect(ast).toEqual(await serializeComponent(makeParent(SyncChild)));
+  });
+
+  it("keeps provide() from an async component visible to its descendants", async () => {
+    const Inner = defineComponent({
+      setup() {
+        const v = inject("onigiri-fallback-key", "missing");
+        return () => h("span", null, String(v));
+      },
+    });
+    const AsyncProvider = defineComponent({
+      async setup() {
+        provide("onigiri-fallback-key", "provided");
+        await Promise.resolve();
+        return () => h(Inner);
+      },
+    });
+    const Root = defineComponent({
+      setup: () => () => h(AsyncProvider),
+    });
+    const ast = await serializeComponent(Root);
+    expect(JSON.stringify(ast)).toContain("provided");
+    expect(JSON.stringify(ast)).not.toContain("missing");
   });
 });

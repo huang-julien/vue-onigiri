@@ -725,9 +725,9 @@ function renderComponent(
       }
       vnode.__slotsResult = instance.__slotsResult;
       if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
-        return renderComponent(vnode, parentInstance);
+        return renderComponent(vnode, instance);
       }
-      return vnode.children;
+      return isVNode(vnode.children) ? vnode.children : vnode;
     });
   }
   const child = renderComponentRoot(instance);
