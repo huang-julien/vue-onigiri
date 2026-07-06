@@ -599,6 +599,109 @@ defineProps<{ title: string }>()
     });
   });
 
+  describe("codegen syntax validity and scoping regressions", () => {
+    /** Assert the emitted module body parses as JavaScript. */
+    const expectParses = (code: string) => {
+      const body = code.replace(/^import[^\n]*$/gm, "").replace(/^export /m, "");
+      expect(() => new Function(body)).not.toThrow();
+    };
+
+    it("comment-only v-if branch emits valid JS (empty fragment)", () => {
+      const result = compileOnigiri(`<template v-if="show"><!-- todo --></template>`);
+      expectParses(result.code);
+      expect(result.code).toContain("? [3, []] :");
+    });
+
+    it("comment-only v-for body emits valid JS (empty fragment)", () => {
+      const result = compileOnigiri(
+        `<template v-for="i in list" :key="i"><!-- todo --></template>`,
+      );
+      expectParses(result.code);
+      expect(result.code).toContain("=> [3, []]");
+    });
+
+    it("comment between element children leaves no sparse-array hole", () => {
+      const result = compileOnigiri(`<div><!-- c --><span>a</span></div>`);
+      expectParses(result.code);
+      expect(result.code).not.toContain("[, ");
+      expect(result.code).toContain('[[0, "span", undefined, [[2, "a"]]]]');
+    });
+
+    it("comment-only template emits null", () => {
+      const result = compileOnigiri(`<!-- nothing to render -->`);
+      expectParses(result.code);
+      expect(result.code).toContain("return null;");
+    });
+
+    it("root comment next to an element leaves no sparse-array hole", () => {
+      const result = compileOnigiri(`<!-- c --><div>x</div>`);
+      expectParses(result.code);
+      expect(result.code).not.toContain("[, ");
+    });
+
+    it("destructured v-for bindings stay un-prefixed", () => {
+      const result = compileOnigiri(
+        `<li v-for="{ id, name } in items" :key="id">{{ name }}</li>`,
+      );
+      expectParses(result.code);
+      expect(result.code).toContain(".map(({ id, name }) =>");
+      expect(result.code).toContain('{"key": id}');
+      expect(result.code).toContain("[2, name]");
+      expect(result.code).not.toContain("_ctx.id");
+      expect(result.code).not.toContain("_ctx.name");
+    });
+
+    it("nested v-for shadowing the same binding keeps the outer var local afterwards", () => {
+      const result = compileOnigiri(`
+        <div v-for="item in items" :key="item.id">
+          <span v-for="item in item.children" :key="item">{{ item }}</span>
+          <em>{{ item.label }}</em>
+        </div>
+      `);
+      expectParses(result.code);
+      expect(result.code).toContain("item.label");
+      expect(result.code).not.toContain("_ctx.item.label");
+    });
+
+    it("scoped slot destructured params stay un-prefixed in the slot body", () => {
+      const result = compileOnigiri(
+        `<MyComp><template #default="{ item }">{{ item.name }}</template></MyComp>`,
+      );
+      expectParses(result.code);
+      expect(result.code).toContain("({ item }) => [[2, item.name]]");
+      expect(result.code).not.toContain("_ctx.item");
+    });
+
+    it("scoped slot plain param stays un-prefixed in the slot body", () => {
+      const result = compileOnigiri(
+        `<MyComp><template #default="slotProps">{{ slotProps.name }}</template></MyComp>`,
+      );
+      expectParses(result.code);
+      expect(result.code).toContain("(slotProps) => [[2, slotProps.name]]");
+      expect(result.code).not.toContain("_ctx.slotProps");
+    });
+
+    it("custom directive modifiers serialize by name", () => {
+      const result = compileOnigiri(`<div v-focus.lazy.deep>x</div>`);
+      expectParses(result.code);
+      expect(result.code).toContain('{"lazy": true, "deep": true}');
+      expect(result.code).not.toContain("[object Object]");
+    });
+
+    it("dynamic attribute names emit a computed key", () => {
+      const result = compileOnigiri(`<div :[attrName]="attrValue">x</div>`);
+      expectParses(result.code);
+      expect(result.code).toContain("{[_ctx.attrName]: _ctx.attrValue}");
+    });
+
+    it("dynamic event names emit a computed handler key", () => {
+      const result = compileOnigiri(`<div @[eventName]="handler">x</div>`);
+      expectParses(result.code);
+      expect(result.code).toContain("[_toHandlerKey(_ctx.eventName)]: _ctx.handler");
+      expect(result.code).toContain('import { toHandlerKey as _toHandlerKey } from "vue"');
+    });
+  });
+
   describe("snapshots", () => {
     describe("basic elements", () => {
       it("simple div with text", () => {

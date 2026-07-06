@@ -4,6 +4,7 @@
 
 export { createCodegenContext, type CodegenContext } from "./context";
 export {
+  withoutRenderlessChildren,
   genNode,
   genElement,
   genText,

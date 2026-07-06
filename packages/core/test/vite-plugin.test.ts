@@ -1,6 +1,11 @@
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vite-plus/test";
 import { parse, compileScript } from "@vue/compiler-sfc";
+import type { ResolvedConfig } from "vite";
 import { compileOnigiriInline } from "../src/template-compiler";
+import { injectIntoSetupAsync } from "../src/vite/compiler/inject-setup";
 import MagicString from "magic-string";
 
 describe("Vite plugin code generation", () => {
@@ -171,5 +176,43 @@ const msg = 'hello'
     expect(result).toContain('[0, "span"');
     // Should contain text type (2) for the interpolation
     expect(result).toContain("[2,");
+  });
+});
+
+describe("injectIntoSetupAsync setup bridge", () => {
+  const fixturePath = path.resolve(
+    fileURLToPath(new URL(".", import.meta.url)),
+    "fixtures/components/LiteralConst.vue",
+  );
+  const fakeConfig = {
+    root: fileURLToPath(new URL("..", import.meta.url)),
+    isProduction: false,
+  } as ResolvedConfig;
+
+  it("bridges literal-const setup bindings into _ctx", async () => {
+    const source = readFileSync(fixturePath, "utf8");
+    const { descriptor } = parse(source, { filename: fixturePath });
+    const compiled = compileScript(descriptor, { id: fixturePath, inlineTemplate: true });
+
+    const result = await injectIntoSetupAsync(compiled.content, fixturePath, false, fakeConfig);
+
+    expect(result).not.toBeNull();
+    // `const TITLE = "..."` / `const count = 1` are `literal-const`
+    // bindings. They must land in the closure bridge, otherwise the
+    // proxy falls through to the (empty) inline-render setupState and
+    // the template renders `undefined`.
+    expect(result!.code).toContain("get TITLE() { return TITLE }");
+    expect(result!.code).toContain("get count() { return count }");
+
+    // The injected early-return must sit BEFORE the inline render
+    // arrow (`return (_ctx, ...) => {`) so it is reachable, and after
+    // the bindings so the bridge getters never hit the TDZ.
+    const injectedAt = result!.code.indexOf("if (__onigiri_inject(__ONIGIRI_SYMBOL");
+    const inlineRenderAt = result!.code.indexOf("return (_ctx");
+    const lastBindingAt = result!.code.lastIndexOf('const TITLE = "Hello from literal"');
+    expect(injectedAt).toBeGreaterThan(-1);
+    expect(inlineRenderAt).toBeGreaterThan(-1);
+    expect(injectedAt).toBeLessThan(inlineRenderAt);
+    expect(injectedAt).toBeGreaterThan(lastBindingAt);
   });
 });

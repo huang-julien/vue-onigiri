@@ -29,7 +29,12 @@ function buildBridgeObject(bindingMetadata: BindingMetadata): string {
         entries.push(`get ${name}() { return __onigiri_unref(${name}) }`);
         break;
       }
-      case "setup-const": {
+      case "setup-const":
+      // `const TITLE = "literal"` in `<script setup>` is still a plain
+      // closure binding. Without a bridge entry the lookup falls through
+      // to `_ctx[k]`, which is empty under `__ssrInlineRender` (no
+      // exposed setupState) and renders `undefined`.
+      case "literal-const": {
         entries.push(`get ${name}() { return ${name} }`);
         break;
       }
