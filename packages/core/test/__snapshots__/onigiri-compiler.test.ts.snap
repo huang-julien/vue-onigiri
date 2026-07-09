@@ -229,10 +229,11 @@ return [0, "span", undefined, [[2, _ctx.active ? 'Yes' : 'No']]];
 `;
 
 exports[`onigiri compiler > snapshots > real-world examples > card component 1`] = `
-"import { renderSlot as __renderSlot } from "vue-onigiri/runtime/render-slot";
+"import { normalizeClass as _normalizeClass } from "vue";
+import { renderSlot as __renderSlot } from "vue-onigiri/runtime/render-slot";
 
 export function renderOnigiri(_ctx, __instance) {
-return [0, "article", {"class": "card", "class": [_ctx.variant, { featured: _ctx.isFeatured }]}, [(_ctx.image ? [0, "img", {"src": _ctx.image, "alt": _ctx.title, "class": "card-image"}] : null), [0, "div", {"class": "card-content"}, [[0, "h3", {"class": "card-title"}, [[2, _ctx.title]]], [0, "p", {"class": "card-description"}, [[2, _ctx.description]]], __renderSlot(_ctx, _ctx.slots, "actions", undefined, undefined)]]]];
+return [0, "article", {"class": _normalizeClass(["card", [_ctx.variant, { featured: _ctx.isFeatured }]])}, [(_ctx.image ? [0, "img", {"src": _ctx.image, "alt": _ctx.title, "class": "card-image"}] : null), [0, "div", {"class": "card-content"}, [[0, "h3", {"class": "card-title"}, [[2, _ctx.title]]], [0, "p", {"class": "card-description"}, [[2, _ctx.description]]], __renderSlot(_ctx, _ctx.slots, "actions", undefined, undefined)]]]];
 }"
 `;
 
@@ -261,8 +262,10 @@ return [0, "nav", {"class": "navbar"}, [[0, "a", {"href": "/", "class": "logo"},
 `;
 
 exports[`onigiri compiler > snapshots > real-world examples > todo item 1`] = `
-"export function renderOnigiri(_ctx, __instance) {
-return [0, "li", {"class": "todo-item", "class": { completed: _ctx.todo.done }}, [[0, "input", {"type": "checkbox", "checked": _ctx.todo.done, "onChange": $event => (_ctx.toggle(_ctx.todo.id))}], [0, "span", undefined, [[2, _ctx.todo.text]]], [0, "button", {"onClick": $event => (_ctx.remove(_ctx.todo.id))}, [[2, "×"]]]]];
+"import { normalizeClass as _normalizeClass } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+return [0, "li", {"class": _normalizeClass(["todo-item", { completed: _ctx.todo.done }])}, [[0, "input", {"type": "checkbox", "checked": _ctx.todo.done, "onChange": $event => (_ctx.toggle(_ctx.todo.id))}], [0, "span", undefined, [[2, _ctx.todo.text]]], [0, "button", {"onClick": $event => (_ctx.remove(_ctx.todo.id))}, [[2, "×"]]]]];
 }"
 `;
 

@@ -649,6 +649,30 @@ defineProps<{ title: string }>()
       expect(result.code).not.toContain("_ctx.name");
     });
 
+    it("merges static and dynamic class/style instead of emitting duplicate keys", () => {
+      const result = compileOnigiri(
+        `<div class="a" :class="dyn" style="color:red" :style="s">x</div>`,
+      );
+      expectParses(result.code);
+      expect(result.code).toContain('"class": _normalizeClass(["a", _ctx.dyn])');
+      expect(result.code).toContain('"style": _normalizeStyle(["color:red", _ctx.s])');
+      expect(result.code).toContain('import { normalizeClass as _normalizeClass } from "vue"');
+      expect((result.code.match(/"class":/g) || []).length).toBe(1);
+      expect((result.code.match(/"style":/g) || []).length).toBe(1);
+    });
+
+    it("leaves lone static or lone dynamic class untouched", () => {
+      const staticOnly = compileOnigiri(`<div class="a">x</div>`);
+      expectParses(staticOnly.code);
+      expect(staticOnly.code).toContain('"class": "a"');
+      expect(staticOnly.code).not.toContain("_normalizeClass");
+
+      const dynamicOnly = compileOnigiri(`<div :class="dyn">x</div>`);
+      expectParses(dynamicOnly.code);
+      expect(dynamicOnly.code).toContain('"class": _ctx.dyn');
+      expect(dynamicOnly.code).not.toContain("_normalizeClass");
+    });
+
     it("v-for over non-array sources compiles through renderList", () => {
       const obj = compileOnigiri(`<li v-for="(v, k) in obj" :key="k">{{ v }}</li>`);
       expectParses(obj.code);

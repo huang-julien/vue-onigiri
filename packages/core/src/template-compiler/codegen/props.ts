@@ -137,19 +137,74 @@ function genDirectivePropEntry(prop: DirectiveNode, context: CodegenContext): vo
   }
 }
 
-function genPropsObjectWithScopeId(
+function collectClassStyleMerges(props: (AttributeNode | DirectiveNode)[]): {
+  merged: Set<AttributeNode | DirectiveNode>;
+  merges: Array<{ name: "class" | "style"; parts: (AttributeNode | DirectiveNode)[] }>;
+} {
+  const merged = new Set<AttributeNode | DirectiveNode>();
+  const merges: Array<{ name: "class" | "style"; parts: (AttributeNode | DirectiveNode)[] }> = [];
+
+  for (const name of ["class", "style"] as const) {
+    const parts = props.filter(
+      (prop) =>
+        (prop.type === NodeTypes.ATTRIBUTE && prop.name === name) ||
+        (prop.type === NodeTypes.DIRECTIVE &&
+          prop.name === "bind" &&
+          !!prop.arg &&
+          !isDynamicArg(prop.arg) &&
+          (prop.arg as SimpleExpressionNode).content === name),
+    );
+    if (parts.length > 1) {
+      for (const part of parts) merged.add(part);
+      merges.push({ name, parts });
+    }
+  }
+
+  return { merged, merges };
+}
+
+function genClassStyleMerge(
+  merge: { name: "class" | "style"; parts: (AttributeNode | DirectiveNode)[] },
+  context: CodegenContext,
+): void {
+  const helper = merge.name === "class" ? "normalizeClass" : "normalizeStyle";
+  context.imports.add(genImport("vue", [{ name: helper, as: `_${helper}` }]));
+
+  context.push(`"${merge.name}": _${helper}([`);
+  for (const [i, part] of merge.parts.entries()) {
+    if (i > 0) context.push(", ");
+    if (part.type === NodeTypes.ATTRIBUTE) {
+      context.push(part.value ? JSON.stringify(part.value.content) : '""');
+    } else {
+      genExpressionAsValue((part as DirectiveNode).exp, context);
+    }
+  }
+  context.push("])");
+}
+
+function genPropsObjectBody(
   props: (AttributeNode | DirectiveNode)[],
   context: CodegenContext,
+  withScopeId: boolean,
 ): void {
   context.push("{");
   let first = true;
 
-  if (context.scopeId) {
+  if (withScopeId && context.scopeId) {
     context.push(`"${context.scopeId}": ""`);
     first = false;
   }
 
+  const { merged, merges } = collectClassStyleMerges(props);
+  for (const merge of merges) {
+    if (!first) context.push(", ");
+    first = false;
+    genClassStyleMerge(merge, context);
+  }
+
   for (const prop of props) {
+    if (merged.has(prop)) continue;
+
     if (prop.type === NodeTypes.ATTRIBUTE) {
       if (!first) context.push(", ");
       first = false;
@@ -175,32 +230,13 @@ function genPropsObjectWithScopeId(
   context.push("}");
 }
 
+function genPropsObjectWithScopeId(
+  props: (AttributeNode | DirectiveNode)[],
+  context: CodegenContext,
+): void {
+  genPropsObjectBody(props, context, true);
+}
+
 function genPropsObject(props: (AttributeNode | DirectiveNode)[], context: CodegenContext): void {
-  context.push("{");
-  let first = true;
-
-  for (const prop of props) {
-    if (prop.type === NodeTypes.ATTRIBUTE) {
-      if (!first) context.push(", ");
-      first = false;
-
-      context.push(`"${prop.name}": `);
-      if (prop.value) {
-        context.push(JSON.stringify(prop.value.content));
-      } else {
-        context.push("true");
-      }
-    } else if (prop.type === NodeTypes.DIRECTIVE) {
-      if (STRIPPED_DIRECTIVES.has(prop.name)) continue;
-      if (shouldWrapDirective(prop.name)) continue;
-      if (prop.name !== "on" && !(prop.name === "bind" && prop.arg)) continue;
-
-      if (!first) context.push(", ");
-      first = false;
-
-      genDirectivePropEntry(prop, context);
-    }
-  }
-
-  context.push("}");
+  genPropsObjectBody(props, context, false);
 }
