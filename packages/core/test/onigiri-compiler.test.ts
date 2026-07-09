@@ -640,15 +640,28 @@ defineProps<{ title: string }>()
     });
 
     it("destructured v-for bindings stay un-prefixed", () => {
-      const result = compileOnigiri(
-        `<li v-for="{ id, name } in items" :key="id">{{ name }}</li>`,
-      );
+      const result = compileOnigiri(`<li v-for="{ id, name } in items" :key="id">{{ name }}</li>`);
       expectParses(result.code);
-      expect(result.code).toContain(".map(({ id, name }) =>");
+      expect(result.code).toContain("_renderList(_ctx.items, ({ id, name }) =>");
       expect(result.code).toContain('{"key": id}');
       expect(result.code).toContain("[2, name]");
       expect(result.code).not.toContain("_ctx.id");
       expect(result.code).not.toContain("_ctx.name");
+    });
+
+    it("v-for over non-array sources compiles through renderList", () => {
+      const obj = compileOnigiri(`<li v-for="(v, k) in obj" :key="k">{{ v }}</li>`);
+      expectParses(obj.code);
+      expect(obj.code).toContain('import { renderList as _renderList } from "vue"');
+      expect(obj.code).toContain("_renderList(_ctx.obj, (v, k) =>");
+
+      const num = compileOnigiri(`<i v-for="n in count" :key="n">{{ n }}</i>`);
+      expectParses(num.code);
+      expect(num.code).toContain("_renderList(_ctx.count, (n) =>");
+
+      const range = compileOnigiri(`<i v-for="n in 3" :key="n">{{ n }}</i>`);
+      expectParses(range.code);
+      expect(range.code).toContain("_renderList(3, (n) =>");
     });
 
     it("nested v-for shadowing the same binding keeps the outer var local afterwards", () => {

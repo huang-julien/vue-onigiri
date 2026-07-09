@@ -11,6 +11,7 @@ import AsyncComponent from "./fixtures/components/AsyncComponent.vue";
 import WithAsyncComponent from "./fixtures/components/WithAsyncComponent.vue";
 import SlotToCounter from "./fixtures/components/SlotToCounter.vue";
 import WithSuspense from "./fixtures/components/WithSuspense.vue";
+import ForVariants from "./fixtures/components/ForVariants.vue";
 import { removeCommentsFromHtml } from "./utils";
 import { VServerComponentType, type VServerComponent } from "../src/runtime/shared";
 import { renderToString } from "@vue/server-renderer";
@@ -352,6 +353,24 @@ describe("slots", () => {
     expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
       `"<div><div> counter : 0 <button>Increment</button><div><p>Slot content (static)</p></div></div></div>"`,
     );
+  });
+});
+
+describe("v-for over non-array sources", () => {
+  it("serializes object and numeric-range sources and matches Vue SSR output", async () => {
+    const ast = await serializeComponent(ForVariants);
+    const json = JSON.stringify(ast);
+    expect(json).toContain("a=1");
+    expect(json).toContain("b=2");
+
+    const html = await renderToString(h(ForVariants));
+    const clientSide = mount(
+      defineComponent({
+        setup: () => () => renderOnigiri(ast),
+      }),
+    );
+    const rebuilt = removeCommentsFromHtml(clientSide.html().replaceAll(/\r?\n| /g, ""));
+    expect(rebuilt).toEqual(removeCommentsFromHtml(html));
   });
 });
 

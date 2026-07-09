@@ -87,14 +87,18 @@ return (_ctx.status === 'loading' ? [0, "div", undefined, [[2, "Loading..."]]] :
 `;
 
 exports[`onigiri compiler > snapshots > directives > v-for with index 1`] = `
-"export function renderOnigiri(_ctx, __instance) {
-return [3, [...(_ctx.items.map((item, index) => [0, "li", {"key": index}, [[2, (index + ": " + item)]]]))]];
+"import { renderList as _renderList } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+return [3, [...(_renderList(_ctx.items, (item, index) => [0, "li", {"key": index}, [[2, (index + ": " + item)]]]))]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > directives > v-for with key 1`] = `
-"export function renderOnigiri(_ctx, __instance) {
-return [3, [...(_ctx.items.map((item) => [0, "li", {"key": item.id}, [[2, item.name]]]))]];
+"import { renderList as _renderList } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+return [3, [...(_renderList(_ctx.items, (item) => [0, "li", {"key": item.id}, [[2, item.name]]]))]];
 }"
 `;
 
@@ -249,8 +253,10 @@ return (_ctx.isOpen ? [0, "div", {"class": "modal-overlay", "onClick": _ctx.clos
 `;
 
 exports[`onigiri compiler > snapshots > real-world examples > navigation menu 1`] = `
-"export function renderOnigiri(_ctx, __instance) {
-return [0, "nav", {"class": "navbar"}, [[0, "a", {"href": "/", "class": "logo"}, [[2, "MyApp"]]], [0, "ul", {"class": "nav-links"}, [...(_ctx.links.map((link) => [0, "li", {"key": link.path}, [[0, "a", {"href": link.path, "class": { active: _ctx.currentPath === link.path }}, [[2, link.label]]]]]))]]]];
+"import { renderList as _renderList } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+return [0, "nav", {"class": "navbar"}, [[0, "a", {"href": "/", "class": "logo"}, [[2, "MyApp"]]], [0, "ul", {"class": "nav-links"}, [...(_renderList(_ctx.links, (link) => [0, "li", {"key": link.path}, [[0, "a", {"href": link.path, "class": { active: _ctx.currentPath === link.path }}, [[2, link.label]]]]]))]]]];
 }"
 `;
 

@@ -1,10 +1,5 @@
-import {
-  type ExpressionNode,
-  type ForNode,
-  type IfNode,
-  type SimpleExpressionNode,
-  NodeTypes,
-} from "@vue/compiler-dom";
+import { type ForNode, type IfNode, type SimpleExpressionNode, NodeTypes } from "@vue/compiler-dom";
+import { genImport } from "knitwork";
 import { VServerComponentType } from "../../runtime/shared";
 import type { CodegenContext } from "./context";
 import { withoutRenderlessChildren, genNode } from "./vnode";
@@ -69,18 +64,13 @@ export function genIf(node: IfNode, context: CodegenContext): void {
   context.push(")");
 }
 
-function isNumericLiteral(node: ExpressionNode | undefined): boolean {
-  if (!node) return false;
-  if (node.type === NodeTypes.SIMPLE_EXPRESSION) {
-    const content = (node as SimpleExpressionNode).content.trim();
-    return /^-?\d+(\.\d+)?$/.test(content);
-  }
-  return false;
-}
-
 /**
- * v-for compiled to `...(source.map(...))`. The spread relies on v-for
- * only appearing in child positions where the parent is an array of
+ * v-for compiled to `...(_renderList(source, (value, key, index) => ...))`.
+ * Vue's `renderList` implements template iteration semantics for every
+ * source type (array, object, number, string, Map/Set/iterable), so the
+ * emitted code matches what Vue's own compiler produces instead of
+ * assuming `.map` exists on the source. The spread relies on v-for only
+ * appearing in child positions where the parent is an array of
  * VServerComponents (element children, fragment children, slot bodies).
  */
 export function genFor(node: ForNode, context: CodegenContext): void {
@@ -100,18 +90,11 @@ export function genFor(node: ForNode, context: CodegenContext): void {
     loopVars.push((index as SimpleExpressionNode).content);
   }
 
-  const isNumeric = isNumericLiteral(source);
+  context.imports.add(genImport("vue", [{ name: "renderList", as: "_renderList" }]));
 
-  context.push("...(");
-  if (isNumeric) {
-    // `v-for="n in 3"` iterates 1..n inclusive — match Vue's semantics.
-    context.push("Array.from({length: ");
-    genExpressionAsValue(source, context);
-    context.push("}, (_, __i) => __i + 1)");
-  } else {
-    genExpressionAsValue(source, context);
-  }
-  context.push(".map((");
+  context.push("...(_renderList(");
+  genExpressionAsValue(source, context);
+  context.push(", (");
   context.push(valueVar);
   if (key) {
     context.push(", ");
