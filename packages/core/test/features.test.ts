@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it } from "vitest";
 import { defineComponent, h, inject, provide, Suspense } from "vue";
 import { renderToString } from "@vue/server-renderer";
 import { compileOnigiri } from "../src/template-compiler";
@@ -26,7 +26,7 @@ describe("built-in components", () => {
     `);
     // Type 3 = Fragment
     expect(result.code).toMatch(/\[3,\s*\[/);
-    expect(result.code).toContain('"inside"');
+    expect(result.code).toContain("\"inside\"");
   });
 
   it("KeepAlive passes children through as a fragment", () => {
@@ -36,7 +36,7 @@ describe("built-in components", () => {
       </KeepAlive>
     `);
     expect(result.code).toMatch(/\[3,\s*\[/);
-    expect(result.code).toContain('"cached"');
+    expect(result.code).toContain("\"cached\"");
   });
 
   it("Transition passes children through as a fragment", () => {
@@ -46,7 +46,7 @@ describe("built-in components", () => {
       </Transition>
     `);
     expect(result.code).toMatch(/\[3,\s*\[/);
-    expect(result.code).toContain('"fading"');
+    expect(result.code).toContain("\"fading\"");
   });
 
   it("<component :is> compiles with resolveDynamicComponent", () => {
@@ -57,7 +57,7 @@ describe("built-in components", () => {
     expect(result.code).toContain("__serializeComponentInContext");
   });
 
-  it('<component is="StaticName"> compiles with resolveComponent', () => {
+  it("<component is=\"StaticName\"> compiles with resolveComponent", () => {
     const result = compileOnigiri(`
       <component is="MyComponent" />
     `);
@@ -113,7 +113,7 @@ describe("static chunk-path inlining", () => {
       importMap,
       bindingMetadata: { Counter: "setup-const" as any },
     });
-    expect(result.code).toContain('"/fixtures/Counter.vue"');
+    expect(result.code).toContain("\"/fixtures/Counter.vue\"");
     expect(result.code).not.toContain("Counter.__chunk");
     expect(result.code).not.toContain("Counter.__export");
   });
@@ -123,14 +123,14 @@ describe("static chunk-path inlining", () => {
     const result = compileOnigiri(`<NuxtAuto v-load-client :prop="value" />`, {
       additionalImports,
     });
-    expect(result.code).toContain('"/components/NuxtAuto.vue"');
+    expect(result.code).toContain("\"/components/NuxtAuto.vue\"");
     expect(result.code).not.toContain(".__chunk");
   });
 
   it("matches additionalImports under PascalCase / camelCase / kebab-case variants", () => {
     const additionalImports = new Map([["MyWidget", { path: "/components/MyWidget.vue" }]]);
     const result = compileOnigiri(`<my-widget v-load-client />`, { additionalImports });
-    expect(result.code).toContain('"/components/MyWidget.vue"');
+    expect(result.code).toContain("\"/components/MyWidget.vue\"");
   });
 
   it("throws a compile error when v-load-client target is unresolvable", () => {

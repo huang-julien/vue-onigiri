@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vite-plus/test";
+import { describe, it, expect } from "vitest";
 import { compileOnigiri } from "../../src/template-compiler";
 
 describe("onigiri compiler", () => {
@@ -40,7 +40,7 @@ describe("onigiri compiler", () => {
       const template = `<button @click="handleClick">Click me</button>`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"button"');
+      expect(result.code).toContain("\"button\"");
       // Events should be captured in props (camelCase per Vue convention)
       expect(result.code).toContain("onClick");
       expect(result.code).toContain("handleClick");
@@ -50,7 +50,7 @@ describe("onigiri compiler", () => {
       const template = `<form @submit.prevent="onSubmit">Submit</form>`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"form"');
+      expect(result.code).toContain("\"form\"");
       expect(result.code).toContain("onSubmit");
     });
 
@@ -68,8 +68,8 @@ describe("onigiri compiler", () => {
       const result = compileOnigiri(template);
 
       // Static content should be preserved as-is
-      expect(result.code).toContain('"div"');
-      expect(result.code).toContain('"static"');
+      expect(result.code).toContain("\"div\"");
+      expect(result.code).toContain("\"static\"");
       expect(result.code).toContain("Static text");
     });
 
@@ -77,7 +77,7 @@ describe("onigiri compiler", () => {
       const template = `<div class="static" :id="dynamicId">Hello {{ name }}</div>`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"static"');
+      expect(result.code).toContain("\"static\"");
       expect(result.code).toContain("dynamicId");
       expect(result.code).toContain("name");
     });
@@ -86,7 +86,7 @@ describe("onigiri compiler", () => {
       const template = `<input disabled readonly />`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"input"');
+      expect(result.code).toContain("\"input\"");
       expect(result.code).toContain("disabled");
       expect(result.code).toContain("readonly");
     });
@@ -97,7 +97,7 @@ describe("onigiri compiler", () => {
       const template = `<div class="foo bar">Content</div>`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"foo bar"');
+      expect(result.code).toContain("\"foo bar\"");
     });
 
     it("should handle dynamic class binding", () => {
@@ -138,23 +138,23 @@ describe("onigiri compiler", () => {
       const result = compileOnigiri(template);
 
       expect(result.code).toContain("show");
-      expect(result.code).toContain('"div"');
+      expect(result.code).toContain("\"div\"");
     });
 
     it("should handle self-closing elements", () => {
       const template = `<img src="test.png" /><br /><hr />`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"img"');
-      expect(result.code).toContain('"br"');
-      expect(result.code).toContain('"hr"');
+      expect(result.code).toContain("\"img\"");
+      expect(result.code).toContain("\"br\"");
+      expect(result.code).toContain("\"hr\"");
     });
 
     it("should handle HTML comments (skip them)", () => {
       const template = `<div><!-- This is a comment -->Content</div>`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"div"');
+      expect(result.code).toContain("\"div\"");
       expect(result.code).toContain("Content");
       // Comments should not appear in output
       expect(result.code).not.toContain("This is a comment");

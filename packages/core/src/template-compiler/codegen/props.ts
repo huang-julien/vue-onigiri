@@ -152,12 +152,12 @@ const capitalize = (name: string): string => name.charAt(0).toUpperCase() + name
 /** Emit one `key: value` object entry for a `v-on:*` / `v-bind:arg` directive. */
 function genDirectivePropEntry(prop: DirectiveNode, context: CodegenContext): void {
   if (prop.name === "on") {
-    const staticEvent =
-      !isDynamicArg(prop.arg) && prop.arg && typeof prop.arg === "object" && "content" in prop.arg
+    const staticEvent
+      = !isDynamicArg(prop.arg) && prop.arg && typeof prop.arg === "object" && "content" in prop.arg
         ? (prop.arg as SimpleExpressionNode).content
         : null;
     const { eventOptions, nonKey, keys } = resolveVOnModifiers(prop, staticEvent);
-    const optionSuffix = eventOptions.map(capitalize).join("");
+    const optionSuffix = eventOptions.map((option) => capitalize(option)).join("");
 
     if (staticEvent === null) {
       // `@[eventName]`: computed handler key via Vue's own helper,
@@ -172,8 +172,8 @@ function genDirectivePropEntry(prop: DirectiveNode, context: CodegenContext): vo
       context.push(`"on${capitalize(camelize(staticEvent))}${optionSuffix}": `);
     }
 
-    const useKeys =
-      keys.length > 0 && (staticEvent === null || KEYBOARD_EVENTS.has(staticEvent.toLowerCase()));
+    const useKeys
+      = keys.length > 0 && (staticEvent === null || KEYBOARD_EVENTS.has(staticEvent.toLowerCase()));
     if (useKeys) {
       context.imports.add(genImport("vue", [{ name: "withKeys", as: "_withKeys" }]));
       context.push("_withKeys(");
@@ -204,8 +204,8 @@ function genDirectivePropEntry(prop: DirectiveNode, context: CodegenContext): vo
     genExpressionAsValue(prop.arg, context);
     context.push("]: ");
   } else {
-    const propName =
-      prop.arg && typeof prop.arg === "object" && "content" in prop.arg
+    const propName
+      = prop.arg && typeof prop.arg === "object" && "content" in prop.arg
         ? (prop.arg as SimpleExpressionNode).content
         : "";
     context.push(`"${propName}": `);
@@ -228,12 +228,12 @@ function collectClassStyleMerges(props: (AttributeNode | DirectiveNode)[]): {
   for (const name of ["class", "style"] as const) {
     const parts = props.filter(
       (prop) =>
-        (prop.type === NodeTypes.ATTRIBUTE && prop.name === name) ||
-        (prop.type === NodeTypes.DIRECTIVE &&
-          prop.name === "bind" &&
-          !!prop.arg &&
-          !isDynamicArg(prop.arg) &&
-          (prop.arg as SimpleExpressionNode).content === name),
+        (prop.type === NodeTypes.ATTRIBUTE && prop.name === name)
+        || (prop.type === NodeTypes.DIRECTIVE
+          && prop.name === "bind"
+          && !!prop.arg
+          && !isDynamicArg(prop.arg)
+          && (prop.arg as SimpleExpressionNode).content === name),
     );
     if (parts.length > 1) {
       for (const part of parts) merged.add(part);
@@ -255,7 +255,7 @@ function genClassStyleMerge(
   for (const [i, part] of merge.parts.entries()) {
     if (i > 0) context.push(", ");
     if (part.type === NodeTypes.ATTRIBUTE) {
-      context.push(part.value ? JSON.stringify(part.value.content) : '""');
+      context.push(part.value ? JSON.stringify(part.value.content) : "\"\"");
     } else {
       genExpressionAsValue((part as DirectiveNode).exp, context);
     }
@@ -265,8 +265,8 @@ function genClassStyleMerge(
 
 function genComponentVModel(prop: DirectiveNode, context: CodegenContext): void {
   const dynamicArg = isDynamicArg(prop.arg);
-  const staticName =
-    !dynamicArg && prop.arg && typeof prop.arg === "object" && "content" in prop.arg
+  const staticName
+    = !dynamicArg && prop.arg && typeof prop.arg === "object" && "content" in prop.arg
       ? (prop.arg as SimpleExpressionNode).content
       : "modelValue";
 

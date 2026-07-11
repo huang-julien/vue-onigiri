@@ -121,9 +121,9 @@ export function genSlotsObject(
       // exists on the client at runtime and can't be embedded in frozen AST.
       if (slot.slotProps) {
         throw new Error(
-          `[vue-onigiri] Scoped slots are not supported on client-loaded components ('v-load-client'). ` +
-            `Slot "${slot.name}" declares scope "${slot.slotProps}" but the scope is only available on ` +
-            `the client and cannot be embedded in pre-rendered AST.`,
+          `[vue-onigiri] Scoped slots are not supported on client-loaded components ('v-load-client'). `
+          + `Slot "${slot.name}" declares scope "${slot.slotProps}" but the scope is only available on `
+          + `the client and cannot be embedded in pre-rendered AST.`,
         );
       }
       if (slot.children.length === 1) {
@@ -158,12 +158,12 @@ export function genSlotOutlet(node: ElementNode, context: CodegenContext): void 
 
   for (const prop of props) {
     if (prop.type === NodeTypes.ATTRIBUTE && prop.name === "name") {
-      slotName = prop.value ? `"${prop.value.content}"` : '"default"';
+      slotName = prop.value ? `"${prop.value.content}"` : "\"default\"";
     } else if (
-      prop.type === NodeTypes.DIRECTIVE &&
-      prop.name === "bind" &&
-      prop.arg?.type === NodeTypes.SIMPLE_EXPRESSION &&
-      prop.arg.content === "name"
+      prop.type === NodeTypes.DIRECTIVE
+      && prop.name === "bind"
+      && prop.arg?.type === NodeTypes.SIMPLE_EXPRESSION
+      && prop.arg.content === "name"
     ) {
       isDynamicName = true;
       slotName = null;
@@ -178,7 +178,7 @@ export function genSlotOutlet(node: ElementNode, context: CodegenContext): void 
   if (isDynamicName && (node as any).__dynamicSlotNameExp) {
     genExpressionAsValue((node as any).__dynamicSlotNameExp, context);
   } else {
-    context.push(slotName || '"default"');
+    context.push(slotName || "\"default\"");
   }
   context.push(", ");
 

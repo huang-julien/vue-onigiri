@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { readFileSync } from "node:fs";
-import { describe, it, expect } from "vite-plus/test";
+import { describe, it, expect } from "vitest";
 import { parse, compileScript } from "@vue/compiler-sfc";
 import type { ResolvedConfig } from "vite";
 import { compileOnigiriInline } from "../src/template-compiler";
@@ -172,8 +172,8 @@ const msg = 'hello'
     expect(result).not.toBeNull();
 
     // Should contain element type (0) for div and span
-    expect(result).toContain('[0, "div"');
-    expect(result).toContain('[0, "span"');
+    expect(result).toContain("[0, \"div\"");
+    expect(result).toContain("[0, \"span\"");
     // Should contain text type (2) for the interpolation
     expect(result).toContain("[2,");
   });
@@ -209,7 +209,7 @@ describe("injectIntoSetupAsync setup bridge", () => {
     // the bindings so the bridge getters never hit the TDZ.
     const injectedAt = result!.code.indexOf("if (__onigiri_inject(__ONIGIRI_SYMBOL");
     const inlineRenderAt = result!.code.indexOf("return (_ctx");
-    const lastBindingAt = result!.code.lastIndexOf('const TITLE = "Hello from literal"');
+    const lastBindingAt = result!.code.lastIndexOf("const TITLE = \"Hello from literal\"");
     expect(injectedAt).toBeGreaterThan(-1);
     expect(inlineRenderAt).toBeGreaterThan(-1);
     expect(injectedAt).toBeLessThan(inlineRenderAt);

@@ -87,23 +87,23 @@ type VServerComponentSuspenseBuffered = [
 
 type VServerComponentStaticHtmlBuffered = [VServerComponentType.StaticHtml, string, number];
 
-export type VServerComponentBuffered =
-  | VServerComponentElementBuffered
-  | VServerComponentComponentBuffered
-  | VServerComponentTextBuffered
-  | VServerComponentCommentBuffered
-  | VServerComponentFragmentBuffered
-  | VServerComponentSuspenseBuffered
-  | VServerComponentStaticHtmlBuffered;
+export type VServerComponentBuffered
+  = | VServerComponentElementBuffered
+    | VServerComponentComponentBuffered
+    | VServerComponentTextBuffered
+    | VServerComponentCommentBuffered
+    | VServerComponentFragmentBuffered
+    | VServerComponentSuspenseBuffered
+    | VServerComponentStaticHtmlBuffered;
 
-export type VServerComponent =
-  | VServerComponentElement
-  | VServerComponentComponent
-  | VServerComponentText
-  | VServerComponentComment
-  | VServerComponentFragment
-  | VServerComponentSuspense
-  | VServerComponentStaticHtml;
+export type VServerComponent
+  = | VServerComponentElement
+    | VServerComponentComponent
+    | VServerComponentText
+    | VServerComponentComment
+    | VServerComponentFragment
+    | VServerComponentSuspense
+    | VServerComponentStaticHtml;
 
 /**
  * The render function signature for onigiri components.

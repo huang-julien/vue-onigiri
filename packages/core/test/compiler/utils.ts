@@ -1,4 +1,4 @@
-import { expect } from "vite-plus/test";
+import { expect } from "vitest";
 
 /** Assert the emitted module body parses as JavaScript. */
 export const expectParses = (code: string): void => {

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vite-plus/test";
+import { describe, it, expect } from "vitest";
 import { compileOnigiri, compileOnigiriInline } from "../../src/template-compiler";
 
 describe("onigiri compiler", () => {

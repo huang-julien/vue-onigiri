@@ -63,10 +63,10 @@ export function renderSlot(
       // or Promises returned by nested __serializeComponentInContext calls.
       // unrollServerComponentBufferPromises will flatten everything later.
       const first = content[0];
-      const isBuffered =
-        typeof first === "number" ||
-        (Array.isArray(first) && typeof first[0] === "number") ||
-        first instanceof Promise;
+      const isBuffered
+        = typeof first === "number"
+          || (Array.isArray(first) && typeof first[0] === "number")
+          || first instanceof Promise;
       if (isBuffered) {
         return wrapSlotResult(content);
       }

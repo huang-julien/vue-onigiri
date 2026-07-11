@@ -2,7 +2,7 @@ import type { VServerComponent } from "./runtime/shared";
 import type { ObjectDirectiveBinding } from "./runtime/with-directive";
 
 declare module "vue" {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   interface ObjectDirective<
     HostElement = any,
     Value = any,

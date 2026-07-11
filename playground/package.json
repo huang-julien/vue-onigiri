@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vp dev",
-    "build": "vp build",
-    "preview": "vp preview",
-    "build-only": "vp build",
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build-only": "vite build",
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
@@ -23,7 +23,6 @@
     "typescript": "^6.0.3",
     "vite": "catalog:",
     "vite-plugin-vue-devtools": "^8.1.1",
-    "vite-plus": "catalog:",
     "vue-onigiri": "workspace:*",
     "vue-tsc": "^3.2.8"
   }

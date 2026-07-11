@@ -55,7 +55,7 @@ export function withDirective(
 ): VServerComponentBuffered {
   let dir: ObjectDirective | undefined;
   // disable for clarity
-  // eslint-disable-next-line unicorn/prefer-ternary
+
   if (typeof directive === "string") {
     dir = builtInDirectives[directive] ?? globalDirectiveResolver?.(directive);
   } else {
@@ -137,7 +137,7 @@ function countHtmlRootNodes(html: string): number {
         i = html.indexOf(">", i) + 1;
       } else if (html[i + 1] === "!") {
         // Comment or DOCTYPE - skip
-        // eslint-disable-next-line unicorn/prefer-ternary
+
         if (html.slice(i, i + 4) === "<!--") {
           i = html.indexOf("-->", i) + 3;
         } else {
@@ -251,8 +251,8 @@ export const vShow: ObjectDirective<HTMLElement, boolean> = {
     if (!binding.value) {
       // Hide element by setting display: none
       const existingStyle = props?.style || {};
-      const newStyle =
-        typeof existingStyle === "string"
+      const newStyle
+        = typeof existingStyle === "string"
           ? existingStyle + "; display: none"
           : { ...existingStyle, display: "none" };
 

@@ -34,8 +34,8 @@ export default defineComponent({
           key,
           () => {
             if (!value) return undefined;
-            const asArr =
-              Array.isArray(value) && typeof value[0] === "number"
+            const asArr
+              = Array.isArray(value) && typeof value[0] === "number"
                 ? [value as unknown as VServerComponent]
                 : (value as VServerComponent[]);
             return renderChildren(asArr, { importFn: props.importFn });

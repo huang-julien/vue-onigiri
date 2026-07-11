@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vite-plus/test";
+import { describe, it, expect } from "vitest";
 import { renderToSerializedVNode } from "../src/runtime/serialize";
 import { ONIGIRI_RENDER_SYMBOL, VServerComponentType } from "../src/runtime/shared";
 import { ref, defineComponent, inject, h } from "vue";

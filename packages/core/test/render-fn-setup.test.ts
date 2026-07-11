@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, it, expect } from "vite-plus/test";
+import { describe, it, expect } from "vitest";
 import { defineComponent, h, ref } from "vue";
 import { serializeComponent } from "../src/runtime/serialize";
 import { VServerComponentType } from "../src/runtime/shared";

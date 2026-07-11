@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import ElementsOnly from "./fixtures/components/ElementsOnly.vue";
 import { defineComponent, h, inject, nextTick, provide, Suspense } from "vue";
@@ -451,7 +451,7 @@ describe("fallback walk (non-onigiri components)", () => {
   it("preserves the root element of an async-setup child", async () => {
     const astSync = await serializeComponent(makeParent(SyncChild));
     const astAsync = await serializeComponent(makeParent(AsyncChild));
-    expect(JSON.stringify(astAsync)).toContain('"wrapper"');
+    expect(JSON.stringify(astAsync)).toContain("\"wrapper\"");
     expect(astAsync).toEqual(astSync);
   });
 

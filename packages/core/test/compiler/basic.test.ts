@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vite-plus/test";
+import { describe, it, expect } from "vitest";
 import { compileOnigiri, compileOnigiriInline } from "../../src/template-compiler";
 
 describe("onigiri compiler", () => {
@@ -31,7 +31,7 @@ describe("onigiri compiler", () => {
 
       // Should be a direct array expression
       expect(result.expression).toMatch(/^\[0,/); // Starts with element type
-      expect(result.expression).toContain('"div"');
+      expect(result.expression).toContain("\"div\"");
       expect(result.expression).toContain("message");
     });
 
@@ -41,8 +41,8 @@ describe("onigiri compiler", () => {
 
       // Fragment type is 3
       expect(result.expression).toMatch(/^\[3,/);
-      expect(result.expression).toContain('"div"');
-      expect(result.expression).toContain('"span"');
+      expect(result.expression).toContain("\"div\"");
+      expect(result.expression).toContain("\"span\"");
     });
 
     it("should return null for empty template", () => {

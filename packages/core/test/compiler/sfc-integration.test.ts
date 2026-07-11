@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vite-plus/test";
+import { describe, it, expect } from "vitest";
 import { parse, compileScript } from "@vue/compiler-sfc";
 import { compileOnigiri } from "../../src/template-compiler";
 
@@ -40,9 +40,9 @@ const message = 'Hello'
       });
 
       expect(onigiriResult.code).toContain("renderOnigiri");
-      expect(onigiriResult.code).toContain('"div"'); // Element tag
-      expect(onigiriResult.code).toContain('"span"');
-      expect(onigiriResult.code).toContain('"button"');
+      expect(onigiriResult.code).toContain("\"div\""); // Element tag
+      expect(onigiriResult.code).toContain("\"span\"");
+      expect(onigiriResult.code).toContain("\"button\"");
     });
 
     it("should handle props correctly", () => {
@@ -70,7 +70,7 @@ defineProps<{ title: string }>()
       });
 
       expect(onigiriResult.code).toContain("renderOnigiri");
-      expect(onigiriResult.code).toContain('"h1"');
+      expect(onigiriResult.code).toContain("\"h1\"");
     });
 
     it("should handle v-if directives", () => {
@@ -113,10 +113,10 @@ defineProps<{ title: string }>()
       const result = compileOnigiri(template);
 
       expect(result.code).toContain("renderOnigiri");
-      expect(result.code).toContain('"div"');
-      expect(result.code).toContain('"span"');
-      expect(result.code).toContain('"outer"');
-      expect(result.code).toContain('"inner"');
+      expect(result.code).toContain("\"div\"");
+      expect(result.code).toContain("\"span\"");
+      expect(result.code).toContain("\"outer\"");
+      expect(result.code).toContain("\"inner\"");
     });
 
     it("should handle components with v-load-client", () => {
@@ -126,7 +126,7 @@ defineProps<{ title: string }>()
       });
 
       expect(result.code).toContain("renderOnigiri");
-      expect(result.code).toContain('"/components/MyComponent.vue"');
+      expect(result.code).toContain("\"/components/MyComponent.vue\"");
       // Component type is 1 (VServerComponentType.Component)
       expect(result.code).toContain("[1,");
     });
@@ -144,8 +144,8 @@ defineProps<{ title: string }>()
         ]),
       });
 
-      expect(result.code).toContain('"@comark/vue", "ComarkRenderer"');
-      expect(result.code).not.toContain('"@comark/vue", "default"');
+      expect(result.code).toContain("\"@comark/vue\", \"ComarkRenderer\"");
+      expect(result.code).not.toContain("\"@comark/vue\", \"default\"");
     });
 
     it("v-load-client resolves the export through any casing of the tag", () => {
@@ -166,7 +166,7 @@ defineProps<{ title: string }>()
         ["NamedExport", "named-export"],
       ] as const) {
         const result = compileWith(tag, key);
-        expect(result.code).toContain('"@scope/pkg", "NamedExport"');
+        expect(result.code).toContain("\"@scope/pkg\", \"NamedExport\"");
       }
     });
 
@@ -179,8 +179,8 @@ defineProps<{ title: string }>()
         ]),
       });
 
-      expect(result.code).toContain('"@comark/vue", "ComarkRenderer"');
-      expect(result.code).not.toContain('"@comark/vue", "default"');
+      expect(result.code).toContain("\"@comark/vue\", \"ComarkRenderer\"");
+      expect(result.code).not.toContain("\"@comark/vue\", \"default\"");
     });
 
     it("should handle components without v-load-client (server-rendered)", () => {

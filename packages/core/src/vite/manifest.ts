@@ -99,9 +99,9 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
       // the manifest from Vite's module graph so the next request
       // re-`load`s it with the fresh set.
       setOnigiriManifestInvalidator(() => {
-        const mod =
-          server.environments.ssr?.moduleGraph.getModuleById(MANIFEST_RESOLVED_ID) ??
-          server.environments.client?.moduleGraph.getModuleById(MANIFEST_RESOLVED_ID);
+        const mod
+          = server.environments.ssr?.moduleGraph.getModuleById(MANIFEST_RESOLVED_ID)
+            ?? server.environments.client?.moduleGraph.getModuleById(MANIFEST_RESOLVED_ID);
         if (mod) {
           server.environments.ssr?.moduleGraph.invalidateModule(mod);
           server.environments.client?.moduleGraph.invalidateModule(mod);

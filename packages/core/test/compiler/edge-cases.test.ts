@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vite-plus/test";
+import { describe, it, expect } from "vitest";
 import { compileOnigiri } from "../../src/template-compiler";
 
 describe("onigiri compiler", () => {
@@ -7,14 +7,14 @@ describe("onigiri compiler", () => {
       const template = `<div></div>`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"div"');
+      expect(result.code).toContain("\"div\"");
     });
 
     it("should handle whitespace-only content", () => {
       const template = `<div>   </div>`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"div"');
+      expect(result.code).toContain("\"div\"");
     });
 
     it("should handle deeply nested structures", () => {
@@ -31,11 +31,11 @@ describe("onigiri compiler", () => {
       `;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"div"');
-      expect(result.code).toContain('"section"');
-      expect(result.code).toContain('"article"');
-      expect(result.code).toContain('"header"');
-      expect(result.code).toContain('"h1"');
+      expect(result.code).toContain("\"div\"");
+      expect(result.code).toContain("\"section\"");
+      expect(result.code).toContain("\"article\"");
+      expect(result.code).toContain("\"header\"");
+      expect(result.code).toContain("\"h1\"");
       expect(result.code).toContain("title");
     });
 
@@ -43,7 +43,7 @@ describe("onigiri compiler", () => {
       const template = `<div>Hello &amp; goodbye &lt;world&gt;</div>`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"div"');
+      expect(result.code).toContain("\"div\"");
     });
 
     it("should handle numeric literals", () => {

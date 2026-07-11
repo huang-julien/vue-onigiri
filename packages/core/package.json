@@ -28,7 +28,7 @@
     "lint": "eslint .",
     "lint:fix": "automd && eslint . --fix",
     "prepack": "pnpm build",
-    "test": "pnpm lint && pnpm test:types && vp test run --coverage",
+    "test": "pnpm lint && pnpm test:types && vitest run --coverage",
     "test:types": "vue-tsc"
   },
   "dependencies": {
@@ -56,15 +56,14 @@
   },
   "devDependencies": {
     "@types/node": "^22.19.17",
-    "@vitest/coverage-v8": "^4.1.5",
-    "@vitest/ui": "^4.1.5",
+    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/ui": "^4.1.10",
     "@vue/server-renderer": "^3.5.33",
     "automd": "^0.4.3",
     "happy-dom": "^20.9.0",
     "typescript": "^6.0.3",
     "unbuild": "^3.6.1",
     "vite-plugin-mcp": "^0.3.2",
-    "vite-plus": "catalog:",
     "vitest": "catalog:",
     "vue": "^3.5.33",
     "vue-tsc": "^3.2.8"

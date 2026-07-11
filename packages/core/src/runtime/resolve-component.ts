@@ -15,8 +15,8 @@ export function resolveComponentInInstance(
   }
   const self = (instance.type as Component & { name?: string }).name;
   if (
-    self &&
-    (self === name || self === name.replace(/-(\w)/g, (_, c: string) => c.toUpperCase()))
+    self
+    && (self === name || self === name.replace(/-(\w)/g, (_, c: string) => c.toUpperCase()))
   ) {
     return instance.type as Component;
   }

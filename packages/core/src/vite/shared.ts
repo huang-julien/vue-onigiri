@@ -27,7 +27,7 @@ export function setOnigiriManifestInvalidator(fn: () => void): void {
 }
 
 export function getOnigiriTargets(): readonly string[] {
-  return Array.from(targets);
+  return [...targets];
 }
 
 /** Test/SSR-restart helper — resets the singleton state. */

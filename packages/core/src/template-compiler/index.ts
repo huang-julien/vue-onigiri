@@ -46,9 +46,9 @@ const transformVOnEventKind: NodeTransform = (node, context) => {
     if (exp.isStatic) continue;
     exp._onigiriEventKind = isMemberExpression(exp, context)
       ? "member"
-      : isFnExpression(exp, context)
-        ? "fn"
-        : "statement";
+      : (isFnExpression(exp, context)
+          ? "fn"
+          : "statement");
   }
 };
 
@@ -154,22 +154,22 @@ export function compileOnigiri(
     // the body's return value, so wrap it in a Fragment tuple so the
     // render function returns a valid expression.
     if (produced.startsWith("...")) {
-      bodyContext.code =
-        bodyContext.code.slice(0, before) +
-        "[" +
-        VServerComponentType.Fragment.toString() +
-        ", [" +
-        produced +
-        "]]";
+      bodyContext.code
+        = bodyContext.code.slice(0, before)
+          + "["
+          + VServerComponentType.Fragment.toString()
+          + ", ["
+          + produced
+          + "]]";
     }
   } else {
     // Multiple root nodes - wrap in fragment
     bodyContext.push("[");
     bodyContext.push(VServerComponentType.Fragment.toString());
     bodyContext.push(", [");
-    for (let i = 0; i < rootChildren.length; i++) {
+    for (const [i, rootChild] of rootChildren.entries()) {
       if (i > 0) bodyContext.push(", ");
-      genNode(rootChildren[i], bodyContext);
+      genNode(rootChild, bodyContext);
     }
     bodyContext.push("]]");
   }
@@ -261,22 +261,22 @@ export function compileOnigiriInline(
     // array literal. The inline expression has no enclosing array, so
     // wrap into a Fragment tuple.
     if (produced.startsWith("...")) {
-      context.code =
-        context.code.slice(0, before) +
-        "[" +
-        VServerComponentType.Fragment.toString() +
-        ", [" +
-        produced +
-        "]]";
+      context.code
+        = context.code.slice(0, before)
+          + "["
+          + VServerComponentType.Fragment.toString()
+          + ", ["
+          + produced
+          + "]]";
     }
   } else {
     // Multiple root nodes - wrap in fragment
     context.push("[");
     context.push(VServerComponentType.Fragment.toString());
     context.push(", [");
-    for (let i = 0; i < rootChildren.length; i++) {
+    for (const [i, rootChild] of rootChildren.entries()) {
       if (i > 0) context.push(", ");
-      genNode(rootChildren[i], context);
+      genNode(rootChild, context);
     }
     context.push("]]");
   }

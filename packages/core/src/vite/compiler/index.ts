@@ -18,21 +18,21 @@ import { toRootRelative } from "./paths";
 function hasInlineTemplate(code: string): boolean {
   return (
     // Client render-fn codegen
-    code.includes("_createElementVNode") ||
-    code.includes("_createVNode") ||
-    code.includes("_createBlock") ||
-    code.includes("_createElementBlock") ||
-    code.includes("ssrInterpolate") ||
-    code.includes("ssrRenderAttrs") ||
+    code.includes("_createElementVNode")
+    || code.includes("_createVNode")
+    || code.includes("_createBlock")
+    || code.includes("_createElementBlock")
+    || code.includes("ssrInterpolate")
+    || code.includes("ssrRenderAttrs")
     // SSR render-fn codegen (production build, ?vue&type=template SSR sub-module)
-    code.includes("_push(`<") ||
-    code.includes("_push(ssr") ||
-    code.includes("ssrRenderComponent") ||
-    code.includes("ssrRenderSlot") ||
-    code.includes("ssrRenderList") ||
-    code.includes("ssrRenderClass") ||
-    code.includes("ssrRenderStyle") ||
-    code.includes("ssrRenderVNode")
+    || code.includes("_push(`<")
+    || code.includes("_push(ssr")
+    || code.includes("ssrRenderComponent")
+    || code.includes("ssrRenderSlot")
+    || code.includes("ssrRenderList")
+    || code.includes("ssrRenderClass")
+    || code.includes("ssrRenderStyle")
+    || code.includes("ssrRenderVNode")
   );
 }
 
@@ -140,10 +140,10 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
           // against the Vite root so Rollup can find them on disk.
           // Skip Windows-absolute (`/D:/…`) and `/@…` Vite-internal forms.
           if (
-            id.startsWith("/") &&
-            !id.startsWith("//") &&
-            !id.startsWith("/@") &&
-            !/^\/[A-Za-z]:/.test(id)
+            id.startsWith("/")
+            && !id.startsWith("//")
+            && !id.startsWith("/@")
+            && !/^\/[A-Za-z]:/.test(id)
           ) {
             const abs = config.root.replace(/[/\\]+$/, "") + id;
             const resolved = await this.resolve(abs, undefined, { skipSelf: true });

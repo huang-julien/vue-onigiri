@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vite-plus/test";
+import { describe, it, expect } from "vitest";
 import { compileOnigiri } from "../../src/template-compiler";
 import { expectParses } from "./utils";
 
@@ -7,25 +7,25 @@ describe("onigiri compiler", () => {
     it("camelizes kebab-case v-on event names", () => {
       const result = compileOnigiri(`<MyComp @my-event="fn" />`);
       expectParses(result.code);
-      expect(result.code).toContain('"onMyEvent": _ctx.fn');
+      expect(result.code).toContain("\"onMyEvent\": _ctx.fn");
       expect(result.code).not.toContain("onMy-event");
     });
 
     it("compiles v-on event modifiers through withModifiers", () => {
       const result = compileOnigiri(`<button @click.stop.prevent="go">x</button>`);
       expectParses(result.code);
-      expect(result.code).toContain('import { withModifiers as _withModifiers } from "vue"');
-      expect(result.code).toContain('"onClick": _withModifiers(_ctx.go, ["stop","prevent"])');
+      expect(result.code).toContain("import { withModifiers as _withModifiers } from \"vue\"");
+      expect(result.code).toContain("\"onClick\": _withModifiers(_ctx.go, [\"stop\",\"prevent\"])");
     });
 
     it("compiles key modifiers through withKeys on keyboard events only", () => {
       const keyboard = compileOnigiri(`<input @keyup.enter="submit" />`);
       expectParses(keyboard.code);
-      expect(keyboard.code).toContain('"onKeyup": _withKeys(_ctx.submit, ["enter"])');
+      expect(keyboard.code).toContain("\"onKeyup\": _withKeys(_ctx.submit, [\"enter\"])");
 
       const mouse = compileOnigiri(`<button @click.enter="go">x</button>`);
       expectParses(mouse.code);
-      expect(mouse.code).toContain('"onClick": _ctx.go');
+      expect(mouse.code).toContain("\"onClick\": _ctx.go");
       expect(mouse.code).not.toContain("_withKeys");
     });
 
@@ -34,26 +34,26 @@ describe("onigiri compiler", () => {
         `<div @scroll.passive="onScroll" @click.capture.once="go">x</div>`,
       );
       expectParses(result.code);
-      expect(result.code).toContain('"onScrollPassive": _ctx.onScroll');
-      expect(result.code).toContain('"onClickCaptureOnce": _ctx.go');
+      expect(result.code).toContain("\"onScrollPassive\": _ctx.onScroll");
+      expect(result.code).toContain("\"onClickCaptureOnce\": _ctx.go");
     });
 
     it("stacks withKeys around withModifiers for combined modifiers", () => {
       const result = compileOnigiri(`<input @keydown.ctrl.enter="submit" />`);
       expectParses(result.code);
       expect(result.code).toContain(
-        '"onKeydown": _withKeys(_withModifiers(_ctx.submit, ["ctrl"]), ["enter"])',
+        "\"onKeydown\": _withKeys(_withModifiers(_ctx.submit, [\"ctrl\"]), [\"enter\"])",
       );
     });
 
     it("resolves .left/.right as mouse modifiers on mouse events and keys on keyboard events", () => {
       const mouse = compileOnigiri(`<button @click.left="go">x</button>`);
       expectParses(mouse.code);
-      expect(mouse.code).toContain('_withModifiers(_ctx.go, ["left"])');
+      expect(mouse.code).toContain("_withModifiers(_ctx.go, [\"left\"])");
 
       const keyboard = compileOnigiri(`<input @keyup.left="go" />`);
       expectParses(keyboard.code);
-      expect(keyboard.code).toContain('_withKeys(_ctx.go, ["left"])');
+      expect(keyboard.code).toContain("_withKeys(_ctx.go, [\"left\"])");
     });
 
     it("Suspense #fallback is carried as the third tuple element, not flattened into content", () => {
@@ -91,7 +91,7 @@ describe("onigiri compiler", () => {
       const result = compileOnigiri(`<div><!-- c --><span>a</span></div>`);
       expectParses(result.code);
       expect(result.code).not.toContain("[, ");
-      expect(result.code).toContain('[[0, "span", undefined, [[2, "a"]]]]');
+      expect(result.code).toContain("[[0, \"span\", undefined, [[2, \"a\"]]]]");
     });
 
     it("comment-only template emits null", () => {
@@ -110,7 +110,7 @@ describe("onigiri compiler", () => {
       const result = compileOnigiri(`<li v-for="{ id, name } in items" :key="id">{{ name }}</li>`);
       expectParses(result.code);
       expect(result.code).toContain("_renderList(_ctx.items, ({ id, name }) =>");
-      expect(result.code).toContain('{"key": id}');
+      expect(result.code).toContain("{\"key\": id}");
       expect(result.code).toContain("[2, _toDisplayString(name)]");
       expect(result.code).not.toContain("_ctx.id");
       expect(result.code).not.toContain("_ctx.name");
@@ -119,7 +119,7 @@ describe("onigiri compiler", () => {
     it("wraps interpolations with toDisplayString", () => {
       const result = compileOnigiri(`<span>{{ maybeNull }}</span>`);
       expectParses(result.code);
-      expect(result.code).toContain('import { toDisplayString as _toDisplayString } from "vue"');
+      expect(result.code).toContain("import { toDisplayString as _toDisplayString } from \"vue\"");
       expect(result.code).toContain("[2, _toDisplayString(_ctx.maybeNull)]");
 
       const compound = compileOnigiri(`<span>{{ a }} - {{ b }}</span>`);
@@ -131,16 +131,16 @@ describe("onigiri compiler", () => {
     it("expands v-model on components to modelValue + onUpdate:modelValue", () => {
       const result = compileOnigiri(`<MyComp v-model="foo" />`);
       expectParses(result.code);
-      expect(result.code).toContain('"modelValue": _ctx.foo');
-      expect(result.code).toContain('"onUpdate:modelValue": $event => ((_ctx.foo) = $event)');
+      expect(result.code).toContain("\"modelValue\": _ctx.foo");
+      expect(result.code).toContain("\"onUpdate:modelValue\": $event => ((_ctx.foo) = $event)");
     });
 
     it("expands named and modified v-model on components", () => {
       const result = compileOnigiri(`<MyComp v-model:title.trim="t" />`);
       expectParses(result.code);
-      expect(result.code).toContain('"title": _ctx.t');
-      expect(result.code).toContain('"onUpdate:title": $event => ((_ctx.t) = $event)');
-      expect(result.code).toContain('"titleModifiers": {"trim": true}');
+      expect(result.code).toContain("\"title\": _ctx.t");
+      expect(result.code).toContain("\"onUpdate:title\": $event => ((_ctx.t) = $event)");
+      expect(result.code).toContain("\"titleModifiers\": {\"trim\": true}");
     });
 
     it("keeps v-model on plain elements on the runtime-directive path", () => {
@@ -154,9 +154,9 @@ describe("onigiri compiler", () => {
         `<div class="a" :class="dyn" style="color:red" :style="s">x</div>`,
       );
       expectParses(result.code);
-      expect(result.code).toContain('"class": _normalizeClass(["a", _ctx.dyn])');
-      expect(result.code).toContain('"style": _normalizeStyle(["color:red", _ctx.s])');
-      expect(result.code).toContain('import { normalizeClass as _normalizeClass } from "vue"');
+      expect(result.code).toContain("\"class\": _normalizeClass([\"a\", _ctx.dyn])");
+      expect(result.code).toContain("\"style\": _normalizeStyle([\"color:red\", _ctx.s])");
+      expect(result.code).toContain("import { normalizeClass as _normalizeClass } from \"vue\"");
       expect((result.code.match(/"class":/g) || []).length).toBe(1);
       expect((result.code.match(/"style":/g) || []).length).toBe(1);
     });
@@ -164,19 +164,19 @@ describe("onigiri compiler", () => {
     it("leaves lone static or lone dynamic class untouched", () => {
       const staticOnly = compileOnigiri(`<div class="a">x</div>`);
       expectParses(staticOnly.code);
-      expect(staticOnly.code).toContain('"class": "a"');
+      expect(staticOnly.code).toContain("\"class\": \"a\"");
       expect(staticOnly.code).not.toContain("_normalizeClass");
 
       const dynamicOnly = compileOnigiri(`<div :class="dyn">x</div>`);
       expectParses(dynamicOnly.code);
-      expect(dynamicOnly.code).toContain('"class": _ctx.dyn');
+      expect(dynamicOnly.code).toContain("\"class\": _ctx.dyn");
       expect(dynamicOnly.code).not.toContain("_normalizeClass");
     });
 
     it("v-for over non-array sources compiles through renderList", () => {
       const obj = compileOnigiri(`<li v-for="(v, k) in obj" :key="k">{{ v }}</li>`);
       expectParses(obj.code);
-      expect(obj.code).toContain('import { renderList as _renderList } from "vue"');
+      expect(obj.code).toContain("import { renderList as _renderList } from \"vue\"");
       expect(obj.code).toContain("_renderList(_ctx.obj, (v, k) =>");
 
       const num = compileOnigiri(`<i v-for="n in count" :key="n">{{ n }}</i>`);
@@ -221,7 +221,7 @@ describe("onigiri compiler", () => {
     it("custom directive modifiers serialize by name", () => {
       const result = compileOnigiri(`<div v-focus.lazy.deep>x</div>`);
       expectParses(result.code);
-      expect(result.code).toContain('{"lazy": true, "deep": true}');
+      expect(result.code).toContain("{\"lazy\": true, \"deep\": true}");
       expect(result.code).not.toContain("[object Object]");
     });
 
@@ -235,7 +235,7 @@ describe("onigiri compiler", () => {
       const result = compileOnigiri(`<div @[eventName]="handler">x</div>`);
       expectParses(result.code);
       expect(result.code).toContain("[_toHandlerKey(_ctx.eventName)]: _ctx.handler");
-      expect(result.code).toContain('import { toHandlerKey as _toHandlerKey } from "vue"');
+      expect(result.code).toContain("import { toHandlerKey as _toHandlerKey } from \"vue\"");
     });
   });
 });

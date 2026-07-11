@@ -22,9 +22,9 @@ function genChildrenAsNodeOrFragment(
   context.push("[");
   context.push(VServerComponentType.Fragment.toString());
   context.push(", [");
-  for (let i = 0; i < renderable.length; i++) {
+  for (const [i, element_] of renderable.entries()) {
     if (i > 0) context.push(", ");
-    genNode(renderable[i], context);
+    genNode(element_, context);
   }
   context.push("]]");
 }

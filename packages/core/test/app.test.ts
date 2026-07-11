@@ -1,4 +1,4 @@
-import { it, describe, expect } from "vite-plus/test";
+import { it, describe, expect } from "vitest";
 import { createApp } from "vue";
 import { serializeApp } from "../src/runtime/serialize";
 import ElementsOnly from "./fixtures/components/ElementsOnly.vue";

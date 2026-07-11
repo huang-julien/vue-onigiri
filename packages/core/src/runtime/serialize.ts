@@ -102,11 +102,11 @@ export async function serializeChildComponent(
     if (!chunk) {
       const name = (component as any).__name ?? (component as any).name ?? "anonymous component";
       throw new Error(
-        `[vue-onigiri] Cannot serialize <${name} v-load-client>: no __onigiriASTDescriptor ` +
-          `attached to the component and no fallback descriptor emitted at the call site. ` +
-          `Either compile the component through vue-onigiri's plugin (so the descriptor is ` +
-          `attached at build time), or pass it through additionalImports so the compiler can ` +
-          `bake a call-site fallback.`,
+        `[vue-onigiri] Cannot serialize <${name} v-load-client>: no __onigiriASTDescriptor `
+        + `attached to the component and no fallback descriptor emitted at the call site. `
+        + `Either compile the component through vue-onigiri's plugin (so the descriptor is `
+        + `attached at build time), or pass it through additionalImports so the compiler can `
+        + `bake a call-site fallback.`,
       );
     }
     return [
@@ -142,13 +142,14 @@ function astToVNode(node: any): VNode | null {
       const children = node[3];
       const childVNodes = Array.isArray(children)
         ? (children.map((c) => astToVNode(c)).filter(Boolean) as VNode[])
-        : children == null
-          ? null
-          : children;
+        : (children == null
+            ? null
+            : children);
       return createVNode(tag, elProps ?? null, childVNodes as any);
     }
-    case VServerComponentType.Text:
+    case VServerComponentType.Text: {
       return createVNode(Text, null, String(node[1] ?? ""));
+    }
     case VServerComponentType.Fragment: {
       const children = node[1];
       const childVNodes = Array.isArray(children)
@@ -156,8 +157,9 @@ function astToVNode(node: any): VNode | null {
         : [];
       return createVNode(Fragment, null, childVNodes);
     }
-    default:
+    default: {
       return null;
+    }
   }
 }
 function makeAsyncASTComponent(promise: Promise<any>) {
@@ -210,13 +212,13 @@ function wrapSlotFnsForVue(
         // own child) or whether the whole array IS a single AST tuple.
         const first = (result as any)[0];
         if (
-          Array.isArray(first) ||
-          first instanceof Promise ||
-          isVNode(first) ||
-          typeof first === "string" ||
-          typeof first === "number"
+          Array.isArray(first)
+          || first instanceof Promise
+          || isVNode(first)
+          || typeof first === "string"
+          || typeof first === "number"
         ) {
-          return (result as any).map(convertOne).filter(Boolean) as VNode[];
+          return (result as any).map((entry: unknown) => convertOne(entry)).filter(Boolean) as VNode[];
         }
         if (typeof first === "number") {
           // The slot returned a single AST tuple as-is (e.g. `[0,"div",...]`).
@@ -247,9 +249,9 @@ export function serializeComponentInContext(
   const res = setupComponent(instance, true);
 
   const hasAsyncSetup = isPromise(res);
-  let prefetches =
+  let prefetches
     // @ts-expect-error internal API
-    instance.sp as unknown as Promise[] | undefined;
+    = instance.sp as unknown as Promise[] | undefined;
 
   const doRender = (): Promise<VServerComponent | undefined> => {
     const taggedRender = pickTaggedRender(instance);
@@ -264,8 +266,8 @@ export function serializeComponentInContext(
     }
 
     if (
-      typeof component.__onigiriRender === "function" &&
-      !(component.__onigiriRender as any).__onigiriEmpty
+      typeof component.__onigiriRender === "function"
+      && !(component.__onigiriRender as any).__onigiriEmpty
     ) {
       const result = runOnigiriRender(component.__onigiriRender, instance);
       return unrollServerComponentBufferPromises(result);
@@ -417,9 +419,9 @@ export function serializeApp(
 
     return await app.runWithContext(async () => {
       const hasAsyncSetup = isPromise(res);
-      let prefetches =
+      let prefetches
         // @ts-expect-error internal API
-        instance.sp as unknown as Promise[] | undefined;
+        = instance.sp as unknown as Promise[] | undefined;
 
       if (hasAsyncSetup || prefetches) {
         await Promise.resolve(res).then(() => {
@@ -446,8 +448,8 @@ export function serializeApp(
       }
 
       if (
-        typeof componentType.__onigiriRender === "function" &&
-        !(componentType.__onigiriRender as any).__onigiriEmpty
+        typeof componentType.__onigiriRender === "function"
+        && !(componentType.__onigiriRender as any).__onigiriEmpty
       ) {
         const result = app.runWithContext(() =>
           runOnigiriRender(componentType.__onigiriRender!, instance),
@@ -495,8 +497,8 @@ export function unrollServerComponentBufferPromises(
   const promises: Promise<any>[] = [];
   // Index 4 of a `[Component, ...]` tuple is the slots object — recurse
   // into it specifically so Promises in slot bodies get awaited.
-  const isComponentTuple =
-    Array.isArray(buffer) && (buffer as any)[0] === VServerComponentType.Component;
+  const isComponentTuple
+    = Array.isArray(buffer) && (buffer as any)[0] === VServerComponentType.Component;
 
   for (const i in buffer) {
     const item = buffer[i];
@@ -537,11 +539,11 @@ export function unrollServerComponentBufferPromises(
         }),
       );
     } else if (
-      isComponentTuple &&
-      i === "4" &&
-      item &&
-      typeof item === "object" &&
-      !Array.isArray(item)
+      isComponentTuple
+      && i === "4"
+      && item
+      && typeof item === "object"
+      && !Array.isArray(item)
     ) {
       promises.push(
         unrollSlotsObject(item as Record<string, unknown>).then((unrolled) => {
@@ -587,8 +589,8 @@ export async function serializeVNode(
       }
 
       if (
-        typeof componentType.__onigiriRender === "function" &&
-        !(componentType.__onigiriRender as any).__onigiriEmpty
+        typeof componentType.__onigiriRender === "function"
+        && !(componentType.__onigiriRender as any).__onigiriEmpty
       ) {
         const instance = createComponentInstance(vnode, parentInstance ?? null, null);
         inheritAppContext(instance, parentInstance);
@@ -625,20 +627,19 @@ export async function serializeVNode(
       return Promise.resolve(renderComponent(vnode, parentInstance)).then((child) => {
         // @ts-expect-error
         if (child._onigiriLoadClient) {
-          const componentName =
-            (vnode.type as any)?.__name ?? (vnode.type as any)?.name ?? "anonymous";
+          const componentName
+            = (vnode.type as any)?.__name ?? (vnode.type as any)?.name ?? "anonymous";
           throw new Error(
-            `[vue-onigiri] Component "${componentName}" uses v-load-client outside an onigiri-compiled template. ` +
-              `v-load-client only works on components rendered through the onigiri compiler — Vue's vnode-tree fallback ` +
-              `has no compile-time path to point the client at. Render this component from a .vue file processed by onigiriCompilerPlugin.`,
+            `[vue-onigiri] Component "${componentName}" uses v-load-client outside an onigiri-compiled template. `
+            + `v-load-client only works on components rendered through the onigiri compiler — Vue's vnode-tree fallback `
+            + `has no compile-time path to point the client at. Render this component from a .vue file processed by onigiriCompilerPlugin.`,
           );
         }
 
         return [VServerComponentType.Fragment, serializeChildren(child, parentInstance)];
       });
-    }
-    // handle suspense
-    else if (vnode.shapeFlag & ShapeFlags.SUSPENSE) {
+    } else if (vnode.shapeFlag & ShapeFlags.SUSPENSE) {
+      // handle suspense
       const fallback = (vnode as any).ssFallback as VNode | undefined;
       const hasFallback = fallback && fallback.type !== Comment;
       if (hasFallback) {
@@ -654,12 +655,17 @@ export async function serializeVNode(
         // @ts-expect-error internal API
         serializeChildren(vnode.ssContent, parentInstance),
       ];
-    } else if (vnode.type === Text) {
-      return [VServerComponentType.Text, vnode.children as string];
-    } else if (vnode.type === Comment) {
-      return [VServerComponentType.Comment, (vnode.children as string) ?? ""];
-    } else if (vnode.type === Fragment) {
-      return [VServerComponentType.Fragment, serializeChildren(vnode.children, parentInstance)];
+    } else switch (vnode.type) {
+      case Text: {
+        return [VServerComponentType.Text, vnode.children as string];
+      }
+      case Comment: {
+        return [VServerComponentType.Comment, (vnode.children as string) ?? ""];
+      }
+      case Fragment: {
+        return [VServerComponentType.Fragment, serializeChildren(vnode.children, parentInstance)];
+      }
+ // No default
     }
   } else if (vnode && (typeof vnode === "string" || typeof vnode === "number")) {
     return [VServerComponentType.Text, vnode as string];
@@ -713,9 +719,9 @@ function renderComponent(
   instance.vnode.children = reconstructedSlots;
   const res = setupComponent(instance, true);
   const hasAsyncSetup = isPromise(res);
-  let prefetches =
+  let prefetches
     // @ts-expect-error internal API
-    instance.sp as unknown as Promise[]; /* LifecycleHooks.SERVER_PREFETCH */
+    = instance.sp as unknown as Promise[]; /* LifecycleHooks.SERVER_PREFETCH */
 
   if (hasAsyncSetup || prefetches) {
     const p: Promise<unknown> = Promise.resolve(res).then(() => {

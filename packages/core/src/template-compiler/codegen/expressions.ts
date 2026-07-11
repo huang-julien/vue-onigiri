@@ -53,9 +53,9 @@ function classifyExpression(content: string): "member" | "fn" | "statement" {
     const ast = parseExpression(trimmed, { plugins: ["typescript"] });
     if (ast.type === "ArrowFunctionExpression" || ast.type === "FunctionExpression") return "fn";
     if (
-      ast.type === "Identifier" ||
-      ast.type === "MemberExpression" ||
-      ast.type === "OptionalMemberExpression"
+      ast.type === "Identifier"
+      || ast.type === "MemberExpression"
+      || ast.type === "OptionalMemberExpression"
     )
       return "member";
     return "statement";
@@ -130,36 +130,41 @@ function collectTsStripRanges(node: any, s: MagicString): void {
 
   switch (node.type) {
     case "TSAsExpression":
-    case "TSSatisfiesExpression":
+    case "TSSatisfiesExpression": {
       // `expr as T` / `expr satisfies T` → keep `expr`, drop the rest.
       if (node.expression?.end != null && node.end != null) {
         s.remove(node.expression.end, node.end);
       }
       break;
-    case "TSTypeAssertion":
+    }
+    case "TSTypeAssertion": {
       // `<T>expr` → keep `expr`.
       if (node.expression?.start != null && node.start != null) {
         s.remove(node.start, node.expression.start);
       }
       break;
-    case "TSNonNullExpression":
+    }
+    case "TSNonNullExpression": {
       // `expr!` → keep `expr`.
       if (node.expression?.end != null && node.end != null) {
         s.remove(node.expression.end, node.end);
       }
       break;
-    case "TSInstantiationExpression":
+    }
+    case "TSInstantiationExpression": {
       // `expr<T, U>` → keep `expr`.
       if (node.expression?.end != null && node.end != null) {
         s.remove(node.expression.end, node.end);
       }
       break;
-    case "TSTypeAnnotation":
+    }
+    case "TSTypeAnnotation": {
       // `(x: T) => …` → drop `: T` from the param.
       if (node.start != null && node.end != null) {
         s.remove(node.start, node.end);
       }
       return;
+    }
   }
 
   for (const key in node) {
@@ -369,10 +374,10 @@ export function genEventHandler(node: ExpressionNode | undefined, context: Codeg
           return child;
         }
         if (
-          child &&
-          typeof child === "object" &&
-          "type" in child &&
-          child.type === NodeTypes.SIMPLE_EXPRESSION
+          child
+          && typeof child === "object"
+          && "type" in child
+          && child.type === NodeTypes.SIMPLE_EXPRESSION
         ) {
           return (child as SimpleExpressionNode).content;
         }

@@ -64,14 +64,14 @@ export function genDirectiveBinding(dir: DirectiveNode, context: CodegenContext)
   let first = true;
 
   if (dir.exp) {
-    context.push('"value": ');
+    context.push("\"value\": ");
     genExpressionAsValue(dir.exp, context);
     first = false;
   }
 
   if (dir.arg) {
     if (!first) context.push(", ");
-    context.push('"arg": ');
+    context.push("\"arg\": ");
     if (typeof dir.arg === "object" && "isStatic" in dir.arg && dir.arg.isStatic) {
       context.push(JSON.stringify((dir.arg as SimpleExpressionNode).content));
     } else {
@@ -82,7 +82,7 @@ export function genDirectiveBinding(dir: DirectiveNode, context: CodegenContext)
 
   if (dir.modifiers && dir.modifiers.length > 0) {
     if (!first) context.push(", ");
-    context.push('"modifiers": {');
+    context.push("\"modifiers\": {");
     for (let i = 0; i < dir.modifiers.length; i++) {
       if (i > 0) context.push(", ");
       // `DirectiveNode.modifiers` is `SimpleExpressionNode[]` since Vue

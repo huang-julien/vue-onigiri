@@ -1,3 +1,3 @@
-import { vi } from "vite-plus/test";
+import { vi } from "vitest";
 
 vi.stubGlobal("mockedFn", vi.fn());

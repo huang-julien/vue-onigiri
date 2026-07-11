@@ -1,4 +1,4 @@
-import { bench, describe } from "vite-plus/test";
+import { bench, describe } from "vitest";
 
 import { serializeComponent } from "../src/runtime/serialize";
 import WithAsyncComponent from "virtual:vsc:./fixtures/components/WithAsyncComponent.vue";
