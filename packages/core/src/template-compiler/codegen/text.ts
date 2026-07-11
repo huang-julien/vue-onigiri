@@ -5,10 +5,18 @@ import {
   type TextNode,
   NodeTypes,
 } from "@vue/compiler-dom";
+import { genImport } from "knitwork";
 import { VServerComponentType } from "../../runtime/shared";
 import type { CodegenContext } from "./context";
 import { genNode } from "./vnode";
 import { genExpressionAsValue } from "./expressions";
+
+function pushDisplayString(context: CodegenContext, genExpr: () => void): void {
+  context.imports.add(genImport("vue", [{ name: "toDisplayString", as: "_toDisplayString" }]));
+  context.push("_toDisplayString(");
+  genExpr();
+  context.push(")");
+}
 
 export function genText(node: TextNode, context: CodegenContext): void {
   context.push("[");
@@ -22,7 +30,7 @@ export function genInterpolation(node: InterpolationNode, context: CodegenContex
   context.push("[");
   context.push(VServerComponentType.Text.toString());
   context.push(", ");
-  genExpressionAsValue(node.content, context);
+  pushDisplayString(context, () => genExpressionAsValue(node.content, context));
   context.push("]");
 }
 
@@ -44,27 +52,31 @@ export function genCompoundExpression(node: CompoundExpressionNode, context: Cod
           break;
         }
         case NodeTypes.INTERPOLATION: {
-          genExpressionAsValue((child as InterpolationNode).content, context);
+          pushDisplayString(context, () =>
+            genExpressionAsValue((child as InterpolationNode).content, context),
+          );
           break;
         }
         case NodeTypes.SIMPLE_EXPRESSION: {
-          context.push((child as SimpleExpressionNode).content);
+          pushDisplayString(context, () => context.push((child as SimpleExpressionNode).content));
           break;
         }
         case NodeTypes.COMPOUND_EXPRESSION: {
-          context.push("(");
-          for (const innerChild of (child as CompoundExpressionNode).children) {
-            if (typeof innerChild === "string") {
-              context.push(innerChild);
-            } else if (innerChild && typeof innerChild === "object" && "type" in innerChild) {
-              if (innerChild.type === NodeTypes.TEXT) {
-                context.push(JSON.stringify((innerChild as TextNode).content));
-              } else if (innerChild.type === NodeTypes.SIMPLE_EXPRESSION) {
-                context.push((innerChild as SimpleExpressionNode).content);
+          pushDisplayString(context, () => {
+            context.push("(");
+            for (const innerChild of (child as CompoundExpressionNode).children) {
+              if (typeof innerChild === "string") {
+                context.push(innerChild);
+              } else if (innerChild && typeof innerChild === "object" && "type" in innerChild) {
+                if (innerChild.type === NodeTypes.TEXT) {
+                  context.push(JSON.stringify((innerChild as TextNode).content));
+                } else if (innerChild.type === NodeTypes.SIMPLE_EXPRESSION) {
+                  context.push((innerChild as SimpleExpressionNode).content);
+                }
               }
             }
-          }
-          context.push(")");
+            context.push(")");
+          });
           break;
         }
       }

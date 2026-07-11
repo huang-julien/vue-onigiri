@@ -12,6 +12,7 @@ import WithAsyncComponent from "./fixtures/components/WithAsyncComponent.vue";
 import SlotToCounter from "./fixtures/components/SlotToCounter.vue";
 import WithSuspense from "./fixtures/components/WithSuspense.vue";
 import ForVariants from "./fixtures/components/ForVariants.vue";
+import DisplayValues from "./fixtures/components/DisplayValues.vue";
 import { removeCommentsFromHtml } from "./utils";
 import { VServerComponentType, type VServerComponent } from "../src/runtime/shared";
 import { renderToString } from "@vue/server-renderer";
@@ -23,46 +24,46 @@ describe("serialize/deserialize", () => {
     expect(html).toMatchInlineSnapshot(`"<div><div>1</div><div>2</div><div>0</div></div>"`);
 
     expect(ast).toMatchInlineSnapshot(`
-      [
-        0,
-        "div",
-        undefined,
-        [
-          [
-            0,
-            "div",
-            undefined,
-            [
-              [
-                2,
-                "1",
-              ],
-            ],
-          ],
-          [
-            0,
-            "div",
-            undefined,
-            [
-              [
-                2,
-                "2",
-              ],
-            ],
-          ],
-          [
-            0,
-            "div",
-            undefined,
-            [
-              [
-                2,
-                0,
-              ],
-            ],
-          ],
-        ],
-      ]
+    	[
+    	  0,
+    	  "div",
+    	  undefined,
+    	  [
+    	    [
+    	      0,
+    	      "div",
+    	      undefined,
+    	      [
+    	        [
+    	          2,
+    	          "1",
+    	        ],
+    	      ],
+    	    ],
+    	    [
+    	      0,
+    	      "div",
+    	      undefined,
+    	      [
+    	        [
+    	          2,
+    	          "2",
+    	        ],
+    	      ],
+    	    ],
+    	    [
+    	      0,
+    	      "div",
+    	      undefined,
+    	      [
+    	        [
+    	          2,
+    	          "0",
+    	        ],
+    	      ],
+    	    ],
+    	  ],
+    	]
     `);
     const clientSide = mount(
       defineComponent({
@@ -353,6 +354,20 @@ describe("slots", () => {
     expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
       `"<div><div> counter : 0 <button>Increment</button><div><p>Slot content (static)</p></div></div></div>"`,
     );
+  });
+});
+
+describe("interpolation display semantics", () => {
+  it("renders null/undefined as empty text and objects as JSON, like Vue", async () => {
+    const ast = (await serializeComponent(DisplayValues)) as any;
+    const spanTexts = (ast[3] as any[])
+      .filter((child) => child[0] === VServerComponentType.Element)
+      .map((span) => span[3][0][1]);
+
+    expect(spanTexts[0]).toBe("");
+    expect(spanTexts[1]).toBe("");
+    expect(spanTexts[2]).toBe(JSON.stringify({ a: 1 }, null, 2));
+    expect(spanTexts[3]).toBe("0");
   });
 });
 

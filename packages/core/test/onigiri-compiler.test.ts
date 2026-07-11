@@ -644,9 +644,21 @@ defineProps<{ title: string }>()
       expectParses(result.code);
       expect(result.code).toContain("_renderList(_ctx.items, ({ id, name }) =>");
       expect(result.code).toContain('{"key": id}');
-      expect(result.code).toContain("[2, name]");
+      expect(result.code).toContain("[2, _toDisplayString(name)]");
       expect(result.code).not.toContain("_ctx.id");
       expect(result.code).not.toContain("_ctx.name");
+    });
+
+    it("wraps interpolations with toDisplayString", () => {
+      const result = compileOnigiri(`<span>{{ maybeNull }}</span>`);
+      expectParses(result.code);
+      expect(result.code).toContain('import { toDisplayString as _toDisplayString } from "vue"');
+      expect(result.code).toContain("[2, _toDisplayString(_ctx.maybeNull)]");
+
+      const compound = compileOnigiri(`<span>{{ a }} - {{ b }}</span>`);
+      expectParses(compound.code);
+      expect(compound.code).toContain("_toDisplayString(_ctx.a)");
+      expect(compound.code).toContain("_toDisplayString(_ctx.b)");
     });
 
     it("expands v-model on components to modelValue + onUpdate:modelValue", () => {
@@ -726,7 +738,7 @@ defineProps<{ title: string }>()
         `<MyComp><template #default="{ item }">{{ item.name }}</template></MyComp>`,
       );
       expectParses(result.code);
-      expect(result.code).toContain("({ item }) => [[2, item.name]]");
+      expect(result.code).toContain("({ item }) => [[2, _toDisplayString(item.name)]]");
       expect(result.code).not.toContain("_ctx.item");
     });
 
@@ -735,7 +747,7 @@ defineProps<{ title: string }>()
         `<MyComp><template #default="slotProps">{{ slotProps.name }}</template></MyComp>`,
       );
       expectParses(result.code);
-      expect(result.code).toContain("(slotProps) => [[2, slotProps.name]]");
+      expect(result.code).toContain("(slotProps) => [[2, _toDisplayString(slotProps.name)]]");
       expect(result.code).not.toContain("_ctx.slotProps");
     });
 
