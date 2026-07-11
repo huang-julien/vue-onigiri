@@ -357,6 +357,44 @@ describe("slots", () => {
   });
 });
 
+describe("suspense fallback", () => {
+  it("deserializes the fallback tuple as the Suspense fallback slot", () => {
+    const ast: VServerComponent = [
+      VServerComponentType.Suspense,
+      [[VServerComponentType.Text, "content"]],
+      [[VServerComponentType.Text, "loading"]],
+    ];
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () => renderOnigiri(ast),
+      }),
+    );
+    expect(wrapper.html()).toContain("content");
+    expect(wrapper.html()).not.toContain("loading");
+  });
+
+  it("serializes an authored fallback from the vnode fallback walk", async () => {
+    const WithFallback = defineComponent({
+      setup: () => () =>
+        h(
+          Suspense,
+          {},
+          {
+            default: () => h("div", null, "real content"),
+            fallback: () => h("p", null, "loading"),
+          },
+        ),
+    });
+    const ast = (await serializeComponent(WithFallback)) as any;
+    const json = JSON.stringify(ast);
+    expect(json).toContain("real content");
+    expect(json).toContain("loading");
+
+    const suspense = ast[0] === VServerComponentType.Suspense ? ast : ast[1];
+    expect(suspense[2]).toBeDefined();
+  });
+});
+
 describe("interpolation display semantics", () => {
   it("renders null/undefined as empty text and objects as JSON, like Vue", async () => {
     const ast = (await serializeComponent(DisplayValues)) as any;

@@ -37,7 +37,12 @@ export type VServerComponentComponent = [
 type VServerComponentText = [VServerComponentType.Text, string];
 type VServerComponentComment = [VServerComponentType.Comment, string];
 type VServerComponentFragment = [VServerComponentType.Fragment, Children];
-type VServerComponentSuspense = [VServerComponentType.Suspense, VServerComponent[] | undefined];
+type VServerComponentSuspense = [
+  VServerComponentType.Suspense,
+  VServerComponent[] | undefined,
+  // fallback children
+  (VServerComponent[] | undefined)?,
+];
 
 /**
  * Static HTML content - rendered as raw HTML using createStaticVNode.
@@ -77,6 +82,7 @@ type VServerComponentFragmentBuffered = [
 type VServerComponentSuspenseBuffered = [
   VServerComponentType.Suspense,
   MaybePromise<VServerComponentBuffered[]> | undefined,
+  (MaybePromise<VServerComponentBuffered[]> | undefined)?,
 ];
 
 type VServerComponentStaticHtmlBuffered = [VServerComponentType.StaticHtml, string, number];

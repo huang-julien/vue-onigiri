@@ -639,6 +639,16 @@ export async function serializeVNode(
     }
     // handle suspense
     else if (vnode.shapeFlag & ShapeFlags.SUSPENSE) {
+      const fallback = (vnode as any).ssFallback as VNode | undefined;
+      const hasFallback = fallback && fallback.type !== Comment;
+      if (hasFallback) {
+        return [
+          VServerComponentType.Suspense,
+          // @ts-expect-error internal API
+          serializeChildren(vnode.ssContent, parentInstance),
+          serializeChildren(fallback, parentInstance),
+        ];
+      }
       return [
         VServerComponentType.Suspense,
         // @ts-expect-error internal API

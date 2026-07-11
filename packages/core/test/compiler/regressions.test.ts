@@ -4,6 +4,23 @@ import { expectParses } from "./utils";
 
 describe("onigiri compiler", () => {
   describe("codegen syntax validity and scoping regressions", () => {
+    it("Suspense #fallback is carried as the third tuple element, not flattened into content", () => {
+      const result = compileOnigiri(
+        `<Suspense><template #default><Content /></template><template #fallback><p>loading</p></template></Suspense>`,
+      );
+      expectParses(result.code);
+      expect(result.code).toMatch(
+        /return \[4, \[.+\], \[\[0, "p", undefined, \[\[2, "loading"\]\]\]\]\];/,
+      );
+    });
+
+    it("Suspense without a fallback keeps the two-element tuple", () => {
+      const result = compileOnigiri(`<Suspense><Content /></Suspense>`);
+      expectParses(result.code);
+      expect(result.code).toMatch(/return \[4, \[.+\]\];/);
+      expect(result.code).not.toContain("loading");
+    });
+
     it("comment-only v-if branch emits valid JS (empty fragment)", () => {
       const result = compileOnigiri(`<template v-if="show"><!-- todo --></template>`);
       expectParses(result.code);

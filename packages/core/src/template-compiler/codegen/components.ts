@@ -112,24 +112,54 @@ export function genComponent(node: ElementNode, context: CodegenContext): void {
 }
 
 /**
- * Generate `[Suspense, [...children]]`. Vue's Suspense treats the default
- * slot as its content by convention, so we flatten non-template children
- * and `<template #default>` content into one array.
+ * Generate `[Suspense, [...content], [...fallback]?]`. Non-template
+ * children and `<template #default>` content form the content array;
+ * `<template #fallback>` content is carried as the optional third tuple
+ * element so the client-side `<Suspense>` can show it while nested
+ * islands (re-)resolve. Previously the fallback was flattened INTO the
+ * content, rendering both at once.
  */
 function genSuspense(children: any[], context: CodegenContext): void {
+  const defaultChildren: any[] = [];
+  const fallbackChildren: any[] = [];
+
+  for (const child of children) {
+    if (child.type === NodeTypes.ELEMENT && child.tag === "template") {
+      const slotDirective = child.props?.find(
+        (p: any) => p.type === NodeTypes.DIRECTIVE && p.name === "slot",
+      ) as DirectiveNode | undefined;
+      const slotName =
+        slotDirective?.arg && slotDirective.arg.type === NodeTypes.SIMPLE_EXPRESSION
+          ? (slotDirective.arg as SimpleExpressionNode).content
+          : "default";
+      (slotName === "fallback" ? fallbackChildren : defaultChildren).push(
+        ...(child.children ?? []),
+      );
+      continue;
+    }
+    defaultChildren.push(child);
+  }
+
   context.push("[");
   context.push(VServerComponentType.Suspense.toString());
   context.push(", [");
-  const filtered = children.filter((c) => c.type !== NodeTypes.ELEMENT || c.tag !== "template");
-  const defaultSlotChildren = children
-    .filter((c) => c.type === NodeTypes.ELEMENT && c.tag === "template")
-    .flatMap((c) => c.children ?? []);
-  const all = withoutRenderlessChildren([...filtered, ...defaultSlotChildren]);
-  for (const [i, child] of all.entries()) {
+  for (const [i, child] of withoutRenderlessChildren(defaultChildren).entries()) {
     if (i > 0) context.push(", ");
     genNode(child, context);
   }
-  context.push("]]");
+  context.push("]");
+
+  const fallback = withoutRenderlessChildren(fallbackChildren);
+  if (fallback.length > 0) {
+    context.push(", [");
+    for (const [i, child] of fallback.entries()) {
+      if (i > 0) context.push(", ");
+      genNode(child, context);
+    }
+    context.push("]");
+  }
+
+  context.push("]");
 }
 
 function genFragmentPassthrough(children: any[], context: CodegenContext): void {

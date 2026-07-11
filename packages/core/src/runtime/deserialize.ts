@@ -61,6 +61,9 @@ export function renderOnigiri(
       {},
       {
         default: () => renderChildren(input[1], options),
+        ...(input[2] && input[2].length > 0
+          ? { fallback: () => renderChildren(input[2], options) }
+          : {}),
       },
     );
   }
