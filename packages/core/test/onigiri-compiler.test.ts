@@ -649,6 +649,27 @@ defineProps<{ title: string }>()
       expect(result.code).not.toContain("_ctx.name");
     });
 
+    it("expands v-model on components to modelValue + onUpdate:modelValue", () => {
+      const result = compileOnigiri(`<MyComp v-model="foo" />`);
+      expectParses(result.code);
+      expect(result.code).toContain('"modelValue": _ctx.foo');
+      expect(result.code).toContain('"onUpdate:modelValue": $event => ((_ctx.foo) = $event)');
+    });
+
+    it("expands named and modified v-model on components", () => {
+      const result = compileOnigiri(`<MyComp v-model:title.trim="t" />`);
+      expectParses(result.code);
+      expect(result.code).toContain('"title": _ctx.t');
+      expect(result.code).toContain('"onUpdate:title": $event => ((_ctx.t) = $event)');
+      expect(result.code).toContain('"titleModifiers": {"trim": true}');
+    });
+
+    it("keeps v-model on plain elements on the runtime-directive path", () => {
+      const result = compileOnigiri(`<input v-model="foo" />`);
+      expectParses(result.code);
+      expect(result.code).not.toContain("modelValue");
+    });
+
     it("merges static and dynamic class/style instead of emitting duplicate keys", () => {
       const result = compileOnigiri(
         `<div class="a" :class="dyn" style="color:red" :style="s">x</div>`,

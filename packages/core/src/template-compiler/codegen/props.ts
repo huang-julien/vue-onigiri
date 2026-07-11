@@ -9,6 +9,15 @@ import type { CodegenContext } from "./context";
 import { genEventHandler, genExpressionAsValue } from "./expressions";
 import { STRIPPED_DIRECTIVES, shouldWrapDirective } from "./directives";
 
+/**
+ * Props generator for COMPONENT positions (and `<slot>` outlets, where
+ * v-model cannot appear). `v-model` always expands to `modelValue` +
+ * `onUpdate:modelValue` (or the `v-model:arg` equivalents), the way Vue
+ * compiles v-model on components. Element positions go through
+ * `genPropsWithScopeId` instead, where v-model stays on the
+ * runtime-directive path (`withDirective` + the built-in SSR vModel
+ * transform).
+ */
 export function genProps(props: (AttributeNode | DirectiveNode)[], context: CodegenContext): void {
   const bindDirective = props.find(
     (prop) => prop.type === NodeTypes.DIRECTIVE && prop.name === "bind" && !prop.arg,
@@ -182,10 +191,54 @@ function genClassStyleMerge(
   context.push("])");
 }
 
+function genComponentVModel(prop: DirectiveNode, context: CodegenContext): void {
+  const dynamicArg = isDynamicArg(prop.arg);
+  const staticName =
+    !dynamicArg && prop.arg && typeof prop.arg === "object" && "content" in prop.arg
+      ? (prop.arg as SimpleExpressionNode).content
+      : "modelValue";
+
+  const pushArgKey = (prefix: string, suffix: string): void => {
+    if (dynamicArg) {
+      context.push(`[${JSON.stringify(prefix)} + (`);
+      genExpressionAsValue(prop.arg, context);
+      context.push(`)${suffix ? ` + ${JSON.stringify(suffix)}` : ""}]: `);
+    } else {
+      context.push(`"${prefix}${staticName}${suffix}": `);
+    }
+  };
+
+  pushArgKey("", "");
+  genExpressionAsValue(prop.exp, context);
+  context.push(", ");
+
+  pushArgKey("onUpdate:", "");
+  context.push("$event => ((");
+  genExpressionAsValue(prop.exp, context);
+  context.push(") = $event)");
+
+  if (prop.modifiers && prop.modifiers.length > 0) {
+    context.push(", ");
+    if (dynamicArg) {
+      pushArgKey("", "Modifiers");
+    } else {
+      context.push(`"${staticName === "modelValue" ? "model" : staticName}Modifiers": `);
+    }
+    context.push("{");
+    for (const [i, mod] of prop.modifiers.entries()) {
+      if (i > 0) context.push(", ");
+      const modName = typeof mod === "string" ? mod : (mod as SimpleExpressionNode).content;
+      context.push(`${JSON.stringify(modName)}: true`);
+    }
+    context.push("}");
+  }
+}
+
 function genPropsObjectBody(
   props: (AttributeNode | DirectiveNode)[],
   context: CodegenContext,
   withScopeId: boolean,
+  expandVModel: boolean,
 ): void {
   context.push("{");
   let first = true;
@@ -216,6 +269,13 @@ function genPropsObjectBody(
         context.push("true");
       }
     } else if (prop.type === NodeTypes.DIRECTIVE) {
+      if (expandVModel && prop.name === "model" && prop.exp) {
+        if (!first) context.push(", ");
+        first = false;
+
+        genComponentVModel(prop, context);
+        continue;
+      }
       if (STRIPPED_DIRECTIVES.has(prop.name)) continue;
       if (shouldWrapDirective(prop.name)) continue;
       if (prop.name !== "on" && !(prop.name === "bind" && prop.arg)) continue;
@@ -234,9 +294,9 @@ function genPropsObjectWithScopeId(
   props: (AttributeNode | DirectiveNode)[],
   context: CodegenContext,
 ): void {
-  genPropsObjectBody(props, context, true);
+  genPropsObjectBody(props, context, true, false);
 }
 
 function genPropsObject(props: (AttributeNode | DirectiveNode)[], context: CodegenContext): void {
-  genPropsObjectBody(props, context, false);
+  genPropsObjectBody(props, context, false, true);
 }
