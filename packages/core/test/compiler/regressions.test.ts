@@ -4,6 +4,58 @@ import { expectParses } from "./utils";
 
 describe("onigiri compiler", () => {
   describe("codegen syntax validity and scoping regressions", () => {
+    it("camelizes kebab-case v-on event names", () => {
+      const result = compileOnigiri(`<MyComp @my-event="fn" />`);
+      expectParses(result.code);
+      expect(result.code).toContain('"onMyEvent": _ctx.fn');
+      expect(result.code).not.toContain("onMy-event");
+    });
+
+    it("compiles v-on event modifiers through withModifiers", () => {
+      const result = compileOnigiri(`<button @click.stop.prevent="go">x</button>`);
+      expectParses(result.code);
+      expect(result.code).toContain('import { withModifiers as _withModifiers } from "vue"');
+      expect(result.code).toContain('"onClick": _withModifiers(_ctx.go, ["stop","prevent"])');
+    });
+
+    it("compiles key modifiers through withKeys on keyboard events only", () => {
+      const keyboard = compileOnigiri(`<input @keyup.enter="submit" />`);
+      expectParses(keyboard.code);
+      expect(keyboard.code).toContain('"onKeyup": _withKeys(_ctx.submit, ["enter"])');
+
+      const mouse = compileOnigiri(`<button @click.enter="go">x</button>`);
+      expectParses(mouse.code);
+      expect(mouse.code).toContain('"onClick": _ctx.go');
+      expect(mouse.code).not.toContain("_withKeys");
+    });
+
+    it("event option modifiers become handler-key suffixes", () => {
+      const result = compileOnigiri(
+        `<div @scroll.passive="onScroll" @click.capture.once="go">x</div>`,
+      );
+      expectParses(result.code);
+      expect(result.code).toContain('"onScrollPassive": _ctx.onScroll');
+      expect(result.code).toContain('"onClickCaptureOnce": _ctx.go');
+    });
+
+    it("stacks withKeys around withModifiers for combined modifiers", () => {
+      const result = compileOnigiri(`<input @keydown.ctrl.enter="submit" />`);
+      expectParses(result.code);
+      expect(result.code).toContain(
+        '"onKeydown": _withKeys(_withModifiers(_ctx.submit, ["ctrl"]), ["enter"])',
+      );
+    });
+
+    it("resolves .left/.right as mouse modifiers on mouse events and keys on keyboard events", () => {
+      const mouse = compileOnigiri(`<button @click.left="go">x</button>`);
+      expectParses(mouse.code);
+      expect(mouse.code).toContain('_withModifiers(_ctx.go, ["left"])');
+
+      const keyboard = compileOnigiri(`<input @keyup.left="go" />`);
+      expectParses(keyboard.code);
+      expect(keyboard.code).toContain('_withKeys(_ctx.go, ["left"])');
+    });
+
     it("Suspense #fallback is carried as the third tuple element, not flattened into content", () => {
       const result = compileOnigiri(
         `<Suspense><template #default><Content /></template><template #fallback><p>loading</p></template></Suspense>`,

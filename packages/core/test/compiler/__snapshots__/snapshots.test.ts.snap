@@ -165,8 +165,10 @@ return [0, "div", {"id": _ctx.elementId, "class": _ctx.dynamicClass}, [[2, "Cont
 `;
 
 exports[`onigiri compiler > snapshots > event handlers > handler with modifier 1`] = `
-"export function renderOnigiri(_ctx, __instance) {
-return [0, "form", {"onSubmit": _ctx.onSubmit}, [[2, "Submit"]]];
+"import { withModifiers as _withModifiers } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+return [0, "form", {"onSubmit": _withModifiers(_ctx.onSubmit, ["prevent"])}, [[2, "Submit"]]];
 }"
 `;
 
@@ -251,20 +253,22 @@ return [0, "article", {"class": _normalizeClass(["card", [_ctx.variant, { featur
 `;
 
 exports[`onigiri compiler > snapshots > real-world examples > form with validation 1`] = `
-"import { withDirective as __withDirective } from "vue-onigiri/runtime/with-directive";
+"import { withModifiers as _withModifiers } from "vue";
+import { withDirective as __withDirective } from "vue-onigiri/runtime/with-directive";
 import { toDisplayString as _toDisplayString } from "vue";
 
 export function renderOnigiri(_ctx, __instance) {
-return [0, "form", {"onSubmit": _ctx.onSubmit, "class": "form"}, [[0, "div", {"class": "form-group"}, [[0, "label", {"for": "email"}, [[2, "Email"]]], __withDirective("model", [0, "input", {"id": "email", "type": "email", "class": { error: _ctx.errors.email }}], {"value": _ctx.email}), (_ctx.errors.email ? [0, "span", {"class": "error-message"}, [[2, _toDisplayString(_ctx.errors.email)]]] : null)]], [0, "button", {"type": "submit", "disabled": _ctx.isSubmitting}, [[2, _toDisplayString(_ctx.isSubmitting ? 'Submitting...' : 'Submit')]]]]];
+return [0, "form", {"onSubmit": _withModifiers(_ctx.onSubmit, ["prevent"]), "class": "form"}, [[0, "div", {"class": "form-group"}, [[0, "label", {"for": "email"}, [[2, "Email"]]], __withDirective("model", [0, "input", {"id": "email", "type": "email", "class": { error: _ctx.errors.email }}], {"value": _ctx.email}), (_ctx.errors.email ? [0, "span", {"class": "error-message"}, [[2, _toDisplayString(_ctx.errors.email)]]] : null)]], [0, "button", {"type": "submit", "disabled": _ctx.isSubmitting}, [[2, _toDisplayString(_ctx.isSubmitting ? 'Submitting...' : 'Submit')]]]]];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > real-world examples > modal dialog 1`] = `
-"import { toDisplayString as _toDisplayString } from "vue";
+"import { withModifiers as _withModifiers } from "vue";
+import { toDisplayString as _toDisplayString } from "vue";
 import { renderSlot as __renderSlot } from "vue-onigiri/runtime/render-slot";
 
 export function renderOnigiri(_ctx, __instance) {
-return (_ctx.isOpen ? [0, "div", {"class": "modal-overlay", "onClick": _ctx.close}, [[0, "div", {"class": "modal", "role": "dialog", "aria-labelledby": _ctx.titleId}, [[0, "header", {"class": "modal-header"}, [[0, "h2", {"id": _ctx.titleId}, [[2, _toDisplayString(_ctx.title)]]], [0, "button", {"onClick": _ctx.close, "aria-label": "Close"}, [[2, "×"]]]]], [0, "div", {"class": "modal-body"}, [__renderSlot(_ctx, _ctx.slots, "default", undefined, undefined)]], [0, "footer", {"class": "modal-footer"}, [__renderSlot(_ctx, _ctx.slots, "footer", undefined, () => [[0, "button", {"onClick": _ctx.close}, [[2, "Close"]]]])]]]]]] : null);
+return (_ctx.isOpen ? [0, "div", {"class": "modal-overlay", "onClick": _withModifiers(_ctx.close, ["self"])}, [[0, "div", {"class": "modal", "role": "dialog", "aria-labelledby": _ctx.titleId}, [[0, "header", {"class": "modal-header"}, [[0, "h2", {"id": _ctx.titleId}, [[2, _toDisplayString(_ctx.title)]]], [0, "button", {"onClick": _ctx.close, "aria-label": "Close"}, [[2, "×"]]]]], [0, "div", {"class": "modal-body"}, [__renderSlot(_ctx, _ctx.slots, "default", undefined, undefined)]], [0, "footer", {"class": "modal-footer"}, [__renderSlot(_ctx, _ctx.slots, "footer", undefined, () => [[0, "button", {"onClick": _ctx.close}, [[2, "Close"]]]])]]]]]] : null);
 }"
 `;
 

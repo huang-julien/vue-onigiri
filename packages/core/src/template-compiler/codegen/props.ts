@@ -99,29 +99,101 @@ function isDynamicArg(arg: DirectiveNode["arg"]): boolean {
   return true;
 }
 
+const EVENT_OPTION_MODIFIERS = new Set(["passive", "once", "capture"]);
+const NON_KEY_MODIFIERS = new Set([
+  "stop",
+  "prevent",
+  "self",
+  "ctrl",
+  "shift",
+  "alt",
+  "meta",
+  "exact",
+  "middle",
+]);
+const MAYBE_KEY_MODIFIERS = new Set(["left", "right"]);
+const KEYBOARD_EVENTS = new Set(["keyup", "keydown", "keypress"]);
+
+function resolveVOnModifiers(
+  prop: DirectiveNode,
+  staticEvent: string | null,
+): { eventOptions: string[]; nonKey: string[]; keys: string[] } {
+  const eventOptions: string[] = [];
+  const nonKey: string[] = [];
+  const keys: string[] = [];
+
+  for (const mod of prop.modifiers ?? []) {
+    const name = typeof mod === "string" ? mod : (mod as SimpleExpressionNode).content;
+    if (EVENT_OPTION_MODIFIERS.has(name)) {
+      eventOptions.push(name);
+    } else if (NON_KEY_MODIFIERS.has(name)) {
+      nonKey.push(name);
+    } else if (MAYBE_KEY_MODIFIERS.has(name)) {
+      if (staticEvent === null) {
+        keys.push(name);
+        nonKey.push(name);
+      } else if (KEYBOARD_EVENTS.has(staticEvent.toLowerCase())) {
+        keys.push(name);
+      } else {
+        nonKey.push(name);
+      }
+    } else {
+      keys.push(name);
+    }
+  }
+
+  return { eventOptions, nonKey, keys };
+}
+
+const camelize = (name: string): string =>
+  name.replace(/-(\w)/g, (_, c: string) => c.toUpperCase());
+const capitalize = (name: string): string => name.charAt(0).toUpperCase() + name.slice(1);
+
 /** Emit one `key: value` object entry for a `v-on:*` / `v-bind:arg` directive. */
 function genDirectivePropEntry(prop: DirectiveNode, context: CodegenContext): void {
   if (prop.name === "on") {
-    if (isDynamicArg(prop.arg)) {
+    const staticEvent =
+      !isDynamicArg(prop.arg) && prop.arg && typeof prop.arg === "object" && "content" in prop.arg
+        ? (prop.arg as SimpleExpressionNode).content
+        : null;
+    const { eventOptions, nonKey, keys } = resolveVOnModifiers(prop, staticEvent);
+    const optionSuffix = eventOptions.map(capitalize).join("");
+
+    if (staticEvent === null) {
       // `@[eventName]`: computed handler key via Vue's own helper,
       // matching the `_toHandlerKey(...)` shape Vue's codegen emits.
       context.imports.add(genImport("vue", [{ name: "toHandlerKey", as: "_toHandlerKey" }]));
       context.push("[_toHandlerKey(");
       genExpressionAsValue(prop.arg, context);
-      context.push(")]: ");
+      context.push(")");
+      if (optionSuffix) context.push(` + ${JSON.stringify(optionSuffix)}`);
+      context.push("]: ");
     } else {
-      const eventName =
-        prop.arg && typeof prop.arg === "object" && "content" in prop.arg
-          ? (prop.arg as SimpleExpressionNode).content
-          : "";
-      const onEventName = "on" + eventName.charAt(0).toUpperCase() + eventName.slice(1);
-      context.push(`"${onEventName}": `);
+      context.push(`"on${capitalize(camelize(staticEvent))}${optionSuffix}": `);
+    }
+
+    const useKeys =
+      keys.length > 0 && (staticEvent === null || KEYBOARD_EVENTS.has(staticEvent.toLowerCase()));
+    if (useKeys) {
+      context.imports.add(genImport("vue", [{ name: "withKeys", as: "_withKeys" }]));
+      context.push("_withKeys(");
+    }
+    if (nonKey.length > 0) {
+      context.imports.add(genImport("vue", [{ name: "withModifiers", as: "_withModifiers" }]));
+      context.push("_withModifiers(");
     }
 
     if (prop.exp) {
       genEventHandler(prop.exp, context);
     } else {
       context.push("() => {}");
+    }
+
+    if (nonKey.length > 0) {
+      context.push(`, ${JSON.stringify(nonKey)})`);
+    }
+    if (useKeys) {
+      context.push(`, ${JSON.stringify(keys)})`);
     }
     return;
   }
