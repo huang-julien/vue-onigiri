@@ -11,18 +11,20 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.js"
-    },
-    "./*": {
-      "import": "./dist/*.js",
-      "require": "./dist/*.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./runtime/*": {
-      "import": "./dist/runtime/*.js",
-      "require": "./dist/runtime/*.js"
-    }
+      "types": "./dist/runtime/*.d.ts",
+      "import": "./dist/runtime/*.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    },
+    "./package.json": "./package.json"
   },
+  "types": "./dist/index.d.ts",
   "scripts": {
     "build": "unbuild",
     "lint": "eslint .",
@@ -33,36 +35,24 @@
   },
   "dependencies": {
     "@babel/parser": "^7.29.3",
-    "@module-federation/vite": "^1.15.2",
-    "@types/estree": "1.0.7",
-    "@vitejs/plugin-vue": "^6.0.6",
-    "@vue/compiler-core": "^3.5.33",
     "@vue/compiler-dom": "^3.5.33",
     "@vue/compiler-sfc": "^3.5.33",
-    "@vue/compiler-ssr": "^3.5.33",
     "@vue/shared": "^3.5.33",
-    "@vue/test-utils": "^2.4.10",
-    "acorn": "^8.16.0",
-    "defu": "^6.1.7",
-    "estree-walker": "^3.0.3",
     "knitwork": "^1.3.0",
-    "magic-string": "^0.30.21",
-    "ohash": "^2.0.11",
-    "pathe": "^2.0.3",
-    "rollup": "^4.60.3",
-    "source-map-js": "^1.2.1",
-    "unplugin": "^3.0.0",
-    "vite": "catalog:"
+    "magic-string": "^0.30.21"
   },
   "devDependencies": {
     "@types/node": "^22.19.17",
+    "@vitejs/plugin-vue": "^6.0.6",
     "@vitest/coverage-v8": "^4.1.10",
     "@vitest/ui": "^4.1.10",
     "@vue/server-renderer": "^3.5.33",
+    "@vue/test-utils": "^2.4.10",
     "automd": "^0.4.3",
     "happy-dom": "^20.9.0",
     "typescript": "^6.0.3",
     "unbuild": "^3.6.1",
+    "vite": "catalog:",
     "vite-plugin-mcp": "^0.3.2",
     "vitest": "catalog:",
     "vue": "^3.5.33",
@@ -70,10 +60,14 @@
   },
   "peerDependencies": {
     "@vue/server-renderer": "^3.5.0",
+    "vite": ">=6.0.0",
     "vue": "^3.5.0"
   },
   "peerDependenciesMeta": {
     "@vue/server-renderer": {
+      "optional": true
+    },
+    "vite": {
       "optional": true
     }
   }

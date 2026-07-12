@@ -12,7 +12,7 @@
     "lint:fix": "pnpm -r lint:fix",
     "test": "pnpm --filter vue-onigiri test",
     "test:types": "pnpm -r test:types",
-    "release": "pnpm test && changelogen --release --cwd packages/vue-onigiri && cd packages/vue-onigiri && npm publish && cd ../.. && git push --follow-tags"
+    "release": "pnpm test && changelogen --release --cwd packages/core && pnpm --filter vue-onigiri publish && git push --follow-tags"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^5.10.0",
