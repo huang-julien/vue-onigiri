@@ -56,7 +56,7 @@ type VServerComponentStaticHtml = [
   number, // Number of root nodes (for createStaticVNode)
 ];
 
-type MaybePromise<T> = T | Promise<T>;
+export type MaybePromise<T> = T | Promise<T>;
 
 type VServerComponentElementBuffered = [
   VServerComponentType.Element,

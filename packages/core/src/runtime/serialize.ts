@@ -27,9 +27,9 @@ import {
   type VServerComponentBuffered,
   VServerComponentType,
   type VServerComponent,
+  type MaybePromise,
   ONIGIRI_RENDER_SYMBOL,
 } from "./shared";
-import type { MaybePromise } from "rollup";
 
 declare module "vue" {
   interface ComponentInternalInstance {
