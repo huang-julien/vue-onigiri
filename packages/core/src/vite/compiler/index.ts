@@ -172,6 +172,8 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
           additionalImports: resolveAdditionalImports(),
           resolveChunkUrl,
           registerTarget: registerOnigiriTarget,
+          resolveImport: async (source, importer) =>
+            (await this.resolve(source, importer, { skipSelf: true }))?.id,
         },
         (msg) => this.error(msg),
       );
@@ -209,6 +211,8 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
               resolveAdditionalImports(),
               resolveChunkUrl,
               registerOnigiriTarget,
+              async (source, importer) =>
+                (await this.resolve(source, importer, { skipSelf: true }))?.id,
             );
             if (injected) workCode = injected.code;
           }
@@ -230,6 +234,8 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
               resolveAdditionalImports(),
               resolveChunkUrl,
               registerOnigiriTarget,
+              async (source, importer) =>
+                (await this.resolve(source, importer, { skipSelf: true }))?.id,
             );
           }
           return null;

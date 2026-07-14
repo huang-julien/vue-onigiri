@@ -14,6 +14,12 @@ export interface LoadVirtualOptions {
   additionalImports?: Map<string, AdditionalImport>;
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
   registerTarget?: (sourcePath: string) => void;
+  /**
+   * Bundler resolver (`PluginContext.resolve`) so `v-load-client`
+   * targets imported via aliases or packages resolve like any other
+   * import in the app.
+   */
+  resolveImport?: (source: string, importer: string) => Promise<string | null | undefined>;
 }
 
 /**
@@ -28,8 +34,15 @@ export async function loadVirtualOnigiriModule(
 ): Promise<{ code: string; map: null } | null> {
   if (!id.startsWith(ONIGIRI_PREFIX) || !id.endsWith(ONIGIRI_SUFFIX)) return null;
 
-  const { config, sourceMap, isCustomElement, additionalImports, resolveChunkUrl, registerTarget }
-    = opts;
+  const {
+    config,
+    sourceMap,
+    isCustomElement,
+    additionalImports,
+    resolveChunkUrl,
+    registerTarget,
+    resolveImport,
+  } = opts;
   const encoded = id.slice(ONIGIRI_PREFIX.length, -ONIGIRI_SUFFIX.length);
   const filePath = decodeURIComponent(encoded);
   const fs = await import("node:fs/promises");
@@ -71,7 +84,12 @@ export async function loadVirtualOnigiriModule(
 
   const scriptContent = descriptor.scriptSetup?.content || descriptor.script?.content || "";
   const scriptImports = extractScriptImports(scriptContent);
-  const importMap = buildImportMap(scriptContent, filePath, config.root);
+  const importMap = await buildImportMap(
+    scriptContent,
+    filePath,
+    config.root,
+    resolveImport ? (source) => resolveImport(source, filePath) : undefined,
+  );
 
   const onigiriResult = compileOnigiriInline(descriptor.template.content, {
     filename: filePath,

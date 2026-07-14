@@ -10,14 +10,11 @@ export default defineProject({
   plugins: [
     onigiriCompilerPlugin(),
     vue(),
-    // Tests with `@vitest-environment happy-dom` run as `ssr: false`. Some
-    // fixtures intentionally aren't statically imported, so they rely on
-    // the glob fallback. Scope it to the fixtures directory rather than
-    // the whole project.
     onigiriManifestPlugin({ clientInclude: "/test/fixtures/components/**/*.vue" }),
   ],
   resolve: {
     alias: {
+      "~fixtures": fileURLToPath(new URL("test/fixtures", import.meta.url)),
       // Map the published package names that compiled output imports to
       // our local source so tests can run without a build step.
       "vue-onigiri/runtime/serialize": srcUrl("runtime/serialize.ts"),

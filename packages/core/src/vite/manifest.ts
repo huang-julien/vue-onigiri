@@ -90,8 +90,17 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
     // resolution crashes Node with `protocol 'virtual:'`).
     resolveId: {
       order: "pre",
-      handler(id) {
+      handler(id, importer) {
         if (id === MANIFEST_VIRTUAL_ID) return MANIFEST_RESOLVED_ID;
+
+        if (
+          id === "vue-onigiri/runtime/manifest-default"
+          || (/(^|[\\/])manifest-default(\.\w+)?$/.test(id)
+            && !!importer
+            && /[\\/]runtime[\\/]loader\.\w+$/.test(importer))
+        ) {
+          return MANIFEST_RESOLVED_ID;
+        }
       },
     },
     configureServer(server) {

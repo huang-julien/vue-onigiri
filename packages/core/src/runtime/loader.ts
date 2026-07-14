@@ -1,8 +1,9 @@
-import { h, defineComponent, type PropType } from "vue";
+import { h, defineComponent, inject, type PropType } from "vue";
 import type { VServerComponent, VServerComponentComponent } from "./shared";
 import { renderChildren } from "./deserialize";
 import type { ImportFn } from "./utils";
-import { importFn as manifestImportFn } from "virtual:onigiri/manifest";
+import { importFn as defaultImportFn } from "./manifest-default";
+import { ONIGIRI_IMPORT_FN } from "./plugin";
 
 export default defineComponent({
   name: "vue-onigiri:component-loader",
@@ -11,12 +12,6 @@ export default defineComponent({
       type: Object as () => VServerComponentComponent,
       required: true,
     },
-    /**
-     * Threaded from `renderOnigiri(ast, { importFn })`. When absent we
-     * fall back to the importFn baked into `virtual:onigiri/manifest`
-     * (Vite's `import.meta.glob` for in-bundle modules, dynamic
-     * `import(url)` for absolute chunk URLs).
-     */
     importFn: {
       type: Function as PropType<ImportFn>,
       required: false,
@@ -25,7 +20,9 @@ export default defineComponent({
   },
 
   async setup(props) {
-    const importFn = props.importFn ?? manifestImportFn;
+    // inject() must run before the first await of an async setup.
+    const appImportFn = inject(ONIGIRI_IMPORT_FN, undefined);
+    const importFn = props.importFn ?? appImportFn ?? defaultImportFn;
     const Loaded = await importFn(props.data[2], props.data[3] ?? "default");
 
     const slots = Object.fromEntries(

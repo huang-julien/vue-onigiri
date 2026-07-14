@@ -59,6 +59,7 @@ export async function injectIntoSetupAsync(
   additionalImports?: Map<string, AdditionalImport>,
   resolveChunkUrl?: (sourcePath: string) => string | undefined,
   registerTarget?: (sourcePath: string) => void,
+  resolveImport?: (source: string, importer: string) => Promise<string | null | undefined>,
 ): Promise<{ code: string; map: any } | null> {
   const setupMatch = code.match(/setup\s*\(\s*([^,)]*?)(?:,\s*\{[^}]*\})?\s*\)\s*\{/);
   if (!setupMatch || setupMatch.index === undefined) return null;
@@ -135,7 +136,12 @@ export async function injectIntoSetupAsync(
     : null;
 
   const scriptContent = descriptor.scriptSetup?.content || descriptor.script?.content || "";
-  const importMap = buildImportMap(scriptContent, filePath, config.root);
+  const importMap = await buildImportMap(
+    scriptContent,
+    filePath,
+    config.root,
+    resolveImport ? (src) => resolveImport(src, filePath) : undefined,
+  );
 
   // We don't actually use `onigiriResult.expression` directly — we
   // delegate to the standalone `__onigiriRender` attached to the

@@ -13,6 +13,7 @@ import SlotToCounter from "./fixtures/components/SlotToCounter.vue";
 import WithSuspense from "./fixtures/components/WithSuspense.vue";
 import ForVariants from "./fixtures/components/ForVariants.vue";
 import DisplayValues from "./fixtures/components/DisplayValues.vue";
+import AliasLoad from "./fixtures/components/AliasLoad.vue";
 import { removeCommentsFromHtml } from "./utils";
 import { VServerComponentType, type VServerComponent } from "../src/runtime/shared";
 import { renderToString } from "@vue/server-renderer";
@@ -354,6 +355,13 @@ describe("slots", () => {
     expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
       `"<div><div> counter : 0 <button>Increment</button><div><p>Slot content (static)</p></div></div></div>"`,
     );
+  });
+});
+
+describe("v-load-client via alias import", () => {
+  it("resolves the aliased import to a root-relative chunk path", async () => {
+    const ast = await serializeComponent(AliasLoad);
+    expect(JSON.stringify(ast)).toContain('"/test/fixtures/components/Counter.vue"');
   });
 });
 

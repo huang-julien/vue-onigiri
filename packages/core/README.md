@@ -18,7 +18,7 @@ Vue Onigiri brings React Server Components-style rendering to Vue. Components re
 - **Slot support** — named and scoped slots survive serialization
 - **Async / Suspense** — async components and `<Suspense>` boundaries are preserved
 - **Compile-time chunk resolution** — `v-load-client` paths are resolved during compilation, no runtime tagging required
-- **Bundler-agnostic** — works with Vite by default; pass `renderOnigiri(ast, { importFn })` to plug in any loader
+- **Bundler-agnostic runtime** no Vite-only imports. the chunk loader resolves per render (`renderOnigiri(ast, { importFn })`), per app (`app.use(onigiriPlugin, { importFn })`), or via the bundler swap point (`vue-onigiri/runtime/manifest-default`, redirected to the generated manifest by the Vite plugin)
 
 ## Installation
 
@@ -44,7 +44,7 @@ export default defineConfig({
 
 ### 2. Mark client-loaded components
 
-Add `v-load-client` to any component that should hydrate on the client. The component **must** be statically imported in the same SFC (or registered through `additionalImports` / the Nuxt module):
+Add `v-load-client` to any component that should hydrate on the client. The component **must** be statically imported in the same SFC (or registered through `additionalImports` / the Nuxt module). Relative, aliased (`@/`, `~/`), extension-less, and package imports all resolve — the compiler goes through the bundler's own resolver:
 
 ```vue
 <template>
@@ -182,14 +182,15 @@ import { renderOnigiri } from "vue-onigiri/runtime/deserialize";
 const vnode = renderOnigiri(data);
 ```
 
-### `renderOnigiri(ast, { importFn? })`
+### Chunk loading (`importFn`)
 
-Per-render-tree override for the chunk-loading function. Wins over the built-in `virtual:onigiri/manifest`. Use this when:
+Each `v-load-client` marker in the AST is resolved through an `importFn(src, exportName?)`. The loader picks it in this order:
 
-- you need full control over how chunk paths map to modules (CDN-served bundles, federation, custom path normalization)
-- you don't have a Vite-managed manifest at all (non-Vite consumers, hand-rolled SSR, tests)
+1. **Per render** — `renderOnigiri(ast, { importFn })`. Forwarded as a prop to every `vue-onigiri:component-loader` the AST contains, so nested `v-load-client` targets inherit it.
+2. **Per app** — `app.use(onigiriPlugin, { importFn })`. Injected via Vue's provide/inject; ideal for meta-frameworks that configure loading once.
+3. **Manifest default** — the module `vue-onigiri/runtime/manifest-default`. On Vite, `onigiriManifestPlugin` redirects it to the generated manifest (`import.meta.glob` map + absolute-URL `import()`). Other bundlers can alias this specifier to their own module exporting `{ manifest, importFn }`.
 
-The fn is forwarded as a prop to every `vue-onigiri:component-loader` the AST contains, so nested `v-load-client` targets inherit it automatically.
+Without any of the three, the loader throws with setup guidance — the runtime itself has no Vite-only imports and works under any bundler (or none).
 
 ```js
 import { renderOnigiri } from "vue-onigiri/runtime/deserialize";
@@ -202,7 +203,16 @@ renderOnigiri(ast, {
 });
 ```
 
-To centralize this in a Vue plugin pattern, write a tiny wrapper component that closures the importFn and forwards `ast` into `renderOnigiri`.
+```js
+import { onigiriPlugin } from "vue-onigiri/runtime/plugin";
+
+app.use(onigiriPlugin, {
+  importFn: async (src, exportName = "default") => {
+    const mod = await myCustomLoader(src);
+    return mod[exportName] ?? mod.default ?? mod;
+  },
+});
+```
 
 ## How It Works
 
@@ -218,7 +228,7 @@ Client: AST → deserialize → VNode tree (lazy chunks resolved via importFn)
 ## Limitations
 
 - Proof of concept — API is unstable, not production-ready.
-- `v-load-client` requires compile-time path resolution: the target component must be statically imported in the SFC, or registered through `additionalImports` (Nuxt module handles this automatically for auto-imported components).
+- `v-load-client` requires compile-time path resolution: the target component must be statically imported in the SFC (any resolvable form: relative, alias, package), or registered through `additionalImports` (Nuxt handles this automatically for auto-imported components).
 - `<component :is="x" v-load-client />` with a runtime `is` value isn't supported — the compiler can't resolve the path at build time.
 - Components used outside an onigiri-compiled SFC (e.g. via Vue's vnode fallback path) can't carry `v-load-client`.
 - Scoped slots can't be passed _into_ `v-load-client` components (the slot scope only exists on the client at runtime and can't be embedded in the frozen AST).
