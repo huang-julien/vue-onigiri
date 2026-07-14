@@ -503,6 +503,10 @@ export function unrollServerComponentBufferPromises(
   const isComponentTuple
     = Array.isArray(buffer) && (buffer as any)[0] === VServerComponentType.Component;
 
+  if (isComponentTuple) {
+    warnNonSerializableProps((buffer as any)[2], (buffer as any)[1]);
+  }
+
   for (const i in buffer) {
     const item = buffer[i];
     if (isPromise(item)) {
@@ -797,6 +801,78 @@ function applyDirective(app: App) {
       return binding;
     },
   });
+}
+
+export function serializePayloadForInline(
+  payload: OnigiriPayload | VServerComponent | undefined,
+): string {
+  return JSON.stringify(payload ?? null)
+    .replaceAll("<", "\\u003C")
+    .replaceAll("\u2028", "\\u2028")
+    .replaceAll("\u2029", "\\u2029");
+}
+
+const warnedProps = new Set<string>();
+
+function warnNonSerializableProps(chunk: string, props: Record<string, any> | undefined): void {
+  if (!props) return;
+  if (typeof process === "undefined" || process.env.NODE_ENV === "production") return;
+  for (const [key, value] of Object.entries(props)) {
+    const problem = findNonSerializable(value, key, new Set());
+    if (!problem) continue;
+    const id = `${chunk}|${problem}`;
+    if (warnedProps.has(id)) continue;
+    warnedProps.add(id);
+    console.warn(
+      `[vue-onigiri] v-load-client component "${chunk}": prop ${problem} is not JSON-safe and will not be serialized to the client. `,
+    );
+  }
+}
+
+function findNonSerializable(
+  value: unknown,
+  path: string,
+  seen: Set<object>,
+): string | undefined {
+  switch (typeof value) {
+    case "function": {
+      return `"${path}" (function)`;
+    }
+    case "symbol": {
+      return `"${path}" (symbol)`;
+    }
+    case "bigint": {
+      return `"${path}" (bigint)`;
+    }
+    case "number": {
+      return Number.isFinite(value) ? undefined : `"${path}" (non-finite number)`;
+    }
+    case "object": {
+      if (value === null) return undefined;
+      if (seen.has(value)) return `"${path}" (circular reference)`;
+      seen.add(value);
+      if (Array.isArray(value)) {
+        for (const [i, item] of value.entries()) {
+          const problem = findNonSerializable(item, `${path}[${i}]`, seen);
+          if (problem) return problem;
+        }
+        return undefined;
+      }
+      const proto = Object.getPrototypeOf(value);
+      if (proto !== Object.prototype && proto !== null) {
+        const name = (value as any).constructor?.name ?? "class";
+        return `"${path}" (${name} instance)`;
+      }
+      for (const [key, item] of Object.entries(value)) {
+        const problem = findNonSerializable(item, `${path}.${key}`, seen);
+        if (problem) return problem;
+      }
+      return undefined;
+    }
+    default: {
+      return undefined;
+    }
+  }
 }
 
 function filterProps(props: VNodeProps | undefined | null) {

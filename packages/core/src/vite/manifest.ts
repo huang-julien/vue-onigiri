@@ -140,8 +140,10 @@ export async function importFn(src, exportName = 'default') {
   // game (hashed chunk, dev-server \`/@id/<bare-spec>\` sentinel,
   // public asset, anything Vite/Node can hand to a native dynamic
   // import). No file-extension check: hosts may bake URLs without one
-  // (e.g. Vite's bare-spec resolver).
-  if (src.startsWith('/')) {
+  // (e.g. Vite's bare-spec resolver). Protocol-relative URLs ('//host/x')
+  // are rejected: chunk paths must stay same-origin, otherwise a
+  // tampered payload becomes a cross-origin script-loading gadget.
+  if (src.startsWith('/') && !src.startsWith('//')) {
     const mod = await import(/* @vite-ignore */ src)
     return mod[exportName] ?? mod.default ?? mod
   }

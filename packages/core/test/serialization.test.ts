@@ -386,7 +386,7 @@ describe("payload versioning", () => {
   it("renderOnigiri rejects payloads from a different format version", () => {
     expect(() =>
       renderOnigiri({ v: 999, ast: [VServerComponentType.Text, "x"] }),
-    ).toThrow("[vue-onigiri] Payload version mismatch");
+    ).toThrow("[vue-onigiri] Unsupported payload version: 999");
   });
 
   it("renderOnigiri still accepts bare tuple arrays", () => {
