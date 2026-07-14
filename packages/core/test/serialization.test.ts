@@ -25,71 +25,8 @@ describe("serialize/deserialize", () => {
     expect(html).toMatchInlineSnapshot(`"<div><div>1</div><div>2</div><div>0</div></div>"`);
 
     expect(ast).toMatchInlineSnapshot(`
-    	[
-    	  0,
-    	  "div",
-    	  undefined,
-    	  [
-    	    [
-    	      0,
-    	      "div",
-    	      undefined,
-    	      [
-    	        [
-    	          2,
-    	          "1",
-    	        ],
-    	      ],
-    	    ],
-    	    [
-    	      0,
-    	      "div",
-    	      undefined,
-    	      [
-    	        [
-    	          2,
-    	          "2",
-    	        ],
-    	      ],
-    	    ],
-    	    [
-    	      0,
-    	      "div",
-    	      undefined,
-    	      [
-    	        [
-    	          2,
-    	          "0",
-    	        ],
-    	      ],
-    	    ],
-    	  ],
-    	]
-    `);
-    const clientSide = mount(
-      defineComponent({
-        setup() {
-          return () => renderOnigiri(ast);
-        },
-      }),
-    );
-    const rebuiltHtml = clientSide.html().replaceAll(/\r?\n| /g, "");
-    expect(rebuiltHtml).toMatchInlineSnapshot(`"<div><div>1</div><div>2</div><div>0</div></div>"`);
-    expect(rebuiltHtml).toEqual(html);
-  });
-
-  describe("load components", () => {
-    it("should render a component with loadClientSide prop", async () => {
-      const ast = await serializeComponent(LoadComponent);
-      const html = await renderToString(h(LoadComponent));
-      expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
-        `"<div><div>1</div><div>2</div><div> counter : 0 <button>Increment</button></div></div>"`,
-      );
-
-      const { promise, resolve } = Promise.withResolvers();
-
-      expect(ast).toMatchInlineSnapshot(`
-        [
+      {
+        "ast": [
           0,
           "div",
           undefined,
@@ -117,14 +54,83 @@ describe("serialize/deserialize", () => {
               ],
             ],
             [
-              1,
+              0,
+              "div",
               undefined,
-              "/test/fixtures/components/Counter.vue",
-              "default",
-              undefined,
+              [
+                [
+                  2,
+                  "0",
+                ],
+              ],
             ],
           ],
-        ]
+        ],
+        "v": 1,
+      }
+    `);
+    const clientSide = mount(
+      defineComponent({
+        setup() {
+          return () => renderOnigiri(ast);
+        },
+      }),
+    );
+    const rebuiltHtml = clientSide.html().replaceAll(/\r?\n| /g, "");
+    expect(rebuiltHtml).toMatchInlineSnapshot(`"<div><div>1</div><div>2</div><div>0</div></div>"`);
+    expect(rebuiltHtml).toEqual(html);
+  });
+
+  describe("load components", () => {
+    it("should render a component with loadClientSide prop", async () => {
+      const ast = await serializeComponent(LoadComponent);
+      const html = await renderToString(h(LoadComponent));
+      expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
+        `"<div><div>1</div><div>2</div><div> counter : 0 <button>Increment</button></div></div>"`,
+      );
+
+      const { promise, resolve } = Promise.withResolvers();
+
+      expect(ast).toMatchInlineSnapshot(`
+        {
+          "ast": [
+            0,
+            "div",
+            undefined,
+            [
+              [
+                0,
+                "div",
+                undefined,
+                [
+                  [
+                    2,
+                    "1",
+                  ],
+                ],
+              ],
+              [
+                0,
+                "div",
+                undefined,
+                [
+                  [
+                    2,
+                    "2",
+                  ],
+                ],
+              ],
+              [
+                1,
+                undefined,
+                "/test/fixtures/components/Counter.vue",
+                "default",
+                undefined,
+              ],
+            ],
+          ],
+          "v": 1,
+        }
       `);
       const clientSide = mount(
         defineComponent({
@@ -175,17 +181,20 @@ describe("Async components", () => {
       }),
     );
     expect(ast).toMatchInlineSnapshot(`
-      [
-        0,
-        "div",
-        undefined,
-        [
+      {
+        "ast": [
+          0,
+          "div",
+          undefined,
           [
-            2,
-            "Hello world ! some text",
+            [
+              2,
+              "Hello world ! some text",
+            ],
           ],
         ],
-      ]
+        "v": 1,
+      }
     `);
     await flushPromises();
     await nextTick();
@@ -202,28 +211,31 @@ describe("Async components", () => {
     const ast = await serializeComponent(WithAsyncComponent, {});
 
     expect(ast).toMatchInlineSnapshot(`
-      [
-        0,
-        "div",
-        undefined,
-        [
+      {
+        "ast": [
+          0,
+          "div",
+          undefined,
           [
-            2,
-            " component with suspense ",
-          ],
-          [
-            0,
-            "div",
-            undefined,
             [
+              2,
+              " component with suspense ",
+            ],
+            [
+              0,
+              "div",
+              undefined,
               [
-                2,
-                "Hello world ! yolo",
+                [
+                  2,
+                  "Hello world ! yolo",
+                ],
               ],
             ],
           ],
         ],
-      ]
+        "v": 1,
+      }
     `);
   });
 
@@ -231,33 +243,36 @@ describe("Async components", () => {
     const ast = await serializeComponent(WithSuspense, {});
 
     expect(ast).toMatchInlineSnapshot(`
-      [
-        0,
-        "div",
-        undefined,
-        [
+      {
+        "ast": [
+          0,
+          "div",
+          undefined,
           [
-            2,
-            " component with suspense ",
-          ],
-          [
-            4,
             [
+              2,
+              " component with suspense ",
+            ],
+            [
+              4,
               [
-                0,
-                "div",
-                undefined,
                 [
+                  0,
+                  "div",
+                  undefined,
                   [
-                    2,
-                    "Hello world ! yolo",
+                    [
+                      2,
+                      "Hello world ! yolo",
+                    ],
                   ],
                 ],
               ],
             ],
           ],
         ],
-      ]
+        "v": 1,
+      }
     `);
   });
 });
@@ -309,39 +324,42 @@ describe("slots", () => {
     const ast = await serializeComponent(SlotToCounter);
 
     expect(ast).toMatchInlineSnapshot(`
-      [
-        0,
-        "div",
-        undefined,
-        [
+      {
+        "ast": [
+          0,
+          "div",
+          undefined,
           [
-            1,
-            undefined,
-            "/test/fixtures/components/Counter.vue",
-            "default",
-            {
-              "default": [
-                0,
-                "div",
-                undefined,
-                [
+            [
+              1,
+              undefined,
+              "/test/fixtures/components/Counter.vue",
+              "default",
+              {
+                "default": [
+                  0,
+                  "div",
+                  undefined,
                   [
-                    0,
-                    "p",
-                    undefined,
                     [
+                      0,
+                      "p",
+                      undefined,
                       [
-                        2,
-                        "Slot content (static)",
+                        [
+                          2,
+                          "Slot content (static)",
+                        ],
                       ],
                     ],
                   ],
                 ],
-              ],
-            },
+              },
+            ],
           ],
         ],
-      ]
+        "v": 1,
+      }
     `);
     // The loader's `async setup` awaits `importFn` inside a `<Suspense>`
     // boundary, so SSR fully renders Counter (and its slot) — same code
@@ -355,6 +373,29 @@ describe("slots", () => {
     expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
       `"<div><div> counter : 0 <button>Increment</button><div><p>Slot content (static)</p></div></div></div>"`,
     );
+  });
+});
+
+describe("payload versioning", () => {
+  it("serialize entry points wrap the AST in a versioned envelope", async () => {
+    const payload = await serializeComponent(ElementsOnly);
+    expect(payload.v).toBe(1);
+    expect(Array.isArray(payload.ast)).toBe(true);
+  });
+
+  it("renderOnigiri rejects payloads from a different format version", () => {
+    expect(() =>
+      renderOnigiri({ v: 999, ast: [VServerComponentType.Text, "x"] }),
+    ).toThrow("[vue-onigiri] Payload version mismatch");
+  });
+
+  it("renderOnigiri still accepts bare tuple arrays", () => {
+    const wrapper = mount(
+      defineComponent({
+        setup: () => () => renderOnigiri([VServerComponentType.Text, "legacy"]),
+      }),
+    );
+    expect(wrapper.html()).toContain("legacy");
   });
 });
 
@@ -393,7 +434,7 @@ describe("suspense fallback", () => {
           },
         ),
     });
-    const ast = (await serializeComponent(WithFallback)) as any;
+    const ast = ((await serializeComponent(WithFallback)) as any).ast;
     const json = JSON.stringify(ast);
     expect(json).toContain("real content");
     expect(json).toContain("loading");
@@ -405,7 +446,7 @@ describe("suspense fallback", () => {
 
 describe("interpolation display semantics", () => {
   it("renders null/undefined as empty text and objects as JSON, like Vue", async () => {
-    const ast = (await serializeComponent(DisplayValues)) as any;
+    const ast = ((await serializeComponent(DisplayValues)) as any).ast;
     const spanTexts = (ast[3] as any[])
       .filter((child) => child[0] === VServerComponentType.Element)
       .map((span) => span[3][0][1]);

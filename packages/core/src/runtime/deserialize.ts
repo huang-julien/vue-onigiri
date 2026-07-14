@@ -7,7 +7,12 @@ import {
   Fragment,
   Suspense,
 } from "vue";
-import { VServerComponentType, type VServerComponent } from "./shared";
+import {
+  VServerComponentType,
+  ONIGIRI_PAYLOAD_VERSION,
+  type OnigiriPayload,
+  type VServerComponent,
+} from "./shared";
 import loader from "./loader";
 import type { ImportFn } from "./utils";
 
@@ -16,10 +21,19 @@ export interface RenderOnigiriOptions {
 }
 
 export function renderOnigiri(
-  input?: VServerComponent,
+  input?: VServerComponent | OnigiriPayload,
   options?: RenderOnigiriOptions,
 ): VNode | undefined {
   if (!input) return;
+
+  if (!Array.isArray(input)) {
+    if (input.v !== ONIGIRI_PAYLOAD_VERSION) {
+      throw new Error(
+        `[vue-onigiri] Unsupported payload version: ${input.v}. Expected: ${ONIGIRI_PAYLOAD_VERSION}`,
+      );
+    }
+    return input.ast ? renderOnigiri(input.ast, options) : undefined;
+  }
 
   if (input[0] === VServerComponentType.Text) {
     return createTextVNode(input[1]);

@@ -7,7 +7,15 @@ import type { InjectionKey } from "vue";
  */
 export const ONIGIRI_RENDER_SYMBOL: InjectionKey<true> = Symbol.for("onigiri-render");
 
-export const enum VServerComponentType {
+export const ONIGIRI_PAYLOAD_VERSION = 1;
+
+/** Versioned envelope produced by `serializeApp` / `serializeComponent`. */
+export interface OnigiriPayload {
+  v: number;
+  ast: VServerComponent | undefined;
+}
+
+export enum VServerComponentType {
   Element,
   Component,
   Text,

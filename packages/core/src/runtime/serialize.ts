@@ -28,6 +28,8 @@ import {
   VServerComponentType,
   type VServerComponent,
   type MaybePromise,
+  type OnigiriPayload,
+  ONIGIRI_PAYLOAD_VERSION,
   ONIGIRI_RENDER_SYMBOL,
 } from "./shared";
 
@@ -394,11 +396,11 @@ function runOnigiriRender(
   return onigiriRender(createOnigiriCtx(instance), instance);
 }
 
-export function serializeApp(
+export async function serializeApp(
   app: App,
   slots?: Record<string, ((scope?: any) => any) | VServerComponent[]>,
   context: SSRContext = {},
-) {
+): Promise<OnigiriPayload> {
   const input = app;
   app.provide(ssrContextKey, context);
   app.provide(ONIGIRI_RENDER_SYMBOL, true as const);
@@ -414,7 +416,7 @@ export function serializeApp(
     __onigiriRender?: (ctx: any, slots: any) => VServerComponentBuffered;
   };
 
-  return app.runWithContext(async () => {
+  const ast = await app.runWithContext(async () => {
     const res = await setupComponent(instance, true);
 
     return await app.runWithContext(async () => {
@@ -464,6 +466,7 @@ export function serializeApp(
       }
     });
   });
+  return { v: ONIGIRI_PAYLOAD_VERSION, ast };
 }
 
 async function unrollSlotsObject(slots: Record<string, unknown>): Promise<Record<string, unknown>> {

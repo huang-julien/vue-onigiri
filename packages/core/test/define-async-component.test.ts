@@ -15,7 +15,7 @@ describe("serializeComponent with defineAsyncComponent", () => {
       () => new Promise<typeof Inner>((r) => setTimeout(() => r(Inner), 10)),
     );
 
-    const result = await serializeComponent(Async, { msg: "hello async" });
+    const { ast: result } = await serializeComponent(Async, { msg: "hello async" });
 
     // The AsyncComponentWrapper resolves on the server and renders the
     // resolved component as its child, which serializes as a Fragment.
@@ -39,7 +39,7 @@ describe("serializeComponent with defineAsyncComponent", () => {
       setup: () => () => h("div", null, [h(LazyInner)]),
     });
 
-    const result = await serializeComponent(Parent);
+    const { ast: result } = await serializeComponent(Parent);
 
     expect(JSON.stringify(result)).toContain("lazy child");
     expect(JSON.stringify(result)).toContain("span");

@@ -14,7 +14,7 @@ describe("serializeComponent with render fn + setup", () => {
       },
     });
 
-    const result = await serializeComponent(C, { msg: "hi" });
+    const { ast: result } = await serializeComponent(C, { msg: "hi" });
 
     expect(result).toEqual([
       VServerComponentType.Element,
@@ -35,7 +35,7 @@ describe("serializeComponent with render fn + setup", () => {
       },
     });
 
-    const result = await serializeComponent(C, { msg: "hello" });
+    const { ast: result } = await serializeComponent(C, { msg: "hello" });
 
     expect(result).toEqual([
       VServerComponentType.Element,
@@ -53,7 +53,7 @@ describe("serializeComponent with render fn + setup", () => {
       },
     });
 
-    const result = await serializeComponent(C);
+    const { ast: result } = await serializeComponent(C);
 
     expect(result).toEqual([
       VServerComponentType.Element,

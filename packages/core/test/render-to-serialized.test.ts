@@ -46,7 +46,7 @@ describe("renderToSerializedVNode", () => {
       ] as const;
     }
 
-    const result = await renderToSerializedVNode(TestComponent, {
+    const { ast: result } = await renderToSerializedVNode(TestComponent, {
       message: "Hello Onigiri!",
     });
 
@@ -75,7 +75,7 @@ describe("renderToSerializedVNode", () => {
       },
     });
 
-    const result = await renderToSerializedVNode(NormalComponent, {
+    const { ast: result } = await renderToSerializedVNode(NormalComponent, {
       msg: "test",
     });
 
@@ -110,7 +110,7 @@ describe("renderToSerializedVNode", () => {
       },
     });
 
-    const result = await renderToSerializedVNode(AsyncComponent);
+    const { ast: result } = await renderToSerializedVNode(AsyncComponent);
 
     expect(result).toEqual([VServerComponentType.Text, "async data"]);
   });
