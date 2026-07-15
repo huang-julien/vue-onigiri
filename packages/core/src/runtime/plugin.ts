@@ -1,7 +1,7 @@
 import type { App, InjectionKey } from "vue";
 import type { ImportFn } from "./utils";
 
-export const ONIGIRI_IMPORT_FN: InjectionKey<ImportFn> = Symbol.for("vue-onigiri:import-fn");
+export const ONIGIRI_IMPORT_FN: InjectionKey<ImportFn> = /* #__PURE__ */ Symbol.for("vue-onigiri:import-fn");
 
 export interface OnigiriPluginOptions {
   importFn?: ImportFn;

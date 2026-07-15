@@ -5,7 +5,7 @@ import type { InjectionKey } from "vue";
  * When this symbol is provided, setup should return the onigiri render function
  * instead of the normal render function.
  */
-export const ONIGIRI_RENDER_SYMBOL: InjectionKey<true> = Symbol.for("onigiri-render");
+export const ONIGIRI_RENDER_SYMBOL: InjectionKey<true> = /* #__PURE__ */ Symbol.for("onigiri-render");
 
 export const ONIGIRI_PAYLOAD_VERSION = 1;
 
