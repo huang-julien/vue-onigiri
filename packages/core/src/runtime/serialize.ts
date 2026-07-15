@@ -469,17 +469,23 @@ export async function serializeApp(
   return { v: ONIGIRI_PAYLOAD_VERSION, ast };
 }
 
-async function unrollSlotsObject(slots: Record<string, unknown>): Promise<Record<string, unknown>> {
+async function unrollSlotsObject(
+  slots: Record<string, unknown>,
+  unserializableProp?: Set<string>,
+): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {};
   await Promise.all(
     Object.entries(slots).map(async ([key, value]) => {
       if (isPromise(value)) {
         const resolved = await value;
         out[key] = Array.isArray(resolved)
-          ? await unrollServerComponentBufferPromises(resolved as VServerComponentBuffered)
+          ? await unrollServerComponentBufferPromises(resolved as VServerComponentBuffered, unserializableProp)
           : resolved;
       } else if (Array.isArray(value)) {
-        out[key] = await unrollServerComponentBufferPromises(value as VServerComponentBuffered);
+        out[key] = await unrollServerComponentBufferPromises(
+          value as VServerComponentBuffered,
+          unserializableProp,
+        );
       } else {
         out[key] = value;
       }
@@ -490,10 +496,11 @@ async function unrollSlotsObject(slots: Record<string, unknown>): Promise<Record
 
 export function unrollServerComponentBufferPromises(
   buffer: VServerComponentBuffered | MaybePromise<VServerComponentBuffered>,
+  warned: Set<string> = new Set(),
 ): Promise<VServerComponent> {
   if (isPromise(buffer)) {
     return buffer.then((r) => {
-      return unrollServerComponentBufferPromises(r);
+      return unrollServerComponentBufferPromises(r, warned);
     });
   }
   const result = [] as unknown as VServerComponent;
@@ -503,8 +510,8 @@ export function unrollServerComponentBufferPromises(
   const isComponentTuple
     = Array.isArray(buffer) && (buffer as any)[0] === VServerComponentType.Component;
 
-  if (isComponentTuple) {
-    warnNonSerializableProps((buffer as any)[2], (buffer as any)[1]);
+  if ((typeof __DEV__ === "undefined" || __DEV__) && isComponentTuple) {
+    warnNonSerializableProps((buffer as any)[2], (buffer as any)[1], warned);
   }
 
   for (const i in buffer) {
@@ -513,7 +520,7 @@ export function unrollServerComponentBufferPromises(
       promises.push(
         item.then((r) => {
           if (Array.isArray(r)) {
-            return Promise.all(r.map((v) => unrollServerComponentBufferPromises(v))).then(
+            return Promise.all(r.map((v) => unrollServerComponentBufferPromises(v, warned))).then(
               (unrolled) => {
                 result[i] = unrolled;
               },
@@ -531,13 +538,16 @@ export function unrollServerComponentBufferPromises(
             if (isPromise(v)) {
               return v.then((resolved) => {
                 if (resolved && Array.isArray(resolved)) {
-                  return unrollServerComponentBufferPromises(resolved as VServerComponentBuffered);
+                  return unrollServerComponentBufferPromises(
+                    resolved as VServerComponentBuffered,
+                    warned,
+                  );
                 }
                 return resolved;
               });
             }
             if (Array.isArray(v)) {
-              return unrollServerComponentBufferPromises(v as VServerComponentBuffered);
+              return unrollServerComponentBufferPromises(v as VServerComponentBuffered, warned);
             }
             return v;
           }),
@@ -553,7 +563,7 @@ export function unrollServerComponentBufferPromises(
       && !Array.isArray(item)
     ) {
       promises.push(
-        unrollSlotsObject(item as Record<string, unknown>).then((unrolled) => {
+        unrollSlotsObject(item as Record<string, unknown>, warned).then((unrolled) => {
           result[i] = unrolled as any;
         }),
       );
@@ -812,17 +822,18 @@ export function serializePayloadForInline(
     .replaceAll("\u2029", "\\u2029");
 }
 
-const warnedProps = new Set<string>();
-
-function warnNonSerializableProps(chunk: string, props: Record<string, any> | undefined): void {
+function warnNonSerializableProps(
+  chunk: string,
+  props: Record<string, any> | undefined,
+  warned: Set<string>,
+): void {
   if (!props) return;
-  if (typeof process === "undefined" || process.env.NODE_ENV === "production") return;
   for (const [key, value] of Object.entries(props)) {
     const problem = findNonSerializable(value, key, new Set());
     if (!problem) continue;
     const id = `${chunk}|${problem}`;
-    if (warnedProps.has(id)) continue;
-    warnedProps.add(id);
+    if (warned.has(id)) continue;
+    warned.add(id);
     console.warn(
       `[vue-onigiri] v-load-client component "${chunk}": prop ${problem} is not JSON-safe and will not be serialized to the client. `,
     );

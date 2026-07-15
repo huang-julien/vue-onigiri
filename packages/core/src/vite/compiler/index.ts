@@ -109,11 +109,15 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
     // leaving `virtual:onigiri:*` specifiers unrewritten in the browser.
     enforce: "post",
 
-    config() {
+    config(userConfig, env) {
       return {
         optimizeDeps: {
           exclude: ["vue-onigiri"],
         },
+        define:
+          userConfig.define?.__DEV__ === undefined
+            ? { __DEV__: JSON.stringify(env.mode !== "production") }
+            : undefined,
       };
     },
     configResolved(resolvedConfig) {
