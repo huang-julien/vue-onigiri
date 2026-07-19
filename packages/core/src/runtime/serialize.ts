@@ -506,8 +506,7 @@ export function unrollServerComponentBufferPromises(
   }
   const result = [] as unknown as VServerComponent;
   const promises: Promise<any>[] = [];
-  // Index 4 of a `[Component, ...]` tuple is the slots object — recurse
-  // into it specifically so Promises in slot bodies get awaited.
+  // Index 4 of a `[Component, ...]` tuple is the slots object; recurse into it so Promises in slot bodies get awaited.
   const isComponentTuple
     = Array.isArray(buffer) && (buffer as any)[0] === VServerComponentType.Component;
 
@@ -657,7 +656,7 @@ export async function serializeVNode(
         return [VServerComponentType.Fragment, serializeChildren(child, parentInstance)];
       });
     } else if (vnode.shapeFlag & ShapeFlags.SUSPENSE) {
-      // handle suspense
+      // ssFallback always exists; it is a placeholder Comment when no fallback slot was authored.
       const fallback = (vnode as any).ssFallback as VNode | undefined;
       const hasFallback = fallback && fallback.type !== Comment;
       if (hasFallback) {

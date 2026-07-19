@@ -10,13 +10,8 @@ import { genEventHandler, genExpressionAsValue } from "./expressions";
 import { STRIPPED_DIRECTIVES, shouldWrapDirective } from "./directives";
 
 /**
- * Props generator for COMPONENT positions (and `<slot>` outlets, where
- * v-model cannot appear). `v-model` always expands to `modelValue` +
- * `onUpdate:modelValue` (or the `v-model:arg` equivalents), the way Vue
- * compiles v-model on components. Element positions go through
- * `genPropsWithScopeId` instead, where v-model stays on the
- * runtime-directive path (`withDirective` + the built-in SSR vModel
- * transform).
+ * Props generator for component positions; v-model expands to `modelValue` + `onUpdate:modelValue` here.
+ * Element positions use `genPropsWithScopeId`, where v-model stays on the runtime-directive path.
  */
 export function genProps(props: (AttributeNode | DirectiveNode)[], context: CodegenContext): void {
   const bindDirective = props.find(
@@ -87,12 +82,7 @@ export function genPropsWithScopeId(
   genPropsObjectWithScopeId(props, context);
 }
 
-/**
- * `:[name]` / `@[name]` directive args are dynamic expressions
- * (`isStatic: false`, or compound after transformExpression). Emitting
- * their raw `content` as a quoted key produces a literal `"_ctx.name"`
- * prop, so they need a computed key instead.
- */
+/** Dynamic args (`:[name]` / `@[name]`) need computed keys; quoting their content would emit a literal `"_ctx.name"` prop. */
 function isDynamicArg(arg: DirectiveNode["arg"]): boolean {
   if (!arg || typeof arg !== "object") return false;
   if (arg.type === NodeTypes.SIMPLE_EXPRESSION) return !arg.isStatic;

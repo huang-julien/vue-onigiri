@@ -51,10 +51,6 @@ export function renderOnigiri(
     );
   }
   if (input[0] === VServerComponentType.Component) {
-    // Wrap in `<Suspense>` so the loader's async setup (which awaits
-    // the chunk import) participates in SSR's async render and
-    // client hydration. Without this, async setup throws on hydration
-    // with a "Component <Suspense> requires a default slot" warning.
     return h(
       Suspense,
       {},
@@ -84,10 +80,6 @@ export function renderOnigiri(
     );
   }
   if (input[0] === VServerComponentType.Teleport) {
-    // `createVNode` instead of `h`: h's Teleport overload rejects the
-    // call under current TS/vue typings (`__isTeleport` constructor
-    // trick). `?? false` for disabled: absent means enabled, and a JSON
-    // round-trip turns the undefined tuple slot into null.
     return createVNode(
       Teleport,
       { to: input[1], disabled: input[2] ?? false },

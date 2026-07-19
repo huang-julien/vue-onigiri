@@ -56,7 +56,7 @@ type VServerComponentTeleport = [
   VServerComponentType.Teleport,
 // selector
   string,
-  // enbled/disabled
+  // disabled
   boolean | undefined,
   Children,
 ];

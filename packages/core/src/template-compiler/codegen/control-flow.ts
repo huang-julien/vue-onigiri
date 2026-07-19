@@ -9,9 +9,7 @@ function genChildrenAsNodeOrFragment(
   children: Array<IfNode["branches"][number]["children"][number]>,
   context: CodegenContext,
 ): void {
-  // Comments emit no code. Filtering first avoids a comment-only branch
-  // producing `cond ?  : null` / `(x) => ` (syntax errors) and a comment
-  // between siblings leaving a sparse-array hole.
+  // Comments emit no code; filter first so a comment-only branch (`cond ?  : null`) or a comment between siblings cannot produce invalid JS.
   const renderable = withoutRenderlessChildren(children);
 
   if (renderable.length === 1 && renderable[0]?.type !== NodeTypes.FOR) {
@@ -65,23 +63,16 @@ export function genIf(node: IfNode, context: CodegenContext): void {
 }
 
 /**
- * v-for compiled to `...(_renderList(source, (value, key, index) => ...))`.
- * Vue's `renderList` implements template iteration semantics for every
- * source type (array, object, number, string, Map/Set/iterable), so the
- * emitted code matches what Vue's own compiler produces instead of
- * assuming `.map` exists on the source. The spread relies on v-for only
- * appearing in child positions where the parent is an array of
- * VServerComponents (element children, fragment children, slot bodies).
+ * v-for compiles to `...(_renderList(source, (value, key, index) => ...))`.
+ * `renderList` matches Vue's iteration semantics for arrays, objects, numbers, strings and iterables.
+ * The spread relies on v-for only appearing where the parent is an array of VServerComponents.
  */
 export function genFor(node: ForNode, context: CodegenContext): void {
   const { source, value, key, index } = node.parseResult;
 
-  // A destructured value (`{ id, name } in items`) reaches codegen as a
-  // COMPOUND_EXPRESSION (transformExpression rewrites it), so `.content`
-  // is undefined. Fall back to the original source text from `loc`.
+  // A destructured value (`{ id, name } in items`) becomes a COMPOUND_EXPRESSION with no `.content`; fall back to `loc` source.
   const valueVar = (value as SimpleExpressionNode)?.content || value?.loc?.source?.trim() || "item";
-  // The value may be a destructuring pattern (`{ id, name }`, `[a, b]`),
-  // so register the names it binds, not the raw pattern text.
+  // Register the names a destructuring pattern binds, not the raw pattern text.
   const loopVars: string[] = collectBindingNames(valueVar);
   if (key) {
     loopVars.push((key as SimpleExpressionNode).content);
@@ -106,9 +97,7 @@ export function genFor(node: ForNode, context: CodegenContext): void {
   }
   context.push(") => ");
 
-  // Only remove the names this loop actually added. A nested v-for that
-  // shadows an outer binding (`v-for="item in item.children"`) must not
-  // strip the outer loop's entry when the inner one closes.
+  // Only delete names this loop added, so a shadowing nested v-for (`item in item.children`) keeps the outer entry alive.
   const added: string[] = [];
   for (const v of loopVars) {
     if (!context.localVars.has(v)) {

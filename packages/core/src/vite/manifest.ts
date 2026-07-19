@@ -135,14 +135,8 @@ export async function importFn(src, exportName = 'default') {
     const mod = await loader()
     return mod[exportName] ?? mod.default ?? mod
   }
-  // Fallback for hosts that bake fetchable URLs into the AST at
-  // compile time via \`resolveChunkUrl\` — any absolute URL is fair
-  // game (hashed chunk, dev-server \`/@id/<bare-spec>\` sentinel,
-  // public asset, anything Vite/Node can hand to a native dynamic
-  // import). No file-extension check: hosts may bake URLs without one
-  // (e.g. Vite's bare-spec resolver). Protocol-relative URLs ('//host/x')
-  // are rejected: chunk paths must stay same-origin, otherwise a
-  // tampered payload becomes a cross-origin script-loading gadget.
+  // Absolute URLs baked via \`resolveChunkUrl\` (e.g. \`/_nuxt/Counter.abc123.js\`) load through native import().
+  // Protocol-relative URLs ('//host/x') are rejected so a tampered payload cannot load cross-origin scripts.
   if (src.startsWith('/') && !src.startsWith('//')) {
     const mod = await import(/* @vite-ignore */ src)
     return mod[exportName] ?? mod.default ?? mod

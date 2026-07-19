@@ -114,12 +114,8 @@ export function genComponent(node: ElementNode, context: CodegenContext): void {
 }
 
 /**
- * Generate `[Suspense, [...content], [...fallback]?]`. Non-template
- * children and `<template #default>` content form the content array;
- * `<template #fallback>` content is carried as the optional third tuple
- * element so the client-side `<Suspense>` can show it while nested
- * islands (re-)resolve. Previously the fallback was flattened INTO the
- * content, rendering both at once.
+ * Generate `[Suspense, [...content], [...fallback]?]`.
+ * `<template #fallback>` rides as the optional third tuple element so the client `<Suspense>` can show it while islands resolve.
  */
 function genSuspense(children: any[], context: CodegenContext): void {
   const defaultChildren: any[] = [];
@@ -164,11 +160,7 @@ function genSuspense(children: any[], context: CodegenContext): void {
   context.push("]");
 }
 
-/**
- * Generate `[Teleport, target, disabled, [...children]]` so the client
- * re-creates a real `<Teleport>` (previously the children were flattened
- * into a fragment, silently losing the target).
- */
+/** Generate `[Teleport, target, disabled, [...children]]` so the client re-creates a real `<Teleport>`. */
 function genTeleport(node: ElementNode, context: CodegenContext): void {
   const { props, children } = node;
 

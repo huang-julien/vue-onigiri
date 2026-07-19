@@ -14,11 +14,7 @@ export interface LoadVirtualOptions {
   additionalImports?: Map<string, AdditionalImport>;
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
   registerTarget?: (sourcePath: string) => void;
-  /**
-   * Bundler resolver (`PluginContext.resolve`) so `v-load-client`
-   * targets imported via aliases or packages resolve like any other
-   * import in the app.
-   */
+  /** Bundler resolver (`PluginContext.resolve`) so aliased and package imports resolve for `v-load-client`. */
   resolveImport?: (source: string, importer: string) => Promise<string | null | undefined>;
 }
 

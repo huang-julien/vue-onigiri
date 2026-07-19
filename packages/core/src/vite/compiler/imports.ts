@@ -5,27 +5,14 @@ function normalizePath(p: string): string {
   return p.replace(/\\/g, "/");
 }
 
-/**
- * Bundler-aware resolver, typically `PluginContext.resolve` bound to the
- * importing SFC. Returns the resolved absolute id or null.
- */
+/** Bundler resolver (`PluginContext.resolve` bound to the importing SFC). */
 export type ResolveImportFn = (source: string) => Promise<string | null | undefined>;
 
 /**
- * Parse `<script>` block imports and build a map of local identifier →
- * chunk path for the AST (e.g. `Foo` → `/components/Foo.vue`). The
- * compiler uses this to inline literal chunk paths when an imported
- * component appears in the template with `v-load-client`.
- *
- * Sources are resolved through the bundler's own resolver when
- * `resolveImport` is provided, so aliases (`@/`, `~/`), extension-less
- * imports and package imports all work. Resolutions landing under
- * `root` become root-relative paths (the shape the manifest glob and
- * the SSR resolveId hook expect); imports resolving into node_modules
- * keep their original bare specifier (hosts map those via
- * `resolveChunkUrl` or a custom `importFn`, same as `additionalImports`
- * entries). Without a resolver, relative imports fall back to plain
- * path joining, matching the previous behavior.
+ * Map each `<script>` import's local identifier to the chunk path baked into v-load-client tuples (e.g. `Foo` → `/components/Foo.vue`).
+ * Sources go through the bundler resolver when available, so aliases and package imports resolve.
+ * Resolutions under `root` become root-relative paths; node_modules resolutions keep their bare specifier.
+ * Without a resolver, relative imports fall back to plain path joining.
  */
 export async function buildImportMap(
   scriptContent: string,
@@ -63,9 +50,7 @@ async function resolveImportSource(
     const resolved = await resolveImport(source);
     if (resolved) {
       const clean = resolved.split("?")[0]!;
-      // Package imports keep their bare specifier: a node_modules file
-      // path is useless to the client glob, while the raw specifier can
-      // be mapped by the host (resolveChunkUrl / custom importFn).
+      // A node_modules file path is useless to the client glob; the bare specifier stays mappable by the host.
       if (!isRelative && clean.includes("node_modules")) {
         return source;
       }
