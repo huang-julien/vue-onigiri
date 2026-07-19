@@ -15,6 +15,7 @@ import {
   Comment,
   ssrContextKey,
   Fragment,
+  Static,
   type Component,
   mergeProps,
   type DirectiveBinding,
@@ -672,6 +673,23 @@ export async function serializeVNode(
         // @ts-expect-error internal API
         serializeChildren(vnode.ssContent, parentInstance),
       ];
+    } else if (vnode.shapeFlag & ShapeFlags.TELEPORT) {
+      const target = vnode.props?.to;
+      if (typeof target !== "string") {
+        if ((typeof __DEV__ === "undefined" || __DEV__) && target != null) {
+          console.warn(
+            "[vue-onigiri] <Teleport> with a non-string target cannot be serialized; "
+            + "its content is inlined. Use a selector string target instead.",
+          );
+        }
+        return [VServerComponentType.Fragment, serializeChildren(vnode.children, parentInstance)];
+      }
+      return [
+        VServerComponentType.Teleport,
+        target,
+        vnode.props?.disabled ? true : undefined,
+        serializeChildren(vnode.children, parentInstance),
+      ];
     } else switch (vnode.type) {
       case Text: {
         return [VServerComponentType.Text, vnode.children as string];
@@ -679,10 +697,23 @@ export async function serializeVNode(
       case Comment: {
         return [VServerComponentType.Comment, (vnode.children as string) ?? ""];
       }
+      case Static: {
+        return [
+          VServerComponentType.StaticHtml,
+          vnode.children as string,
+          (vnode as any).staticCount ?? 1,
+        ];
+      }
       case Fragment: {
         return [VServerComponentType.Fragment, serializeChildren(vnode.children, parentInstance)];
       }
- // No default
+      default: {
+        if (typeof __DEV__ === "undefined" || __DEV__) {
+          console.warn(
+            `[vue-onigiri] Unsupported vnode type dropped during serialization: ${String(vnode.type)}`,
+          );
+        }
+      }
     }
   } else if (vnode && (typeof vnode === "string" || typeof vnode === "number")) {
     return [VServerComponentType.Text, vnode as string];

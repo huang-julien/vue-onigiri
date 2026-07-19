@@ -2,10 +2,12 @@ import {
   createTextVNode,
   createCommentVNode,
   createStaticVNode,
+  createVNode,
   type VNode,
   h,
   Fragment,
   Suspense,
+  Teleport,
 } from "vue";
 import {
   VServerComponentType,
@@ -79,6 +81,17 @@ export function renderOnigiri(
           ? { fallback: () => renderChildren(input[2], options) }
           : {}),
       },
+    );
+  }
+  if (input[0] === VServerComponentType.Teleport) {
+    // `createVNode` instead of `h`: h's Teleport overload rejects the
+    // call under current TS/vue typings (`__isTeleport` constructor
+    // trick). `?? false` for disabled: absent means enabled, and a JSON
+    // round-trip turns the undefined tuple slot into null.
+    return createVNode(
+      Teleport,
+      { to: input[1], disabled: input[2] ?? false },
+      input[3]?.map((v) => renderOnigiri(v, options)),
     );
   }
   if (input[0] === VServerComponentType.StaticHtml) {

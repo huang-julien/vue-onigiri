@@ -18,14 +18,14 @@ describe("built-in components", () => {
     expect(result.code).toMatch(/\[4,\s*\[/);
   });
 
-  it("Teleport passes children through as a fragment", () => {
+  it("Teleport compiles to [VServerComponentType.Teleport, target, disabled, children]", () => {
     const result = compileOnigiri(`
       <Teleport to="body">
         <div>inside</div>
       </Teleport>
     `);
-    // Type 3 = Fragment
-    expect(result.code).toMatch(/\[3,\s*\[/);
+    // Type 7 = Teleport, target preserved
+    expect(result.code).toMatch(/\[7,\s*"body",\s*undefined,\s*\[/);
     expect(result.code).toContain("\"inside\"");
   });
 

@@ -80,12 +80,14 @@ export function genComponent(node: ElementNode, context: CodegenContext): void {
     genDynamicComponent(node, context);
     return;
   }
-  // Teleport / KeepAlive / Transition have no server-side DOM effect — pass
+  if (tag === "Teleport" || tag === "teleport") {
+    genTeleport(node, context);
+    return;
+  }
+  // KeepAlive / Transition have no server-side DOM effect — pass
   // children through as a fragment.
   if (
-    tag === "Teleport"
-    || tag === "teleport"
-    || tag === "KeepAlive"
+    tag === "KeepAlive"
     || tag === "keep-alive"
     || tag === "Transition"
     || tag === "transition"
@@ -160,6 +162,55 @@ function genSuspense(children: any[], context: CodegenContext): void {
   }
 
   context.push("]");
+}
+
+/**
+ * Generate `[Teleport, target, disabled, [...children]]` so the client
+ * re-creates a real `<Teleport>` (previously the children were flattened
+ * into a fragment, silently losing the target).
+ */
+function genTeleport(node: ElementNode, context: CodegenContext): void {
+  const { props, children } = node;
+
+  const findProp = (name: string) =>
+    props.find(
+      (p) =>
+        (p.type === NodeTypes.ATTRIBUTE && p.name === name)
+        || (p.type === NodeTypes.DIRECTIVE
+          && p.name === "bind"
+          && p.arg?.type === NodeTypes.SIMPLE_EXPRESSION
+          && p.arg.content === name),
+    );
+
+  context.push("[");
+  context.push(VServerComponentType.Teleport.toString());
+  context.push(", ");
+
+  const to = findProp("to");
+  if (to?.type === NodeTypes.ATTRIBUTE && to.value) {
+    context.push(JSON.stringify(to.value.content));
+  } else if (to?.type === NodeTypes.DIRECTIVE && to.exp) {
+    genExpressionAsValue(to.exp, context);
+  } else {
+    context.push("undefined");
+  }
+  context.push(", ");
+
+  const disabled = findProp("disabled");
+  if (disabled?.type === NodeTypes.ATTRIBUTE) {
+    context.push("true");
+  } else if (disabled?.type === NodeTypes.DIRECTIVE && disabled.exp) {
+    genExpressionAsValue(disabled.exp, context);
+  } else {
+    context.push("undefined");
+  }
+  context.push(", [");
+
+  for (const [i, child] of withoutRenderlessChildren(children).entries()) {
+    if (i > 0) context.push(", ");
+    genNode(child, context);
+  }
+  context.push("]]");
 }
 
 function genFragmentPassthrough(children: any[], context: CodegenContext): void {

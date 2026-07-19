@@ -3,7 +3,16 @@
 import { describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import ElementsOnly from "./fixtures/components/ElementsOnly.vue";
-import { defineComponent, h, inject, nextTick, provide, Suspense } from "vue";
+import {
+  createStaticVNode,
+  defineComponent,
+  h,
+  inject,
+  nextTick,
+  provide,
+  Suspense,
+  Teleport,
+} from "vue";
 import { renderOnigiri } from "../src/runtime/deserialize";
 import LoadComponent from "./fixtures/components/LoadComponent.vue";
 import { serializeComponent } from "../src/runtime/serialize";
@@ -403,6 +412,52 @@ describe("v-load-client via alias import", () => {
   it("resolves the aliased import to a root-relative chunk path", async () => {
     const ast = await serializeComponent(AliasLoad);
     expect(JSON.stringify(ast)).toContain('"/test/fixtures/components/Counter.vue"');
+  });
+});
+
+describe("static vnodes and teleport", () => {
+  it("serializes Static vnodes as StaticHtml instead of dropping them", async () => {
+    const WithStatic = defineComponent({
+      setup: () => () => h("section", null, [createStaticVNode("<p>static A</p><p>static B</p>", 2)]),
+    });
+    const { ast } = (await serializeComponent(WithStatic)) as any;
+    const json = JSON.stringify(ast);
+    expect(json).toContain("static A");
+    expect(json).toContain(`[${VServerComponentType.StaticHtml},"<p>static A</p><p>static B</p>",2]`);
+
+    const wrapper = mount(
+      defineComponent({ setup: () => () => renderOnigiri(ast) }),
+    );
+    expect(wrapper.html()).toContain("<p>static A</p>");
+    expect(wrapper.html()).toContain("<p>static B</p>");
+  });
+
+  it("serializes Teleport with its target and re-creates it client-side", async () => {
+    const WithTeleport = defineComponent({
+      setup: () => () =>
+        h("div", null, [h(Teleport, { to: "#tp-target" }, [h("span", null, "teleported")])]),
+    });
+    const { ast } = (await serializeComponent(WithTeleport)) as any;
+    expect(JSON.stringify(ast)).toContain(`[${VServerComponentType.Teleport},"#tp-target",null,`);
+
+    const target = document.createElement("div");
+    target.id = "tp-target";
+    document.body.append(target);
+    try {
+      mount(defineComponent({ setup: () => () => renderOnigiri(ast) }), { attachTo: document.body });
+      expect(target.innerHTML).toContain("teleported");
+    } finally {
+      target.remove();
+    }
+  });
+
+  it("renders a disabled Teleport inline", async () => {
+    const WithDisabled = defineComponent({
+      setup: () => () => h(Teleport, { to: "#nowhere", disabled: true }, [h("i", null, "inline")]),
+    });
+    const { ast } = (await serializeComponent(WithDisabled)) as any;
+    const wrapper = mount(defineComponent({ setup: () => () => renderOnigiri(ast) }));
+    expect(wrapper.html()).toContain("<i>inline</i>");
   });
 });
 

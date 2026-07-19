@@ -25,6 +25,7 @@ export enum VServerComponentType {
   StaticHtml,
   /** Comment vnode - rendered using createCommentVNode */
   Comment,
+  Teleport,
 }
 type Tag = string;
 type ChunkPath = string;
@@ -50,6 +51,14 @@ type VServerComponentSuspense = [
   VServerComponent[] | undefined,
   // fallback children
   (VServerComponent[] | undefined)?,
+];
+type VServerComponentTeleport = [
+  VServerComponentType.Teleport,
+// selector
+  string,
+  // enbled/disabled
+  boolean | undefined,
+  Children,
 ];
 
 /**
@@ -92,6 +101,12 @@ type VServerComponentSuspenseBuffered = [
   MaybePromise<VServerComponentBuffered[]> | undefined,
   (MaybePromise<VServerComponentBuffered[]> | undefined)?,
 ];
+type VServerComponentTeleportBuffered = [
+  VServerComponentType.Teleport,
+  string,
+  boolean | undefined,
+  MaybePromise<(VServerComponentBuffered | undefined)[]> | undefined,
+];
 
 type VServerComponentStaticHtmlBuffered = [VServerComponentType.StaticHtml, string, number];
 
@@ -102,6 +117,7 @@ export type VServerComponentBuffered
     | VServerComponentCommentBuffered
     | VServerComponentFragmentBuffered
     | VServerComponentSuspenseBuffered
+    | VServerComponentTeleportBuffered
     | VServerComponentStaticHtmlBuffered;
 
 export type VServerComponent
@@ -111,6 +127,7 @@ export type VServerComponent
     | VServerComponentComment
     | VServerComponentFragment
     | VServerComponentSuspense
+    | VServerComponentTeleport
     | VServerComponentStaticHtml;
 
 /**

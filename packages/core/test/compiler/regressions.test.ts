@@ -56,6 +56,18 @@ describe("onigiri compiler", () => {
       expect(keyboard.code).toContain("_withKeys(_ctx.go, [\"left\"])");
     });
 
+    it("Teleport keeps its target instead of flattening into a fragment", () => {
+      const result = compileOnigiri(`<Teleport to="#modal"><p>x</p></Teleport>`);
+      expectParses(result.code);
+      expect(result.code).toContain("return [7, \"#modal\", undefined, [[0, \"p\", undefined, [[2, \"x\"]]]]];");
+    });
+
+    it("Teleport supports dynamic target and disabled", () => {
+      const result = compileOnigiri(`<Teleport :to="target" :disabled="isInline"><p>x</p></Teleport>`);
+      expectParses(result.code);
+      expect(result.code).toContain("return [7, _ctx.target, _ctx.isInline, ");
+    });
+
     it("Suspense #fallback is carried as the third tuple element, not flattened into content", () => {
       const result = compileOnigiri(
         `<Suspense><template #default><Content /></template><template #fallback><p>loading</p></template></Suspense>`,
