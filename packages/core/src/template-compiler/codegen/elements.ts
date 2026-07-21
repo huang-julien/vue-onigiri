@@ -116,7 +116,7 @@ function genHtmlElement(node: ElementNode, context: CodegenContext): void {
     for (const dir of wrappedDirectives) {
       context.push(", ");
       genDirectiveBinding(dir, context);
-      context.push(")");
+      context.push(", __instance)");
     }
   }
 }

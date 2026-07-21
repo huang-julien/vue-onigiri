@@ -1,4 +1,4 @@
-import { mergeProps, type ObjectDirective } from "vue";
+import { mergeProps, type ComponentInternalInstance, type ObjectDirective } from "vue";
 import type { VServerComponentBuffered, VServerComponent } from "./shared";
 import { VServerComponentType } from "./shared";
 
@@ -8,27 +8,13 @@ export interface ObjectDirectiveBinding<V = any> {
   modifiers: Record<string, boolean>;
 }
 
-// `transformOnigiri` augmentation lives in `src/types.ts`.
-
-/**
- * Directive resolver function type.
- * Used to resolve string directive names to directive objects.
- */
-export type DirectiveResolver = (name: string) => ObjectDirective | undefined;
-
-/**
- * Module-scoped resolver for custom directives referenced by string name
- * from compiled templates. Set once at app bootstrap. An app-scoped
- * alternative would be cleaner but would require threading through every
- * compiled render function; this is the pragmatic trade-off.
- */
-let globalDirectiveResolver: DirectiveResolver | undefined;
-export function setDirectiveResolver(resolver: DirectiveResolver): void {
-  globalDirectiveResolver = resolver;
-}
-
-export function getDirectiveResolver(): DirectiveResolver | undefined {
-  return globalDirectiveResolver;
+// resolve directive from instance or app context
+function resolveInstanceDirective(
+  instance: ComponentInternalInstance | undefined,
+  name: string,
+): ObjectDirective | undefined {
+  const local = (instance?.type as any)?.directives?.[name];
+  return local ?? instance?.appContext?.directives?.[name];
 }
 
 /**
@@ -52,12 +38,15 @@ export function withDirective(
   directive: string | ObjectDirective,
   node: VServerComponentBuffered,
   binding: Partial<ObjectDirectiveBinding> = {},
+  instance?: ComponentInternalInstance,
 ): VServerComponentBuffered {
   let dir: ObjectDirective | undefined;
-  // disable for clarity
 
   if (typeof directive === "string") {
-    dir = builtInDirectives[directive] ?? globalDirectiveResolver?.(directive);
+    dir = builtInDirectives[directive] ?? resolveInstanceDirective(instance, directive);
+    if (!dir && (typeof __DEV__ === "undefined" || __DEV__)) {
+      console.warn(`[vue-onigiri] Failed to resolve directive: ${directive}`);
+    }
   } else {
     dir = directive;
   }
@@ -288,14 +277,3 @@ const builtInDirectives: Record<string, ObjectDirective> = {
   show: vShow,
   model: vModel,
 };
-
-export function createDirectiveResolver(appResolver?: DirectiveResolver): DirectiveResolver {
-  return (name: string) => {
-    // Check built-in directives first
-    if (builtInDirectives[name]) {
-      return builtInDirectives[name];
-    }
-    // Fall back to app resolver
-    return appResolver?.(name);
-  };
-}

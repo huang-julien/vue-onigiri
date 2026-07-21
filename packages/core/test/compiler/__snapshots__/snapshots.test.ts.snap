@@ -114,7 +114,7 @@ exports[`onigiri compiler > snapshots > directives > v-model on input 1`] = `
 "import { withDirective as __withDirective } from "vue-onigiri/runtime/with-directive";
 
 export function renderOnigiri(_ctx, __instance) {
-return __withDirective("model", [0, "input", undefined], {"value": _ctx.text});
+return __withDirective("model", [0, "input", undefined], {"value": _ctx.text}, __instance);
 }"
 `;
 
@@ -122,7 +122,7 @@ exports[`onigiri compiler > snapshots > directives > v-show 1`] = `
 "import { withDirective as __withDirective } from "vue-onigiri/runtime/with-directive";
 
 export function renderOnigiri(_ctx, __instance) {
-return __withDirective("show", [0, "div", undefined, [[2, "Visible content"]]], {"value": _ctx.visible});
+return __withDirective("show", [0, "div", undefined, [[2, "Visible content"]]], {"value": _ctx.visible}, __instance);
 }"
 `;
 
@@ -258,7 +258,7 @@ import { withDirective as __withDirective } from "vue-onigiri/runtime/with-direc
 import { toDisplayString as _toDisplayString } from "vue";
 
 export function renderOnigiri(_ctx, __instance) {
-return [0, "form", {"onSubmit": _withModifiers(_ctx.onSubmit, ["prevent"]), "class": "form"}, [[0, "div", {"class": "form-group"}, [[0, "label", {"for": "email"}, [[2, "Email"]]], __withDirective("model", [0, "input", {"id": "email", "type": "email", "class": { error: _ctx.errors.email }}], {"value": _ctx.email}), (_ctx.errors.email ? [0, "span", {"class": "error-message"}, [[2, _toDisplayString(_ctx.errors.email)]]] : null)]], [0, "button", {"type": "submit", "disabled": _ctx.isSubmitting}, [[2, _toDisplayString(_ctx.isSubmitting ? 'Submitting...' : 'Submit')]]]]];
+return [0, "form", {"onSubmit": _withModifiers(_ctx.onSubmit, ["prevent"]), "class": "form"}, [[0, "div", {"class": "form-group"}, [[0, "label", {"for": "email"}, [[2, "Email"]]], __withDirective("model", [0, "input", {"id": "email", "type": "email", "class": { error: _ctx.errors.email }}], {"value": _ctx.email}, __instance), (_ctx.errors.email ? [0, "span", {"class": "error-message"}, [[2, _toDisplayString(_ctx.errors.email)]]] : null)]], [0, "button", {"type": "submit", "disabled": _ctx.isSubmitting}, [[2, _toDisplayString(_ctx.isSubmitting ? 'Submitting...' : 'Submit')]]]]];
 }"
 `;
 
