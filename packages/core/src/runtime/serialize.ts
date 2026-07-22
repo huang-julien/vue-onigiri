@@ -34,12 +34,6 @@ import {
   ONIGIRI_RENDER_SYMBOL,
 } from "./shared";
 
-declare module "vue" {
-  interface ComponentInternalInstance {
-    __slotsResult?: Record<string, VNode>;
-  }
-}
-
 declare global {
   interface ImportMeta {
     server: boolean;
@@ -61,7 +55,6 @@ const {
     isSSR?: boolean,
   ) => Promise<void> | undefined;
   renderComponentRoot: (instance: ComponentInternalInstance) => VNode & {
-    __slotsResult?: Record<string, VNode>;
     _onigiriLoadClient?: boolean;
   };
 } = ssrUtils;
@@ -248,7 +241,6 @@ export function serializeComponentInContext(
 ): Promise<VServerComponent | undefined> {
   const vnode = createVNode(component, props, wrapSlotFnsForVue(slots) as any);
   const instance = createComponentInstance(vnode, parentInstance ?? null, null);
-  inheritAppContext(instance, parentInstance);
   const res = setupComponent(instance, true);
 
   const hasAsyncSetup = isPromise(res);
@@ -300,29 +292,6 @@ export function serializeComponentInContext(
   }
 
   return doRender();
-}
-
-function inheritAppContext(
-  instance: ComponentInternalInstance,
-  parentInstance?: ComponentInternalInstance,
-): void {
-  // @ts-expect-error internal API
-  if (instance.appContext && instance.provides) return;
-  let p: ComponentInternalInstance | null | undefined = parentInstance;
-  while (p) {
-    if (!instance.appContext && p.appContext) {
-      instance.appContext = p.appContext;
-    }
-    // @ts-expect-error internal API
-
-    if (!instance.provides && p.provides) {
-      // @ts-expect-error internal API
-      instance.provides = p.provides;
-    } // @ts-expect-error internal API
-
-    if (instance.appContext && instance.provides) break;
-    p = p.parent;
-  }
 }
 
 /**
@@ -579,6 +548,9 @@ export async function serializeVNode(
   vnode: VNodeChild,
   parentInstance?: ComponentInternalInstance,
 ): Promise<VServerComponentBuffered | undefined> {
+  if (Array.isArray(vnode)) {
+    return [VServerComponentType.Fragment, serializeChildren(vnode as VNodeChild[], parentInstance)];
+  }
   if (isVNode(vnode)) {
     if (vnode.shapeFlag & ShapeFlags.ELEMENT) {
       return [
@@ -610,7 +582,6 @@ export async function serializeVNode(
         && !(componentType.__onigiriRender as any).__onigiriEmpty
       ) {
         const instance = createComponentInstance(vnode, parentInstance ?? null, null);
-        inheritAppContext(instance, parentInstance);
         const res = setupComponent(instance, true);
 
         const runPicked = (): any => {
@@ -746,24 +717,6 @@ function renderComponent(
   parentInstance?: ComponentInternalInstance | null,
 ): Promise<VNodeNormalizedChildren | VNode> | VNodeNormalizedChildren | VNode {
   const instance = createComponentInstance(_vnode, parentInstance ?? null, null);
-  const children = instance.vnode.children;
-  const reconstructedSlots: Record<string, any> = {};
-  if (children && typeof children === "object" && !Array.isArray(children)) {
-    for (const key in children) {
-      const fn = (children as Record<string, any>)[key];
-      if (typeof fn !== "function") {
-        reconstructedSlots[key] = fn;
-        continue;
-      }
-      reconstructedSlots[key] = (...args: any[]) => {
-        const result = fn(...args);
-        instance.__slotsResult = instance.__slotsResult || {};
-        instance.__slotsResult[key] = result;
-        return result;
-      };
-    }
-  }
-  instance.vnode.children = reconstructedSlots;
   const res = setupComponent(instance, true);
   const hasAsyncSetup = isPromise(res);
   let prefetches
@@ -786,7 +739,6 @@ function renderComponent(
       if (dirs) {
         vnode.props = applySSRDirectives(vnode, props, dirs);
       }
-      vnode.__slotsResult = instance.__slotsResult;
       if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
         return renderComponent(vnode, instance);
       }
@@ -799,7 +751,6 @@ function renderComponent(
   if (dirs) {
     child.props = applySSRDirectives(child, props, dirs);
   }
-  child.__slotsResult = instance.__slotsResult;
   if (child.shapeFlag & ShapeFlags.COMPONENT) {
     return renderComponent(child, instance);
   }

@@ -552,6 +552,33 @@ describe("fallback walk (non-onigiri components)", () => {
       setup: () => () => h("section", null, [h(Child)]),
     });
 
+  it("passes slots between plain components through the fallback walk", async () => {
+    const LibChild = defineComponent({
+      setup(_, { slots }) {
+        return () =>
+          h("div", { class: "lib" }, [
+            h("header", null, slots.header?.()),
+            slots.default?.(),
+            slots.item?.({ n: 41 }),
+          ]);
+      },
+    });
+    const Parent = defineComponent({
+      setup: () => () =>
+        h(LibChild, null, {
+          header: () => h("b", null, "header-slot"),
+          default: () => h("p", null, "default-slot"),
+          item: (scope: { n: number }) => h("i", null, `scoped-${scope.n + 1}`),
+        }),
+    });
+
+    const { ast } = (await serializeComponent(Parent)) as any;
+    const json = JSON.stringify(ast);
+    expect(json).toContain("header-slot");
+    expect(json).toContain("default-slot");
+    expect(json).toContain("scoped-42");
+  });
+
   it("preserves the root element of an async-setup child", async () => {
     const astSync = await serializeComponent(makeParent(SyncChild));
     const astAsync = await serializeComponent(makeParent(AsyncChild));
