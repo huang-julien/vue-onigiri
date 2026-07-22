@@ -1,4 +1,5 @@
 import { mergeProps, type ComponentInternalInstance, type ObjectDirective } from "vue";
+import { isPromise, looseEqual, looseIndexOf } from "@vue/shared";
 import type { VServerComponentBuffered, VServerComponent } from "./shared";
 import { VServerComponentType } from "./shared";
 
@@ -252,6 +253,42 @@ export const vShow: ObjectDirective<HTMLElement, boolean> = {
   },
 };
 
+function isChecked(modelValue: any, elementValue: any): boolean {
+  if (Array.isArray(modelValue)) return looseIndexOf(modelValue, elementValue) > -1;
+  if (modelValue instanceof Set) return modelValue.has(elementValue);
+  return !!modelValue;
+}
+
+function getOptionValue(props: Record<string, any> | undefined, children: any): any {
+  if (props && "value" in props) return props.value;
+  if (Array.isArray(children) && children[0]?.[0] === VServerComponentType.Text) {
+    return children[0][1];
+  }
+  return undefined;
+}
+
+function markSelectedOptions(children: any, modelValue: any, multiple: boolean): any {
+  if (isPromise(children)) {
+    return children.then((resolved: any) => markSelectedOptions(resolved, modelValue, multiple));
+  }
+  if (!Array.isArray(children)) return children;
+
+  return children.map((child: any) => {
+    if (!Array.isArray(child) || child[0] !== VServerComponentType.Element) return child;
+    const [type, tag, props, optionChildren] = child;
+    if (tag === "optgroup") {
+      return [type, tag, props, markSelectedOptions(optionChildren, modelValue, multiple)];
+    }
+    if (tag !== "option") return child;
+
+    const optionValue = getOptionValue(props, optionChildren);
+    const selected = multiple
+      ? isChecked(modelValue, optionValue)
+      : looseEqual(modelValue, optionValue);
+    return selected ? [type, tag, { ...props, selected: true }, optionChildren] : child;
+  });
+}
+
 export const vModel: ObjectDirective<HTMLElement, any> = {
   transformOnigiri(node, binding) {
     if (node[0] !== VServerComponentType.Element) return node;
@@ -263,7 +300,24 @@ export const vModel: ObjectDirective<HTMLElement, any> = {
     ];
 
     // Set value attribute for input elements
-    if (tag === "input" || tag === "textarea" || tag === "select") {
+    if (tag === "input" && props?.type === "checkbox") {
+      return isChecked(binding.value, props?.value)
+        ? ([type, tag, { ...props, checked: true }, children] as VServerComponent)
+        : node;
+    }
+
+    if (tag === "input" && props?.type === "radio") {
+      return looseEqual(binding.value, props?.value)
+        ? ([type, tag, { ...props, checked: true }, children] as VServerComponent)
+        : node;
+    }
+
+    if (tag === "select") {
+      const multiple = !!props?.multiple;
+      return [type, tag, props, markSelectedOptions(children, binding.value, multiple)] as VServerComponent;
+    }
+
+    if (tag === "input" || tag === "textarea") {
       return [type, tag, { ...props, value: binding.value }, children] as VServerComponent;
     }
 
