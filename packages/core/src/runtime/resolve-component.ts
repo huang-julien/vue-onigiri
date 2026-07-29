@@ -1,23 +1,32 @@
 import type { Component, ComponentInternalInstance } from "vue";
+import { camelize, capitalize } from "@vue/shared";
+
+function lookup(
+  registry: Record<string, Component> | undefined,
+  name: string,
+): Component | undefined {
+  if (!registry) return undefined;
+  if (name in registry) return registry[name];
+  const camel = camelize(name);
+  if (camel in registry) return registry[camel];
+  const pascal = capitalize(camel);
+  if (pascal in registry) return registry[pascal];
+  return undefined;
+}
 
 export function resolveComponentInInstance(
   instance: ComponentInternalInstance | null | undefined,
   name: string,
 ): Component | string {
   if (!instance) return name;
-  const components = instance.appContext?.components as Record<string, Component> | undefined;
-  if (components) {
-    if (name in components) return components[name]!;
-    const camel = name.replace(/-(\w)/g, (_, c: string) => c.toUpperCase());
-    if (camel in components) return components[camel]!;
-    const pascal = camel.charAt(0).toUpperCase() + camel.slice(1);
-    if (pascal in components) return components[pascal]!;
-  }
+
+  const resolved
+    = lookup((instance.type as any)?.components, name)
+      ?? lookup(instance.appContext?.components as Record<string, Component> | undefined, name);
+  if (resolved) return resolved;
+
   const self = (instance.type as Component & { name?: string }).name;
-  if (
-    self
-    && (self === name || self === name.replace(/-(\w)/g, (_, c: string) => c.toUpperCase()))
-  ) {
+  if (self && (self === name || self === camelize(name))) {
     return instance.type as Component;
   }
   return name;

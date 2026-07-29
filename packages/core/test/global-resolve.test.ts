@@ -3,8 +3,10 @@ import { createApp, defineComponent, h, resolveComponent } from "vue";
 import { renderToString } from "@vue/server-renderer";
 import { serializeApp } from "../src/runtime/serialize";
 import { renderOnigiri } from "../src/runtime/deserialize";
+import { resolveComponentInInstance } from "../src/runtime/resolve-component";
 import GlobalUser from "./fixtures/components/GlobalUser.vue";
 import NestedGlobalRoot from "./fixtures/components/NestedGlobalRoot.vue";
+import LocalRegistration from "./fixtures/components/LocalRegistration.vue";
 import { removeCommentsFromHtml } from "./utils";
 
 const RouterLinkStub = defineComponent({
@@ -64,5 +66,46 @@ describe("global component resolution during serialize", () => {
     expect(actual).not.toContain("<LinkLike");
     expect(actual).toContain("class=\"resolved\"");
     expect(removeCommentsFromHtml(actual)).toBe(removeCommentsFromHtml(expected));
+  });
+
+  it("resolves components registered via the local components option", async () => {
+    const expected = await renderToString(createApp(LocalRegistration));
+
+    const serialized = await serializeApp(createApp(LocalRegistration));
+    const rebuilt = createApp({ setup: () => () => renderOnigiri(serialized) });
+    const actual = await renderToString(rebuilt);
+
+    expect(actual).toContain("counter");
+    expect(actual).not.toContain("<renamed-counter");
+    expect(removeCommentsFromHtml(actual)).toBe(removeCommentsFromHtml(expected));
+  });
+});
+
+describe("resolveComponentInInstance lookup order", () => {
+  const Local = defineComponent({ name: "LocalComp", render: () => null });
+  const Global = defineComponent({ name: "GlobalComp", render: () => null });
+  const makeInstance = (localReg?: any, appReg?: any): any => ({
+    type: { components: localReg },
+    appContext: { components: appReg ?? {} },
+  });
+
+  it("checks the local components option before the app context", () => {
+    expect(resolveComponentInInstance(makeInstance({ Foo: Local }, { Foo: Global }), "Foo")).toBe(
+      Local,
+    );
+  });
+
+  it("resolves casing variants in the local registry", () => {
+    expect(resolveComponentInInstance(makeInstance({ FooBar: Local }), "foo-bar")).toBe(Local);
+    expect(resolveComponentInInstance(makeInstance({ fooBar: Local }), "foo-bar")).toBe(Local);
+  });
+
+  it("falls back to the app context, then self-name, then the raw tag", () => {
+    expect(resolveComponentInInstance(makeInstance(undefined, { Foo: Global }), "Foo")).toBe(
+      Global,
+    );
+    const self: any = { type: { name: "SelfName" }, appContext: { components: {} } };
+    expect(resolveComponentInInstance(self, "SelfName")).toBe(self.type);
+    expect(resolveComponentInInstance(makeInstance(), "Nope")).toBe("Nope");
   });
 });
