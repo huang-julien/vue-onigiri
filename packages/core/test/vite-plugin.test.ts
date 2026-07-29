@@ -1,12 +1,25 @@
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { readFileSync } from "node:fs";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { parse, compileScript } from "@vue/compiler-sfc";
-import type { ResolvedConfig } from "vite";
+import type { Plugin, ResolvedConfig } from "vite";
 import { compileOnigiriInline } from "../src/template-compiler";
 import { injectIntoSetupAsync } from "../src/vite/compiler/inject-setup";
+import { onigiriCompilerPlugin } from "../src/vite/compiler";
+import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "../src/vite/compiler/constants";
 import MagicString from "magic-string";
+ 
+const { virtualFiles } = vi.hoisted(() => ({ virtualFiles: new Set<string>() }));
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    default: actual,
+    existsSync: (p: Parameters<typeof actual.existsSync>[0]) =>
+      virtualFiles.has(String(p)) || actual.existsSync(p),
+  };
+});
 
 describe("Vite plugin code generation", () => {
   /**
@@ -214,5 +227,61 @@ describe("injectIntoSetupAsync setup bridge", () => {
     expect(inlineRenderAt).toBeGreaterThan(-1);
     expect(injectedAt).toBeLessThan(inlineRenderAt);
     expect(injectedAt).toBeGreaterThan(lastBindingAt);
+  });
+});
+
+describe("resolveId of imports coming from a virtual:onigiri module", () => {
+  // POSIX-shaped on purpose — see the `node:fs` mock above.
+  const ROOT = "/project/app";
+  const IN_ROOT = "/components/Counter.vue";
+  const OUT_OF_ROOT = "/project/node_modules/@nuxt/ui/dist/runtime/components/Button.vue";
+  const IMPORTER
+    = ONIGIRI_PREFIX + encodeURIComponent(`${ROOT}/pages/index.vue`) + ONIGIRI_SUFFIX;
+
+  /**
+   * Rollup answers truthy for absolute ids it never stat'd, which is why
+   * the bug used to surface only at load time. Mirror that here so the
+   * assertion pins the id the hook *chose*, not what a resolver rescued.
+   */
+  const pluginContext = { resolve: async (id: string) => ({ id }) };
+
+  function resolveFromVirtual(id: string) {
+    const plugin = onigiriCompilerPlugin() as Plugin;
+    (plugin.configResolved as (c: ResolvedConfig) => void).call(
+      plugin,
+      { root: ROOT, isProduction: false } as ResolvedConfig,
+    );
+    const { handler } = plugin.resolveId as { handler: (this: unknown, id: string, importer?: string) => Promise<{ id: string } | null> };
+    return handler.call(pluginContext, id, IMPORTER);
+  }
+
+  beforeEach(() => {
+    virtualFiles.clear();
+  });
+
+  it("joins a genuine root-relative id onto config.root", async () => {
+    virtualFiles.add(ROOT + IN_ROOT);
+
+    expect(await resolveFromVirtual(IN_ROOT)).toEqual({ id: ROOT + IN_ROOT });
+  });
+
+  it("resolves an absolute id outside config.root to itself", async () => {
+    // Only the real file exists; `<root><id>` does not. Before the fix
+    // the hook blindly emitted `/project/app/project/node_modules/…`,
+    // which Rollup accepted and then failed to load on Linux.
+    virtualFiles.add(OUT_OF_ROOT);
+
+    expect(await resolveFromVirtual(OUT_OF_ROOT)).toEqual({ id: OUT_OF_ROOT });
+  });
+
+  it("prefers the root-joined path when both spellings exist", async () => {
+    virtualFiles.add(OUT_OF_ROOT);
+    virtualFiles.add(ROOT + OUT_OF_ROOT);
+
+    expect(await resolveFromVirtual(OUT_OF_ROOT)).toEqual({ id: ROOT + OUT_OF_ROOT });
+  });
+
+  it("falls back to the root-joined path when neither exists", async () => {
+    expect(await resolveFromVirtual(IN_ROOT)).toEqual({ id: ROOT + IN_ROOT });
   });
 });

@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import type { Plugin, ResolvedConfig } from "vite";
 import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "./constants";
 import { loadVirtualOnigiriModule } from "./load-virtual";
@@ -149,7 +150,8 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
             && !id.startsWith("/@")
             && !/^\/[A-Za-z]:/.test(id)
           ) {
-            const abs = config.root.replace(/[/\\]+$/, "") + id;
+            const rootJoined = config.root.replace(/[/\\]+$/, "") + id;
+            const abs = existsSync(rootJoined) || !existsSync(id) ? rootJoined : id;
             const resolved = await this.resolve(abs, undefined, { skipSelf: true });
             if (resolved) return resolved;
             return { id: abs };
