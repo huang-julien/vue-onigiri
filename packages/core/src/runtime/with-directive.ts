@@ -102,11 +102,40 @@ export function withDirective(
  */
 export { withDirective as __withDirective };
 
-/**
- * Count top-level nodes in an HTML string. Vue's `createStaticVNode`
- * requires the number of root nodes for correct hydration boundaries.
- * A simple character-level parser avoids pulling in a full HTML parser.
- */
+const VOID_HTML_ELEMENTS = new Set([
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
+]);
+
+const RAWTEXT_ELEMENTS = new Set(["script", "style", "textarea", "title"]);
+
+function findTagEnd(html: string, from: number): number {
+  let quote: string | undefined;
+  for (let i = from; i < html.length; i++) {
+    const c = html[i];
+    if (quote) {
+      if (c === quote) quote = undefined;
+    } else if (c === "\"" || c === "'") {
+      quote = c;
+    } else if (c === ">") {
+      return i;
+    }
+  }
+  return -1;
+}
+
 function countHtmlRootNodes(html: string): number {
   if (!html) return 0;
 
@@ -115,63 +144,56 @@ function countHtmlRootNodes(html: string): number {
   let i = 0;
 
   while (i < html.length) {
-    const char = html[i];
-    if (depth === 0 && char && /\s/.test(char)) {
-      i++;
+    if (html[i] !== "<") {
+      // Text run up to the next tag; whitespace-only runs are real text nodes.
+      if (depth === 0) count++;
+      while (i < html.length && html[i] !== "<") i++;
       continue;
     }
 
-    if (html[i] === "<") {
-      if (html[i + 1] === "/") {
-        depth--;
-        i = html.indexOf(">", i) + 1;
-      } else if (html[i + 1] === "!") {
-        // Comment or DOCTYPE - skip
+    const next = html[i + 1] ?? "";
 
-        if (html.slice(i, i + 4) === "<!--") {
-          i = html.indexOf("-->", i) + 3;
-        } else {
-          i = html.indexOf(">", i) + 1;
-        }
-        if (depth === 0) count++;
-      } else {
-        if (depth === 0) count++;
-        const tagEnd = html.indexOf(">", i);
-        if (html[tagEnd - 1] !== "/") {
-          const tagMatch = html.slice(i + 1, tagEnd).match(/^(\w+)/);
-          const tagName = tagMatch?.[1]?.toLowerCase();
-          const voidElements = new Set([
-            "area",
-            "base",
-            "br",
-            "col",
-            "embed",
-            "hr",
-            "img",
-            "input",
-            "link",
-            "meta",
-            "param",
-            "source",
-            "track",
-            "wbr",
-          ]);
-          if (!voidElements.has(tagName ?? "")) {
-            depth++;
-          }
-        }
-        i = tagEnd + 1;
+    if (next === "/") {
+      if (depth > 0) depth--;
+      const end = html.indexOf(">", i);
+      if (end === -1) break;
+      i = end + 1;
+    } else if (html.startsWith("<!--", i)) {
+      if (depth === 0) count++;
+      const end = html.indexOf("-->", i + 4);
+      if (end === -1) break;
+      i = end + 3;
+    } else if (next === "!" || next === "?") {
+      // Doctype / processing instruction: dropped by fragment parsing.
+      const end = html.indexOf(">", i);
+      if (end === -1) break;
+      i = end + 1;
+    } else if (/[a-zA-Z]/.test(next)) {
+      const end = findTagEnd(html, i + 1);
+      if (end === -1) break;
+      const tagName
+        = html.slice(i + 1, end).match(/^([a-zA-Z][\w-]*)/)?.[1]?.toLowerCase() ?? "";
+      if (depth === 0) count++;
+      const selfClosing = html[end - 1] === "/";
+      i = end + 1;
+
+      if (VOID_HTML_ELEMENTS.has(tagName) || selfClosing) continue;
+
+      if (RAWTEXT_ELEMENTS.has(tagName)) {
+        const close = html.toLowerCase().indexOf(`</${tagName}`, i);
+        if (close === -1) break;
+        const closeEnd = html.indexOf(">", close);
+        if (closeEnd === -1) break;
+        i = closeEnd + 1;
+        continue;
       }
+
+      depth++;
     } else {
-      if (depth === 0) {
-        count++;
-        while (i < html.length && html[i] !== "<") i++;
-      } else {
-        i++;
-      }
+      if (depth === 0) count++;
+      i++;
+      while (i < html.length && html[i] !== "<") i++;
     }
-
-    if (i <= 0) break;
   }
 
   return Math.max(1, count);
