@@ -63,14 +63,25 @@ export interface OnigiriCompilerOptions {
     | Map<string, AdditionalImportInput>
     | (() => Record<string, AdditionalImportInput> | Map<string, AdditionalImportInput>);
   /**
-   * Optional build-time hook: returns the public chunk URL the client
-   * should load for a given source path (e.g. `/components/Counter.vue`
-   * → `/_nuxt/Counter-XXX.js`). When wired up, the compiler bakes the
-   * URL into the AST so the SSR response never carries source paths
-   * to the browser. Returning `undefined` keeps the source path, which
-   * the runtime loader resolves via `import.meta.glob`. Re-evaluated
-   * per transform, so a function that reads from a manifest filled in
-   * after the client build will pick it up automatically.
+   * Optional optimization: returns the public chunk URL the client should
+   * load for a given root-relative source path (e.g.
+   * `/components/Counter.vue` to `/_nuxt/Counter-XXX.js`). When it
+   * answers, the compiler bakes that URL into the AST so the SSR response
+   * doesn't carry source paths to the browser. Re-evaluated per
+   * transform, so a function reading from a manifest filled in later in
+   * the build picks it up automatically.
+   *
+   * This is **not** the resolution mechanism. A root-relative source path
+   * is a valid, first-class descriptor: every host must be able to
+   * resolve one at runtime, either through the manifest's
+   * `import.meta.glob` (which gives each target its own loadable chunk)
+   * or through a custom `importFn` passed to
+   * `renderOnigiri(ast, { importFn })`.
+   *
+   * Returning `undefined` keeps the source path and is normal, not
+   * exceptional. During the client build the client chunk URLs do not
+   * exist yet, and a statically-imported component is inlined into its
+   * parent chunk, so it never has a URL of its own to hand back.
    */
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
 }

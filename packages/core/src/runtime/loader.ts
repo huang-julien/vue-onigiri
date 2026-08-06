@@ -1,9 +1,22 @@
-import { h, defineComponent, inject, shallowRef, watch, type PropType } from "vue";
+import {
+  h,
+  defineComponent,
+  ErrorCodes,
+  getCurrentInstance,
+  handleError,
+  inject,
+  shallowRef,
+  watch,
+  type FunctionalComponent,
+  type PropType,
+} from "vue";
 import type { VServerComponent, VServerComponentComponent } from "./shared";
 import { renderChildren } from "./deserialize";
 import type { ImportFn } from "./utils";
 import { importFn as defaultImportFn } from "./manifest-default";
 import { ONIGIRI_IMPORT_FN } from "./plugin";
+
+const LOAD_FAILED: FunctionalComponent = () => null;
 
 export default defineComponent({
   name: "vue-onigiri:component-loader",
@@ -20,18 +33,28 @@ export default defineComponent({
   },
 
   async setup(props) {
-    // inject() must run before the first await of an async setup.
+    // inject()/getCurrentInstance() must run before the first await of an async setup.
+    const instance = getCurrentInstance();
     const appImportFn = inject(ONIGIRI_IMPORT_FN, undefined);
     const resolveImportFn = (): ImportFn => props.importFn ?? appImportFn ?? defaultImportFn;
 
-    const Loaded = shallowRef(await resolveImportFn()(props.data[2], props.data[3] ?? "default"));
+    const loadComponent = async (chunk: string, exportName: string) => {
+      try {
+        return await resolveImportFn()(chunk, exportName);
+      } catch (error) {
+        handleError(error, instance, ErrorCodes.ASYNC_COMPONENT_LOADER, false);
+        return LOAD_FAILED;
+      }
+    };
+
+    const Loaded = shallowRef(await loadComponent(props.data[2], props.data[3] ?? "default"));
 
     let loadId = 0;
     watch(
       [() => props.data[2], () => props.data[3]],
       async ([chunk, exportName]) => {
         const id = ++loadId;
-        const component = await resolveImportFn()(chunk, exportName ?? "default");
+        const component = await loadComponent(chunk, exportName ?? "default");
         if (id === loadId) Loaded.value = component;
       },
     );

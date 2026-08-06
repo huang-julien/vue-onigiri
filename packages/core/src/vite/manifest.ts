@@ -29,6 +29,13 @@ export interface OnigiriManifestOptions {
    * client-side glob at all — the runtime importFn just does
    * `import(url)`. Set to `"auto"` if you want the legacy
    * source-path-keyed loader map shipped to the browser.
+   *
+   * Note the coupling: with `clientInclude: false`, any source-path
+   * descriptor that reaches the browser (i.e. one `resolveChunkUrl`
+   * didn't bake a URL for) has to be resolvable by a custom `importFn`
+   * passed to `renderOnigiri(ast, { importFn })`, or it fails at render
+   * time with the runtime diagnostic. Set `"auto"` to ship a
+   * source-path-keyed loader map instead.
    */
   clientInclude?: OnigiriManifestInclude;
 }
@@ -138,8 +145,16 @@ export async function importFn(src, exportName = 'default') {
   // Absolute URLs baked via \`resolveChunkUrl\` (e.g. \`/_nuxt/Counter.abc123.js\`) load through native import().
   // Protocol-relative URLs ('//host/x') are rejected so a tampered payload cannot load cross-origin scripts.
   if (src.startsWith('/') && !src.startsWith('//')) {
-    const mod = await import(/* @vite-ignore */ src)
-    return mod[exportName] ?? mod.default ?? mod
+    try {
+      const mod = await import(/* @vite-ignore */ src)
+      return mod[exportName] ?? mod.default ?? mod
+    } catch (cause) {
+      throw new Error(
+        '[vue-onigiri] Failed to load chunk "' + src + '": ' + (cause?.message ?? cause) + '. ' +
+        'This descriptor is a source path unless the host baked a URL via \`resolveChunkUrl\`; ' +
+        'it must be resolvable at runtime. '
+      )
+    }
   }
   throw new Error(
     '[vue-onigiri] No loader registered for chunk "' + src + '". ' +

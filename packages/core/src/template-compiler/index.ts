@@ -74,11 +74,13 @@ export interface OnigiriCompilerOptions extends CompilerOptions {
    */
   additionalImports?: Map<string, AdditionalImport>;
   /**
-   * Optional build-time hook: returns the public chunk URL the client
-   * should load for a given source path (e.g. `/components/Counter.vue`
-   * → `/_nuxt/Counter-XXX.js`). Returning `undefined` keeps the source
-   * path. When wired up, the AST stops carrying source paths to the
-   * browser at all.
+   * Optional optimization: returns the public chunk URL to bake in for a
+   * given root-relative source path (e.g. `/components/Counter.vue` to
+   * `/_nuxt/Counter-XXX.js`), so the payload doesn't carry source paths
+   * to the browser. The source path is a first-class descriptor on its
+   * own, resolved at runtime through the manifest's `import.meta.glob`
+   * or a custom `importFn`, so returning `undefined` is normal rather
+   * than exceptional.
    */
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
   /**

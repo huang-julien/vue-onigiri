@@ -35,14 +35,15 @@ export interface CodegenContext {
   additionalImports: Map<string, AdditionalImport>;
   isCustomElement: (tag: string) => boolean | void;
   /**
-   * Optional build-time hook: takes the source path the compiler would
-   * stamp into the AST (e.g. `/components/Counter.vue`) and returns the
-   * public chunk URL (e.g. `/_nuxt/Counter-XXX.js`) the client should
-   * load instead. Returning `undefined` keeps the source path. Wired up
-   * by hosts that have a client manifest at SSR-build time so the
-   * island response doesn't carry source paths to the browser. Without
-   * this, the AST emits the source path and the runtime loader falls
-   * back to `import.meta.glob` keyed by source path.
+   * Optional optimization: maps the root-relative source path the
+   * compiler would stamp into the AST (e.g. `/components/Counter.vue`)
+   * to a public chunk URL (e.g. `/_nuxt/Counter-XXX.js`), so the payload
+   * doesn't carry source paths to the browser. It is not the resolution
+   * mechanism: a source path is a first-class descriptor the runtime
+   * importFn resolves through the manifest's `import.meta.glob`.
+   *
+   * Returning `undefined` keeps the source path and is normal, not
+   * exceptional.
    */
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
   /**
@@ -66,6 +67,11 @@ export interface CodegenContextOptions {
   importMap?: Map<string, string>;
   additionalImports?: Map<string, AdditionalImport>;
   isCustomElement?: (tag: string) => boolean | void;
+  /**
+   * Optional optimization that bakes a public chunk URL in place of the
+   * root-relative source path. Returning `undefined` keeps the source
+   * path, which is itself a valid descriptor.
+   */
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
   registerTarget?: (sourcePath: string) => void;
 }

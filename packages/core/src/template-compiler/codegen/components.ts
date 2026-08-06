@@ -418,9 +418,10 @@ function genDynamicLoadClientComponent(
   // plugin so it can emit a precise `import.meta.glob([...])` covering
   // exactly the files that need to be loadable at runtime.
   context.registerTarget?.(sourcePath);
-  // Bake the public chunk URL into the AST when the host can resolve
-  // it at compile time. Falls back to the source path otherwise — the
-  // runtime loader's `import.meta.glob` then resolves it on the client.
+  // The source path is a valid descriptor on its own: the runtime
+  // importFn resolves it through the manifest's `import.meta.glob`.
+  // `resolveChunkUrl` is an optional optimization that bakes a public
+  // URL instead, for hosts that happen to know it at compile time.
   const chunkPath = context.resolveChunkUrl?.(sourcePath) ?? sourcePath;
 
   context.imports.add(

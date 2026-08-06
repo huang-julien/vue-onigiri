@@ -48,6 +48,18 @@ describe("manifest-based component loading", () => {
     );
   });
 
+  it("virtual:onigiri/manifest reports the failing chunk when import() throws", async () => {
+    // A source-path descriptor the glob doesn't cover: the native
+    // import() fails with whatever the runtime says, which is opaque on
+    // its own. Rethrow naming the chunk and the levers that fix it.
+    await expect(manifestImportFn("/this/does/not/exist.vue")).rejects.toThrow(
+      /Failed to load chunk/,
+    );
+    await expect(manifestImportFn("/this/does/not/exist.vue")).rejects.toThrow(
+      /\/this\/does\/not\/exist\.vue/,
+    );
+  });
+
   it("renderOnigiri loads a client-loaded component via the default manifest", async () => {
     const ast = await serializeComponent(LoadComponent);
     const { promise, resolve } = Promise.withResolvers<boolean>();
