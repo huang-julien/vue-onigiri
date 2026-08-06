@@ -7,11 +7,9 @@ import { generateScopeId } from "./scope-id";
 import { buildImportMap } from "./imports";
 
 /**
- * Build a `_ctx` bridge mapping setup-script bindings to their
- * closure-side values. With `__ssrInlineRender: true`, plugin-vue's
- * `setup()` returns the SSR render directly (no exposed setupState),
- * so `instance.proxy.count` is undefined — this bridge re-exposes
- * those locals via the same `_ctx.foo` shape our codegen emits.
+ * Build a `_ctx` bridge exposing setup-script bindings from the closure.
+ * Under `__ssrInlineRender` setup returns the render directly and exposes
+ * no setupState, so `_ctx.foo` must read the closure instead.
  */
 function buildBridgeObject(bindingMetadata: BindingMetadata): string {
   const entries: string[] = [];
@@ -30,10 +28,8 @@ function buildBridgeObject(bindingMetadata: BindingMetadata): string {
         break;
       }
       case "setup-const":
-      // `const TITLE = "literal"` in `<script setup>` is still a plain
-      // closure binding. Without a bridge entry the lookup falls through
-      // to `_ctx[k]`, which is empty under `__ssrInlineRender` (no
-      // exposed setupState) and renders `undefined`.
+      // Plain consts are closure bindings too; without a bridge entry the
+      // lookup falls through to an empty `_ctx[k]` and renders `undefined`.
       case "literal-const": {
         entries.push(`get ${name}() { return ${name} }`);
         break;
@@ -44,11 +40,9 @@ function buildBridgeObject(bindingMetadata: BindingMetadata): string {
 }
 
 /**
- * Build mode: inject an inline `__onigiriRender` into the SFC's `setup`,
- * gated on `ONIGIRI_RENDER_SYMBOL`. The injected render closes over the
- * setup-script bindings via a Proxy bridge built from `bindingMetadata`,
- * then delegates to the standalone `__onigiriRender` (which Nuxt's
- * components loader has already rewritten so `<X />` resolves correctly).
+ * Build mode: inject an inline `__onigiriRender` into the SFC's setup,
+ * gated on `ONIGIRI_RENDER_SYMBOL`, closing over setup bindings via a
+ * Proxy bridge and delegating to the standalone `__onigiriRender`.
  */
 export async function injectIntoSetupAsync(
   code: string,
@@ -64,37 +58,20 @@ export async function injectIntoSetupAsync(
   const setupMatch = code.match(/setup\s*\(\s*([^,)]*?)(?:,\s*\{[^}]*\})?\s*\)\s*\{/);
   if (!setupMatch || setupMatch.index === undefined) return null;
 
-  // Inject AFTER all setup-script bindings are declared but BEFORE setup's
-  // own `return` statement — otherwise either the closure is in TDZ when
-  // the proxy's getter dereferences a setup binding (injection too early),
-  // or the early `return __render` is unreachable because setup already
-  // returned (injection too late).
+  // Inject after setup-script bindings are declared but before setup's own
+  // `return` (earlier hits the TDZ, later is unreachable). Two compiler
+  // output shapes, both anchored on the first top-level return:
   //
-  // Two render shapes the @vue/compiler-sfc emits, both anchored on the
-  // first top-level `return` inside the matched `setup(...)` body:
+  //   A. Inline SSR render arrow (`__ssrInlineRender` + small template):
+  //        `return (_ctx, _push, _parent[, _attrs]) => {...}`
+  //      `_attrs` may be renamed (`_attrs2`, ...) when the script declares one.
   //
-  //   A. Inline render arrow — `__ssrInlineRender: true` AND the template
-  //      is small enough that the compiler inlines the SSR render arrow
-  //      directly into setup's return. Anchor:
-  //          `return (_ctx, _push, _parent[, _attrs])  => {…}`
-  //          `return (_ctx, _cache, $props, $setup, $data, $options) => {…}`
-  //      `_attrs` may be renamed (`_attrs2`/`_attrs3`/…) when the user's
-  //      `<script setup>` already declares an `_attrs` binding (e.g.
-  //      `const _attrs = useAttrs()` in `@nuxt/image`'s NuxtPicture).
+  //   B. Split-template shape (top-level `await` or large template):
+  //        `return __returned__`
+  //        `return (Object.defineProperty(__returned__, ...), __returned__)`
   //
-  //   B. Split-template shape — `<script setup>` with top-level `await`
-  //      or a large template. The SSR / client render is a separate
-  //      module-level function; setup just gathers bindings and returns
-  //      `__returned__`. Anchor:
-  //          `return __returned__`
-  //          `return (Object.defineProperty(__returned__, …), __returned__)`
-  //      In this shape, `__returned__` (and every binding it gathers) is
-  //      built immediately before the return, so injecting at this point
-  //      sees all setup-script bindings live in the closure.
-  //
-  // For both, returning `__render` (a function) from setup is what makes
-  // Vue treat setup's return value as the render function rather than as
-  // a binding bag — see `setupStatefulComponent` in `@vue/runtime-core`.
+  // Returning a function from setup is what makes Vue use it as the render
+  // fn (see `setupStatefulComponent` in `@vue/runtime-core`).
   const codeFromSetup = code.slice(setupMatch.index);
   const inlineRenderMatch = codeFromSetup.match(/return\s*\(\s*_ctx\b[^)]*\)\s*=>\s*\{/);
   const splitTemplateMatch = inlineRenderMatch
@@ -105,12 +82,8 @@ export async function injectIntoSetupAsync(
 
   const renderReturnMatch = inlineRenderMatch ?? splitTemplateMatch;
 
-  // Neither anchor matched → likely an Options API SFC, a hand-written
-  // `<script>` whose `setup(...) { ... }` returns nothing under our
-  // regex, or a future compiler shape we don't know yet. Skip injection;
-  // the standalone `__onigiriRender` attached as a property is still
-  // wired up by `attachAsProperty`, and will read bindings via
-  // `instance.setupState` / `instance.proxy` through `createOnigiriCtx`.
+  // No anchor (Options API, unknown shape): skip injection; the attached
+  // standalone render still reads bindings via setupState / proxy.
   if (!renderReturnMatch || renderReturnMatch.index === undefined) {
     return null;
   }
@@ -143,10 +116,8 @@ export async function injectIntoSetupAsync(
     resolveImport ? (src) => resolveImport(src, filePath) : undefined,
   );
 
-  // We don't actually use `onigiriResult.expression` directly — we
-  // delegate to the standalone `__onigiriRender` attached to the
-  // component — but compiling here validates the template and gives us
-  // the bindingMetadata-driven helper imports if we ever switch back.
+  // Result unused (we delegate to the standalone render); compiling here
+  // still validates the template.
   void compileOnigiriInline(descriptor.template.content, {
     filename: filePath,
     sourceMap,
@@ -167,18 +138,10 @@ import { ONIGIRI_RENDER_SYMBOL as __ONIGIRI_SYMBOL } from "vue-onigiri/runtime/s
 
   const bridgeObject = buildBridgeObject(bindingMetadata);
 
-  // The injected render delegates to the file's standalone
-  // `__onigiriRender` (referenced through `__instance.type` to survive
-  // bundler renames), passing a Proxy that resolves in three layers:
-  //   1. Setup-script bindings from the closure bridge.
-  //   2. Standard instance accessors ($slots/slots, $props/props,
-  //      $attrs, $emit, $refs, $parent, $root, `_`) sourced directly
-  //      from `__instance`. SSR codegen uses the unprefixed forms
-  //      (`_ctx.slots`, `_ctx.props`) while client/template codegen
-  //      uses the `$`-prefixed forms — both must resolve.
-  //   3. Whatever Vue's `_ctx` exposes (catch-all for setupState/data/props
-  //      access through `instance.proxy`).
-  // The `__onigiri` tag identifies our render to the serializer.
+  // Delegates to the standalone render via `__instance.type` (survives
+  // bundler renames) behind a Proxy resolving the closure bridge first,
+  // then instance accessors (both `slots` and `$slots` forms must work),
+  // then Vue's `_ctx`. The `__onigiri` tag marks our render for the serializer.
   const injectionCode = `
   if (__onigiri_inject(__ONIGIRI_SYMBOL, null)) {
     const __instance = __getCurrentInstance();

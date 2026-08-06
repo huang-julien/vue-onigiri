@@ -37,14 +37,12 @@ const JS_KEYWORDS = new Set([
   "isFinite",
 ]);
 
-// Identifiers we control / inject — never prefixed.
+// Identifiers we control or inject; never prefixed.
 const ONIGIRI_RESERVED = ["_ctx", "__instance", "$event"];
 
 /**
- * Fallback classifier for v-on values that didn't pass through the
- * `transformVOnEventKind` node transform (e.g. compound-expression
- * v-on values, or programmatic callers that skip the standard pipeline).
- * Uses the same `@babel/parser` Vue uses internally.
+ * Fallback classifier for v-on values that skipped the
+ * `transformVOnEventKind` transform, using the same Babel parser Vue uses.
  */
 function classifyExpression(content: string): "member" | "fn" | "statement" {
   const trimmed = content.trim();
@@ -65,12 +63,9 @@ function classifyExpression(content: string): "member" | "fn" | "statement" {
 }
 
 /**
- * Extract the identifier names a binding pattern declares. `v-for`
- * values and slot-scope props are arbitrary destructuring patterns
- * (`{ id, name }`, `[a, b]`, `{ a: alias = 1, ...rest }`), and
- * `prefixIdentifiers` needs the individual names in `localVars`.
- * Seeding the raw pattern string would match nothing, so every binding
- * would be wrongly rewritten to `_ctx.<name>`.
+ * Extract the identifier names a binding pattern declares (`{ id }`,
+ * `[a, b]`, `{ a: alias = 1, ...rest }`); prefixIdentifiers needs the
+ * individual names in localVars or bindings get wrongly rewritten.
  */
 export function collectBindingNames(pattern: string): string[] {
   const trimmed = pattern.trim();
@@ -112,18 +107,14 @@ export function collectBindingNames(pattern: string): string[] {
     for (const param of arrow.params ?? []) walk(param);
     return names;
   } catch {
-    // Unparseable pattern: return the raw string. This matches the
-    // previous behavior, and the template is about to error anyway.
+    // Unparseable pattern: return raw; the template is about to error anyway.
     return [trimmed];
   }
 }
 
 /**
- * Walk the Babel AST and remove TypeScript-only syntax positions
- * (`expr as T`, `expr satisfies T`, `<T>expr`, `expr!`, `expr<T>`,
- * parameter `: T` annotations). The virtual `.mjs` modules we emit
- * are parsed by Rollup as plain JavaScript — any leftover TS syntax
- * is a parse error, so we strip before `prefixIdentifiers` runs.
+ * Strip TS-only syntax positions (`as T`, `satisfies`, `<T>expr`, `!`,
+ * `: T` annotations); the emitted virtual `.mjs` must parse as plain JS.
  */
 function collectTsStripRanges(node: any, s: MagicString): void {
   if (!node || typeof node !== "object") return;
@@ -179,23 +170,9 @@ function collectTsStripRanges(node: any, s: MagicString): void {
 }
 
 /**
- * Prefix free identifiers with `_ctx.` so the compiled render reads
- * bindings off the instance proxy. Parses with `@babel/parser` (TS
- * plugin) and walks identifiers via Vue's `walkIdentifiers`, which
- * understands JS scope, destructuring, property keys, template
- * literals, and TS type-annotation positions.
- *
- * `localVars` carries scope from outer constructs the parser doesn't
- * see (e.g. `v-for` loop bindings); they're seeded into `walkIdentifiers`'
- * known-id set alongside our reserved render-function args.
- *
- * `bindingMetadata` is unused — onigiri's `_ctx` proxy resolves all
- * binding namespaces uniformly, so every free identifier gets the
- * same `_ctx.` prefix regardless of where it came from.
- *
- * The same AST walk also strips TS-only positions (see
- * `collectTsStripRanges`) so the emitted virtual `.mjs` parses as
- * plain JS.
+ * Prefix free identifiers with `_ctx.` so the render reads bindings off
+ * the instance proxy. `localVars` carries outer scope (v-for bindings);
+ * the same walk strips TS-only syntax so the emitted `.mjs` parses as JS.
  */
 export function prefixIdentifiers(
   content: string,
@@ -204,16 +181,13 @@ export function prefixIdentifiers(
 ): string {
   if (!content.trim()) return content;
 
-  // Vue's `transformExpression` adds `$setup.` / `$props.` / `$data.` /
-  // `$options.` namespace prefixes for SSR. Our `_ctx` proxy resolves
-  // across all namespaces, so collapse them so we emit `_ctx.foo` instead
-  // of `_ctx.$setup.foo`.
+  // Collapse Vue's `$setup.` / `$props.` / `$data.` / `$options.` prefixes;
+  // the `_ctx` proxy resolves all namespaces uniformly.
   content = content.replace(/\$(?:setup|props|data|options)\./g, "");
 
   let ast: any;
   try {
-    // Try as a single expression first — covers the overwhelming majority
-    // (interpolations, prop bindings, member/fn-style v-on values).
+    // A single expression covers the overwhelming majority of template content.
     ast = parseExpression(content, { plugins: ["typescript"] });
   } catch {
     try {
@@ -224,8 +198,7 @@ export function prefixIdentifiers(
         allowReturnOutsideFunction: true,
       }).program;
     } catch {
-      // Unparseable (rare — usually a precursor to a Vue error elsewhere).
-      // Leave the content untouched rather than corrupting it.
+      // Unparseable (usually a precursor to a Vue error): leave untouched.
       return content;
     }
   }
@@ -235,8 +208,7 @@ export function prefixIdentifiers(
   // Strip TS-only syntax first (drops `as T`, `!`, `<T>`, etc).
   collectTsStripRanges(ast, s);
 
-  // Vue's `walkIdentifiers` treats anything in `knownIds` as a local —
-  // exactly what we need for v-for vars + our reserved render args.
+  // knownIds entries are treated as locals: v-for vars + reserved render args.
   const knownIds: Record<string, number> = Object.create(null);
   for (const v of localVars) knownIds[v] = (knownIds[v] || 0) + 1;
   for (const v of ONIGIRI_RESERVED) knownIds[v] = (knownIds[v] || 0) + 1;
@@ -265,15 +237,9 @@ export function prefixIdentifiers(
 }
 
 /**
- * Wrap an event handler the same way Vue does:
- *   - member / function expressions: pass through
- *   - single inline statement: wrap as `$event => (expr)`
- *   - multiple statements: wrap as `$event => { expr }`
- *
- * The classification ideally comes from `transformVOnEventKind` (which
- * uses Vue's own `isFnExpression` / `isMemberExpression` helpers during
- * the transform pass). The regex helpers below are fallbacks for callers
- * that didn't go through the standard transform pipeline.
+ * Wrap an event handler like Vue does: member/fn expressions pass through,
+ * inline statements wrap as `$event => (expr)` or `$event => { expr }`.
+ * Classification normally comes from `transformVOnEventKind`.
  */
 function wrapEventHandler(
   content: string,
@@ -312,8 +278,8 @@ export function genExpressionAsValue(
       );
     }
   } else if (node.type === NodeTypes.COMPOUND_EXPRESSION) {
-    // Reassemble the compound expression to one string, then prefix once —
-    // otherwise property accessors after a dot get treated as bindings.
+    // Reassemble to one string then prefix once; otherwise property
+    // accessors after a dot get treated as bindings.
     const compound = node as CompoundExpressionNode;
     let flat = "";
     for (const child of compound.children) {

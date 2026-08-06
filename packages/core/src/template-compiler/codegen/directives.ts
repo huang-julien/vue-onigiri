@@ -8,7 +8,7 @@ import {
 import type { CodegenContext } from "./context";
 import { genExpressionAsValue } from "./expressions";
 
-/** Structural / client-only directives — never serialized. */
+/** Structural / client-only directives; never serialized. */
 export const STRIPPED_DIRECTIVES = new Set([
   "if",
   "else",

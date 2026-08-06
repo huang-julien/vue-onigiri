@@ -1,10 +1,7 @@
 /**
- * Convert an absolute file path to a root-relative path with forward
- * slashes and a leading `/` — matches the shape used everywhere else
- * in the compiler (importMap entries, manifest glob keys, AST chunk
- * strings). Paths outside `root` are returned with their backslashes
- * normalised but otherwise unchanged; the SSR resolver handles those
- * directly.
+ * Convert an absolute path to a root-relative `/`-prefixed form, the shape
+ * used across the compiler (importMap, glob keys, AST chunks). Paths
+ * outside `root` keep only slash normalisation.
  */
 export function toRootRelative(absPath: string, root: string): string {
   const normalisedRoot = root.replaceAll("\\", "/").replace(/\/$/, "");

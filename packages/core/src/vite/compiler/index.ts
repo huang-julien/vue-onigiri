@@ -9,12 +9,9 @@ import { registerOnigiriTarget } from "../shared";
 import { toRootRelative } from "./paths";
 
 /**
- * Detect whether `plugin-vue`'s output for an SFC already contains the
- * template inline — either as a **client** render function (dev /
- * inline-template build) or as an **SSR** render function (prod build,
- * `?vue&type=template` SSR sub-module, etc.). Both shapes need the
- * setup-bridge injection so onigiri's render closes over the SFC's
- * setup-script bindings.
+ * Detect whether plugin-vue's output already inlines a render function
+ * (client or SSR shape); both need the setup-bridge injection so the
+ * onigiri render closes over setup-script bindings.
  */
 function hasInlineTemplate(code: string): boolean {
   return (
@@ -43,60 +40,33 @@ export interface OnigiriCompilerOptions {
   /** @default true */
   sourceMap?: boolean;
   /**
-   * Predicate for native custom elements / web components. Tags it
-   * returns `true` for skip the Vue-component dispatch path and emit
-   * as plain HTML elements — no `_resolveComponent` call. Mirrors
-   * Vue's `CompilerOptions.isCustomElement`.
+   * Predicate for native custom elements; matching tags emit as plain
+   * HTML instead of resolved components. Mirrors Vue's `isCustomElement`.
    */
   isCustomElement?: (tag: string) => boolean;
   /**
-   * Tag → entry for components the SFC doesn't import statically.
-   * Each entry is either a path string (defaulting to the `default`
-   * export) or `{ path, export? }` for named exports. Lets
-   * `v-load-client` resolve to the right chunk for Nuxt auto-imports,
-   * globally-registered components, or any other case where the
-   * compiler can't see the import in `<script>`. Provide either a
-   * static map / object or a getter (re-evaluated per transform).
+   * Tag to entry for components the SFC doesn't import statically (Nuxt
+   * auto-imports, globals): a path string or `{ path, export? }`. Accepts
+   * a static map/object or a getter re-evaluated per transform.
    */
   additionalImports?:
     | Record<string, AdditionalImportInput>
     | Map<string, AdditionalImportInput>
     | (() => Record<string, AdditionalImportInput> | Map<string, AdditionalImportInput>);
   /**
-   * Optional optimization: returns the public chunk URL the client should
-   * load for a given root-relative source path (e.g.
-   * `/components/Counter.vue` to `/_nuxt/Counter-XXX.js`). When it
-   * answers, the compiler bakes that URL into the AST so the SSR response
-   * doesn't carry source paths to the browser. Re-evaluated per
-   * transform, so a function reading from a manifest filled in later in
-   * the build picks it up automatically.
-   *
-   * This is **not** the resolution mechanism. A root-relative source path
-   * is a valid, first-class descriptor: every host must be able to
-   * resolve one at runtime, either through the manifest's
-   * `import.meta.glob` (which gives each target its own loadable chunk)
-   * or through a custom `importFn` passed to
-   * `renderOnigiri(ast, { importFn })`.
-   *
-   * Returning `undefined` keeps the source path and is normal, not
-   * exceptional. During the client build the client chunk URLs do not
-   * exist yet, and a statically-imported component is inlined into its
-   * parent chunk, so it never has a URL of its own to hand back.
+   * Optional optimization: maps a root-relative source path
+   * (`/components/Counter.vue`) to the public chunk URL to bake into the
+   * AST (`/_nuxt/Counter-XXX.js`). Re-evaluated per transform. Returning
+   * `undefined` is normal and keeps the source path, which hosts resolve
+   * at runtime via the manifest's `import.meta.glob` or a custom `importFn`.
    */
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
 }
 
 /**
- * Vite plugin that adds onigiri serialization support to Vue SFCs.
- *
- * - **Dev mode** (`.vue` no query, plugin-vue's combined output):
- *   imports a per-component virtual `__onigiriRender` from
- *   `virtual:onigiri:<path>.mjs` and attaches it to the SFC's default
- *   export.
- * - **Build mode** (`?vue&type=script` with inline template): injects an
- *   inline `__onigiriRender` returned by `setup()` when the
- *   `ONIGIRI_RENDER_SYMBOL` is provided, so it can capture the
- *   setup-script closure.
+ * Vite plugin adding onigiri serialization to Vue SFCs: dev attaches a
+ * virtual `__onigiriRender` module to the default export, build injects
+ * the render into `setup()` so it captures the setup-script closure.
  */
 export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plugin {
   const { sourceMap = true, isCustomElement, additionalImports, resolveChunkUrl } = options;
@@ -115,10 +85,8 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
 
   return {
     name: "vite:vue-onigiri-compiler",
-    // `enforce: 'post'` runs us after `@vitejs/plugin-vue` (so we see its
-    // compiled output) but still before Vite's `vite:import-analysis` —
-    // hook-level `transform: { order: 'post' }` would push us past it,
-    // leaving `virtual:onigiri:*` specifiers unrewritten in the browser.
+    // Runs after plugin-vue but before vite:import-analysis; hook-level
+    // `order: 'post'` would leave `virtual:onigiri:*` unrewritten in the browser.
     enforce: "post",
 
     config(userConfig, env) {
@@ -151,10 +119,8 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
         }
 
         if (importer?.startsWith(ONIGIRI_PREFIX) && importer.endsWith(ONIGIRI_SUFFIX)) {
-          // Project-root-relative paths (`/app/components/Foo.vue`) come
-          // from `additionalImports` (Nuxt auto-imports etc). Resolve
-          // against the Vite root so Rollup can find them on disk.
-          // Skip Windows-absolute (`/D:/…`) and `/@…` Vite-internal forms.
+          // Root-relative additionalImports paths resolve against the Vite
+          // root; skip Windows-absolute (`/D:/...`) and `/@...` internal forms.
           if (
             id.startsWith("/")
             && !id.startsWith("//")
@@ -203,14 +169,8 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
           return null;
         }
 
-        // Bare `.vue` (dev split-module path AND build mode): plugin-vue
-        // re-exports script + template (dev) or inlines the whole SFC
-        // (build, including the SSR render fn). In build mode the SSR
-        // render closes over setup-script bindings whose `setupState` is
-        // never exposed, so attaching `__onigiriRender` alone leaves the
-        // closure dark — inject the setup bridge first when an inline
-        // render is present, then attach so the descriptor + render
-        // property land on the canonical module.
+        // Bare `.vue`: inject the setup bridge first when an inline render is
+        // present (build closures are otherwise dark), then attach render + descriptor.
         if (!query) {
           if (!code.includes("export default")) return null;
           const onigiriImport = `${ONIGIRI_PREFIX}${encodeURIComponent(filePath)}${ONIGIRI_SUFFIX}`;
@@ -236,10 +196,8 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
           return attachAsProperty(workCode, onigiriImport, sourceMap, descriptorChunk);
         }
 
-        // `?vue&type=script` with inline template (build mode): the SSR
-        // render closes over setup-script bindings and `setupState` is
-        // empty, so an external render can't reach them. Inject our
-        // render INSIDE setup so it shares the closure.
+        // Build mode: the SSR render closes over setup bindings an external
+        // render can't reach, so inject ours inside setup to share the closure.
         if (query.includes("type=script")) {
           if (hasInlineTemplate(code)) {
             return injectIntoSetupAsync(

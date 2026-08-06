@@ -51,9 +51,8 @@ export async function loadVirtualOnigiriModule(
   }
 
   if (!descriptor.template) {
-    // Templateless SFC (script-only render fn, or pure setup-returning-fn).
-    // Stamp `__onigiriEmpty` so the runtime serializer knows to fall through
-    // to Vue's real `render`/`ssrRender` instead of taking this no-op path.
+    // Templateless SFC: stamp `__onigiriEmpty` so the serializer falls
+    // through to Vue's real render instead of this no-op.
     return {
       code:
         `function __onigiriRender(_ctx, __instance) { return null; }\n`
@@ -117,15 +116,9 @@ ${componentDeclarations}
 }
 
 /**
- * Convert externally-supplied `additionalImports` paths (Nuxt
- * components etc) into root-relative form anchored at Vite's
- * `config.root`. The codegen needs root-relative for both the
- * v-load-client chunk literals (matching the runtime importFn's
- * `import.meta.glob` keys) AND the static SSR import (the resolveId
- * hook joins `/foo` back to `<config.root>/foo`).
- *
- * Paths that don't sit under `config.root` are left absolute — Vite
- * resolves those directly without needing a root prefix.
+ * Normalise externally-supplied additionalImports paths to root-relative
+ * form, matching the manifest glob keys and the resolveId root join.
+ * Paths outside `config.root` stay absolute.
  */
 function normaliseAdditionalImports(
   raw: Map<string, AdditionalImport> | undefined,

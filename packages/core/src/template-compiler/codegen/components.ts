@@ -48,12 +48,8 @@ export function getComponentRef(tag: string, context: CodegenContext): string {
     return importedName;
   }
 
-  // Sanitise every character that isn't a valid JS identifier part — Vue
-  // legally allows dotted tags via namespace member-access (e.g.
-  // `<Calendar.Root />`), so just stripping hyphens isn't enough.
-  // `resolveComponentInInstance` is still called with the original tag
-  // (see `context.components.set(tag, varName)` below) — only the local
-  // identifier is sanitised here.
+  // Vue allows dotted tags (`<Calendar.Root />`), so sanitise every invalid
+  // identifier char; the original tag is still what resolves at runtime.
   const varName = "_component_" + tag.replace(/[^a-zA-Z0-9_$]/g, "_");
 
   if (!context.components.has(tag)) {
@@ -71,7 +67,7 @@ export function getComponentRef(tag: string, context: CodegenContext): string {
 export function genComponent(node: ElementNode, context: CodegenContext): void {
   const { tag, props, children } = node;
 
-  // Built-ins — never routed through the server-rendered / client-loaded paths.
+  // Built-ins are never routed through the server-rendered / client-loaded paths.
   if (tag === "Suspense") {
     genSuspense(children, context);
     return;
@@ -84,8 +80,7 @@ export function genComponent(node: ElementNode, context: CodegenContext): void {
     genTeleport(node, context);
     return;
   }
-  // KeepAlive / Transition have no server-side DOM effect — pass
-  // children through as a fragment.
+  // KeepAlive / Transition have no server-side DOM effect; pass children through.
   if (
     tag === "KeepAlive"
     || tag === "keep-alive"
@@ -278,10 +273,8 @@ function genDynamicComponent(node: ElementNode, context: CodegenContext): void {
 
 /**
  * Emit a `[Component, props, chunkPath, exportName, slots]` payload for a
- * `v-load-client` component. The path must be resolvable at compile time —
- * either via the SFC's own static imports or via `additionalImports` (Nuxt
- * components registry, globally-registered components declared by the user).
- * Anything else is a hard compile error.
+ * v-load-client component; the target must resolve at compile time from
+ * static imports or `additionalImports`, anything else is a compile error.
  */
 function genClientLoadedComponent(
   tag: string,
@@ -319,12 +312,9 @@ function genClientLoadedComponent(
 }
 
 /**
- * Resolve a `v-load-client` target to a root-relative module path
- * WITHOUT pulling the component into the SSR bundle. Looks up the
- * tag's various casings (PascalCase / camelCase / kebab-case) in
- * `importMap` (script statics) and `additionalImports` (Nuxt /
- * user-supplied). Throws at compile time if neither resolves —
- * `v-load-client` requires a known compile-time target.
+ * Resolve a v-load-client target to a root-relative path without pulling
+ * it into the SSR bundle: importMap and additionalImports are checked
+ * under all tag casings, and neither resolving is a compile error.
  */
 function resolveClientChunkPath(tag: string, context: CodegenContext): string {
   const pascal = tag
@@ -348,16 +338,9 @@ function resolveClientChunkPath(tag: string, context: CodegenContext): string {
 }
 
 /**
- * Resolve the named export to pull off the dynamically-imported chunk
- * for a `v-load-client` target. Mirrors the multi-casing lookup in
- * `resolveClientChunkPath` so that a tag registered as `ComarkRenderer`
- * still resolves when the template wrote `<comark-renderer>`.
- *
- * Only `additionalImports` entries carry an explicit `export`; the
- * script-local `importMap` is path-only (it represents relative `.vue`
- * imports, which are default-exported), so anything that resolves from
- * there falls back to `"default"`. The runtime loader handles the
- * fallback as `mod[exportName] ?? mod.default ?? mod`.
+ * Resolve the export name for a v-load-client chunk, mirroring the
+ * multi-casing lookup of `resolveClientChunkPath`. Only additionalImports
+ * entries carry an explicit export; everything else is "default".
  */
 function resolveClientChunkExport(tag: string, context: CodegenContext): string {
   const pascal = tag
@@ -414,14 +397,10 @@ function genDynamicLoadClientComponent(
 ): void {
   const componentRef = getComponentRef(tag, context);
   const sourcePath = resolveClientChunkPath(tag, context);
-  // Auto-detected v-load-client target — registered with the manifest
-  // plugin so it can emit a precise `import.meta.glob([...])` covering
-  // exactly the files that need to be loadable at runtime.
+  // Registered so the manifest plugin can emit a precise import.meta.glob.
   context.registerTarget?.(sourcePath);
-  // The source path is a valid descriptor on its own: the runtime
-  // importFn resolves it through the manifest's `import.meta.glob`.
-  // `resolveChunkUrl` is an optional optimization that bakes a public
-  // URL instead, for hosts that happen to know it at compile time.
+  // The source path is a valid descriptor (the runtime importFn resolves
+  // it via the manifest glob); resolveChunkUrl optionally bakes a URL instead.
   const chunkPath = context.resolveChunkUrl?.(sourcePath) ?? sourcePath;
 
   context.imports.add(

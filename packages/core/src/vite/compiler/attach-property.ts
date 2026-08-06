@@ -1,18 +1,9 @@
 import MagicString from "magic-string";
 
 /**
- * Attach both `__onigiriRender` and (optionally) `__onigiriASTDescriptor`
- * to the SFC's default export. Handles every shape `@vitejs/plugin-vue`
- * emits for the bare `.vue` chunk: `_export_sfc(_sfc_main, …)`, plain
- * `export default _sfc_main`, and inline `_defineComponent({…})`.
- *
- * The descriptor (`{ chunk, export }`) lets the runtime serializer
- * look up the chunk URL from the component instead of from a
- * compile-time-baked call-site arg — see `serializeChildComponent`.
- * Runs in both dev and build modes; in build mode the bare `.vue`
- * chunk re-exports the inline-render SFC from
- * `?vue&type=script&setup=true`, so the assignment mutates the same
- * module singleton everyone imports.
+ * Attach `__onigiriRender` and the `{ chunk, export }` descriptor to the
+ * SFC's default export, handling every export shape plugin-vue emits for
+ * the bare `.vue` chunk (`_export_sfc`, plain var, inline object).
  */
 export function attachAsProperty(
   code: string,

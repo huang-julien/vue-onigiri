@@ -21,37 +21,25 @@ export interface CodegenContext {
   /** SFC scoped style ID (e.g., "data-v-xxxxxxx") - added as attribute to all elements */
   scopeId: string | null;
   /**
-   * Local identifier → root-relative module path (from the SFC's `import`
-   * statements). When present for a `v-load-client` target, the compiler
-   * inlines the path as a literal string.
+   * Local identifier to root-relative module path from the SFC's imports;
+   * matching v-load-client targets inline the path as a literal.
    */
   importMap: Map<string, string>;
   /**
-   * Tag name → import entry, supplied externally (Nuxt components,
-   * user-declared globals). Looked up under PascalCase, camelCase, and
-   * kebab-case variants when the SFC's own imports don't resolve.
-   * `export` defaults to `"default"`.
+   * Externally-supplied tag to import entry (Nuxt components, globals),
+   * looked up under Pascal/camel/kebab casings. `export` defaults to "default".
    */
   additionalImports: Map<string, AdditionalImport>;
   isCustomElement: (tag: string) => boolean | void;
   /**
-   * Optional optimization: maps the root-relative source path the
-   * compiler would stamp into the AST (e.g. `/components/Counter.vue`)
-   * to a public chunk URL (e.g. `/_nuxt/Counter-XXX.js`), so the payload
-   * doesn't carry source paths to the browser. It is not the resolution
-   * mechanism: a source path is a first-class descriptor the runtime
-   * importFn resolves through the manifest's `import.meta.glob`.
-   *
-   * Returning `undefined` keeps the source path and is normal, not
-   * exceptional.
+   * Optional optimization: public chunk URL to bake in place of a
+   * root-relative source path. `undefined` keeps the source path, which
+   * the runtime resolves via manifest glob or custom `importFn`.
    */
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
   /**
-   * Called for every `v-load-client` target the codegen emits. The
-   * manifest plugin uses this to build a precise `import.meta.glob`
-   * covering exactly the files the runtime loader can be asked for,
-   * instead of a broad `/**\/*.vue` pattern. Receives the source path
-   * the compiler resolved from the SFC's imports.
+   * Called for every v-load-client target the codegen emits; the manifest
+   * plugin builds its precise `import.meta.glob` from these source paths.
    */
   registerTarget?: (sourcePath: string) => void;
 }
@@ -67,11 +55,6 @@ export interface CodegenContextOptions {
   importMap?: Map<string, string>;
   additionalImports?: Map<string, AdditionalImport>;
   isCustomElement?: (tag: string) => boolean | void;
-  /**
-   * Optional optimization that bakes a public chunk URL in place of the
-   * root-relative source path. Returning `undefined` keeps the source
-   * path, which is itself a valid descriptor.
-   */
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
   registerTarget?: (sourcePath: string) => void;
 }

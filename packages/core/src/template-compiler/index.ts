@@ -1,7 +1,5 @@
 /**
- * Onigiri Template Compiler
- *
- * Compiles Vue templates to onigiri render functions that return
+ * Compiles Vue templates to onigiri render functions returning
  * serialized VServerComponent structures.
  */
 
@@ -26,12 +24,9 @@ import { createCodegenContext, withoutRenderlessChildren, genNode } from "./code
 const [baseNodeTransforms] = getBaseTransformPreset(true);
 
 /**
- * Vue's `transformExpression` skips `v-on` (defers to `transformOn`) and we
- * stub out `directiveTransforms`, so v-on expressions reach codegen
- * unclassified. Mirror Vue's own decision: use `isMemberExpression` /
- * `isFnExpression` from `@vue/compiler-dom`, which parse with `@babel/parser`
- * under the hood. Stash the verdict on the expression so codegen reads it
- * back without needing a `TransformContext`.
+ * v-on expressions reach codegen unclassified (we stub directiveTransforms),
+ * so classify them with Vue's own isMemberExpression / isFnExpression and
+ * stash the verdict on the expression node for codegen to read back.
  */
 type EventKind = "member" | "fn" | "statement";
 type ClassifiedExp = SimpleExpressionNode & { _onigiriEventKind?: EventKind };
@@ -60,27 +55,20 @@ export interface OnigiriCompilerOptions extends CompilerOptions {
   /** SFC scoped style ID (e.g., "data-v-xxxxxxx") - added as attribute to all elements */
   scopeId?: string | null;
   /**
-   * Map of local identifier → root-relative source path for components
-   * statically imported in this SFC's `<script>` block. The compiler
-   * inlines the literal path for matching `v-load-client` targets.
+   * Local identifier to root-relative source path for components imported
+   * in the SFC's script; matching v-load-client targets inline the path.
    */
   importMap?: Map<string, string>;
   /**
-   * Tag → import entry, supplied externally for components the SFC
-   * doesn't import statically (Nuxt auto-imports, `app.component()`
-   * globals). Each entry pairs a path with an optional `export` name
-   * (defaults to `"default"`). Looked up under PascalCase / camelCase /
-   * kebab-case variants.
+   * Tag to import entry for components the SFC doesn't import statically,
+   * looked up under Pascal/camel/kebab casings. `export` defaults to "default".
    */
   additionalImports?: Map<string, AdditionalImport>;
   /**
-   * Optional optimization: returns the public chunk URL to bake in for a
-   * given root-relative source path (e.g. `/components/Counter.vue` to
-   * `/_nuxt/Counter-XXX.js`), so the payload doesn't carry source paths
-   * to the browser. The source path is a first-class descriptor on its
-   * own, resolved at runtime through the manifest's `import.meta.glob`
-   * or a custom `importFn`, so returning `undefined` is normal rather
-   * than exceptional.
+   * Optional optimization: public chunk URL to bake in place of a
+   * root-relative source path. Returning `undefined` is normal and keeps
+   * the source path, which the runtime resolves via manifest glob or
+   * custom `importFn`.
    */
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
   /**
@@ -103,15 +91,13 @@ export function compileOnigiri(
   template: string,
   options: OnigiriCompilerOptions = {},
 ): OnigiriCodegenResult {
-  // Parse the template with HTML void tag recognition
   const ast = baseParse(template, {
     ...options,
     isVoidTag,
   });
 
-  // Transform the AST with Vue's default transforms (v-if, v-for, expressions, etc.)
-  // `expressionPlugins: ['typescript']` lets template expressions contain
-  // TS-only syntax like `(x as any)?.foo` (from SFCs with `lang="ts"`).
+  // `expressionPlugins: ['typescript']` lets template expressions use
+  // TS-only syntax like `(x as any)?.foo` from `lang="ts"` SFCs.
   transform(ast, {
     ...options,
     prefixIdentifiers: true,
@@ -120,7 +106,6 @@ export function compileOnigiri(
     directiveTransforms: {},
   });
 
-  // Generate the onigiri code
   const context = createCodegenContext({
     bindingMetadata: options.bindingMetadata,
     scopeId: options.scopeId,
@@ -131,7 +116,7 @@ export function compileOnigiri(
     registerTarget: options.registerTarget,
   });
 
-  // First, generate the return expression to collect component references
+  // Generate the return expression first to collect component references.
   const bodyContext = createCodegenContext({
     bindingMetadata: options.bindingMetadata,
     scopeId: options.scopeId,
@@ -141,9 +126,8 @@ export function compileOnigiri(
     resolveChunkUrl: options.resolveChunkUrl,
     registerTarget: options.registerTarget,
   });
-  // Root comments emit no code. Filter them so a comment-only template
-  // emits `null` (not `return ;`) and a comment between root siblings
-  // doesn't leave a sparse-array hole in the Fragment.
+  // Filter root comments so a comment-only template emits `null` and no
+  // sparse-array hole lands in the Fragment.
   const rootChildren = withoutRenderlessChildren(ast.children);
   if (rootChildren.length === 0) {
     bodyContext.push("null");
@@ -151,10 +135,8 @@ export function compileOnigiri(
     const before = bodyContext.code.length;
     genNode(rootChildren[0], bodyContext);
     const produced = bodyContext.code.slice(before);
-    // A single root `v-for` emits `...(source.map(...))` so the spread can
-    // be inlined into an enclosing array literal. There's no array around
-    // the body's return value, so wrap it in a Fragment tuple so the
-    // render function returns a valid expression.
+    // A single root v-for emits a `...(...)` spread only valid inside an
+    // array literal, so wrap it in a Fragment tuple.
     if (produced.startsWith("...")) {
       bodyContext.code
         = bodyContext.code.slice(0, before)
@@ -176,15 +158,12 @@ export function compileOnigiri(
     bodyContext.push("]]");
   }
 
-  // Merge imports from body context
   for (const imp of bodyContext.imports) {
     context.imports.add(imp);
   }
 
-  // Stable onigiri ABI: single signature across dev/prod.
-  // - _ctx is the component instance proxy (props/setup/data/options unified).
-  // - __instance is the raw ComponentInternalInstance, forwarded to child
-  //   serializer calls as their parent instance.
+  // Stable ABI: `_ctx` is the instance proxy, `__instance` the raw
+  // ComponentInternalInstance forwarded to child serializer calls.
   context.push("export function renderOnigiri(_ctx, __instance) {");
   context.newline();
   context.indent();
@@ -194,7 +173,6 @@ export function compileOnigiri(
     context.newline();
   }
 
-  // Add the return statement
   context.push("return ");
   context.push(bodyContext.code);
   context.push(";");
@@ -211,25 +189,18 @@ export function compileOnigiri(
 }
 
 /**
- * Compile Vue template to an inline expression that returns VServerComponent.
- * This is used by the Vite plugin to inject directly into setup() without
- * an extra function wrapper - maximum performance.
- *
- * @param template - The Vue template string
- * @param options - Compiler options including binding metadata
- * @returns An object with the inline expression, imports, and component declarations
+ * Compile a Vue template to an inline expression returning VServerComponent,
+ * injected directly into setup() by the Vite plugin.
  */
 export function compileOnigiriInline(
   template: string,
   options: OnigiriCompilerOptions = {},
 ): { expression: string; imports: Set<string>; components: Map<string, string>; ast: RootNode } {
-  // Parse the template with HTML void tag recognition
   const ast = baseParse(template, {
     ...options,
     isVoidTag,
   });
 
-  // Transform the AST with Vue's default transforms.
   transform(ast, {
     ...options,
     prefixIdentifiers: true,
@@ -238,7 +209,6 @@ export function compileOnigiriInline(
     directiveTransforms: {},
   });
 
-  // Generate just the expression, no function wrapper
   const context = createCodegenContext({
     bindingMetadata: options.bindingMetadata,
     scopeId: options.scopeId,
@@ -249,8 +219,7 @@ export function compileOnigiriInline(
     registerTarget: options.registerTarget,
   });
 
-  // Same root-comment filtering as `compileOnigiri`: comment-only
-  // templates must emit `null`, not an empty expression.
+  // Same root-comment filtering as compileOnigiri.
   const rootChildren = withoutRenderlessChildren(ast.children);
   if (rootChildren.length === 0) {
     context.push("null");
@@ -258,10 +227,7 @@ export function compileOnigiriInline(
     const before = context.code.length;
     genNode(rootChildren[0], context);
     const produced = context.code.slice(before);
-    // Same Fragment-wrap fix as `compileOnigiri` — a root-level `v-for`
-    // emits a `...(arr.map(...))` spread that's only valid inside an
-    // array literal. The inline expression has no enclosing array, so
-    // wrap into a Fragment tuple.
+    // Same Fragment wrap as compileOnigiri for a root-level v-for spread.
     if (produced.startsWith("...")) {
       context.code
         = context.code.slice(0, before)
@@ -272,7 +238,6 @@ export function compileOnigiriInline(
           + "]]";
     }
   } else {
-    // Multiple root nodes - wrap in fragment
     context.push("[");
     context.push(VServerComponentType.Fragment.toString());
     context.push(", [");
@@ -291,5 +256,4 @@ export function compileOnigiriInline(
   };
 }
 
-// Re-export codegen utilities for direct access
 export * from "./codegen";

@@ -33,8 +33,8 @@ function parseSlots(children: any[]): ParsedSlot[] {
           slotName = (slotDirective.arg as SimpleExpressionNode).content;
         }
 
-        // Destructured slot params (e.g. `#default="{ item }"`) come through
-        // as COMPOUND_EXPRESSION without a flat `.content` — fall back to loc.
+        // Destructured slot params (`#default="{ item }"`) come through as
+        // COMPOUND_EXPRESSION without a flat `.content`; fall back to loc.
         let slotProps: string | null = null;
         if (slotDirective.exp) {
           if (slotDirective.exp.type === NodeTypes.SIMPLE_EXPRESSION) {
@@ -93,11 +93,8 @@ export function genSlotsObject(
       } else {
         context.push("() => ");
       }
-      // Slot-scope bindings (`#default="{ item }"`) are locals of the
-      // emitted arrow, so register them to stop `prefixIdentifiers` from
-      // rewriting them to `_ctx.item` inside the slot body. Only names not
-      // already local are added (and removed after), so an outer v-for
-      // binding shadowed by a slot param survives the cleanup.
+      // Slot-scope bindings are locals of the emitted arrow; add only names
+      // not already local so shadowed outer v-for bindings survive cleanup.
       const slotLocals = slot.slotProps ? collectBindingNames(slot.slotProps) : [];
       const added: string[] = [];
       for (const name of slotLocals) {
@@ -117,8 +114,8 @@ export function genSlotsObject(
         for (const name of added) context.localVars.delete(name);
       }
     } else {
-      // Scoped slots can't cross the client boundary — the scope value only
-      // exists on the client at runtime and can't be embedded in frozen AST.
+      // Scoped slots can't cross the client boundary; the scope value
+      // can't be embedded in frozen AST.
       if (slot.slotProps) {
         throw new Error(
           `[vue-onigiri] Scoped slots are not supported on client-loaded components ('v-load-client'). `
@@ -191,11 +188,8 @@ export function genSlotOutlet(node: ElementNode, context: CodegenContext): void 
 
   const renderableChildren = withoutRenderlessChildren(children);
   if (renderableChildren.length > 0) {
-    // Always wrap in an array literal. A bare `genNode(child)` for a single
-    // child breaks when that child is a `v-for` (which emits `...(arr.map(...))`),
-    // producing `() => ...(arr.map(...))` — a syntax error. The `renderSlot`
-    // runtime normalises both single- and multi-element fallbacks through
-    // `wrapSlotResult`, so wrapping is always safe.
+    // Always wrap in an array: a bare single child breaks when it's a v-for
+    // spread, and the renderSlot runtime normalises both shapes anyway.
     context.push("() => [");
     for (const [i, child] of renderableChildren.entries()) {
       if (i > 0) context.push(", ");

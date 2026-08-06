@@ -1,17 +1,7 @@
 /**
- * Cross-plugin shared state. The compiler registers every
- * `v-load-client` target it sees into `targets`; the manifest plugin
- * reads from it to emit a precise `import.meta.glob([...paths])`
- * instead of a broad `/**\/*.vue` glob. When the compiler sees a new
- * target after the manifest has already been loaded, it calls the
- * invalidator the manifest plugin registered — Vite re-`load`s the
- * virtual on the next request with the full set.
- *
- * Singleton because the two plugins are wired up independently (host
- * apps call `onigiriCompilerPlugin` and `onigiriManifestPlugin`
- * separately). If multiple isolated vue-onigiri instances ever need
- * to coexist in one process this becomes a problem, but that's not a
- * shape any current consumer hits.
+ * Cross-plugin singleton (the two plugins are wired up independently):
+ * the compiler registers v-load-client targets, the manifest plugin reads
+ * them for its precise glob and gets invalidated when a new one appears.
  */
 const targets = new Set<string>();
 let invalidateManifest: (() => void) | undefined;
@@ -30,7 +20,7 @@ export function getOnigiriTargets(): readonly string[] {
   return [...targets];
 }
 
-/** Test/SSR-restart helper — resets the singleton state. */
+/** Test/SSR-restart helper: resets the singleton state. */
 export function _resetOnigiriTargets(): void {
   targets.clear();
   invalidateManifest = undefined;
