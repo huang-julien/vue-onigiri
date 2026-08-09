@@ -27,6 +27,25 @@ describe("manifest-based component loading", () => {
     });
   });
 
+  it("extraEntries loads a real node_modules package component by bare specifier", async () => {
+    // `@vue-onigiri/test-ui-lib` is a workspace package linked into
+    // node_modules; without its literal entry this bare specifier would
+    // hit the "No loader registered" throw (see the test below).
+    const mod = await manifestImportFn("@vue-onigiri/test-ui-lib/Button.vue");
+    expect(mod).toBeDefined();
+    expect(typeof mod).toBe("object");
+  });
+
+  it("extraEntries lookup tolerates a leading-slash difference", async () => {
+    const mod = await manifestImportFn("/@vue-onigiri/test-ui-lib/Button.vue");
+    expect(mod).toBeDefined();
+  });
+
+  it("extraEntries values resolve through the bundler, so aliases work", async () => {
+    const mod = await manifestImportFn("onigiri-test/aliased-counter");
+    expect(mod).toBeDefined();
+  });
+
   it("virtual:onigiri/manifest throws for an unknown bare specifier", async () => {
     // A bare specifier (no leading `/`, no scheme) doesn't match the
     // glob and doesn't qualify for the absolute-URL fallback. Surface

@@ -66,6 +66,9 @@ importers:
       '@vitest/ui':
         specifier: ^4.1.10
         version: 4.1.10(vitest@4.1.10)
+      '@vue-onigiri/test-ui-lib':
+        specifier: workspace:*
+        version: link:../test-ui-lib
       '@vue/server-renderer':
         specifier: ^3.5.33
         version: 3.5.33(vue@3.5.33(typescript@6.0.3))
@@ -100,8 +103,21 @@ importers:
         specifier: ^3.2.8
         version: 3.2.8(typescript@6.0.3)
 
+  packages/test-ui-lib:
+    dependencies:
+      vue:
+        specifier: ^3.5.0
+        version: 3.5.33(typescript@6.0.3)
+    devDependencies:
+      vue-onigiri:
+        specifier: workspace:*
+        version: link:../core
+
   playground:
     dependencies:
+      '@vue-onigiri/test-ui-lib':
+        specifier: workspace:*
+        version: link:../packages/test-ui-lib
       vite-plugin-mcp:
         specifier: ^0.3.2
         version: 0.3.2(vite@7.3.6(@types/node@22.19.17)(jiti@2.6.1)(lightningcss@1.32.0))

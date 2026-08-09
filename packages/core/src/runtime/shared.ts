@@ -54,7 +54,7 @@ type VServerComponentSuspense = [
 ];
 type VServerComponentTeleport = [
   VServerComponentType.Teleport,
-// selector
+  // selector
   string,
   // disabled
   boolean | undefined,

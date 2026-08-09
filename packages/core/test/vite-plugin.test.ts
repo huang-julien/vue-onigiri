@@ -9,7 +9,7 @@ import { injectIntoSetupAsync } from "../src/vite/compiler/inject-setup";
 import { onigiriCompilerPlugin } from "../src/vite/compiler";
 import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "../src/vite/compiler/constants";
 import MagicString from "magic-string";
- 
+
 const { virtualFiles } = vi.hoisted(() => ({ virtualFiles: new Set<string>() }));
 vi.mock("node:fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs")>();

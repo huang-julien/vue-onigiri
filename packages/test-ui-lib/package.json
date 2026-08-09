@@ -1,0 +1,13 @@
+{
+  "name": "@vue-onigiri/test-ui-lib",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Fixture package: a raw .vue component consumed as a bare specifier, exercising the manifest plugin's extraEntries across tests and the playground",
+  "type": "module",
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "vue-onigiri": "workspace:*"
+  }
+}

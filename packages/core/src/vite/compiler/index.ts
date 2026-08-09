@@ -202,7 +202,11 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
           if (!code.includes("export default")) return null;
           const onigiriImport = `${ONIGIRI_PREFIX}${encodeURIComponent(filePath)}${ONIGIRI_SUFFIX}`;
           const sourcePath = toRootRelative(filePath, config.root);
-          const descriptorChunk = resolveChunkUrl?.(sourcePath) ?? sourcePath;
+
+          const addressable = sourcePath.startsWith("/") && !sourcePath.startsWith("/node_modules/");
+          const descriptorChunk = addressable
+            ? resolveChunkUrl?.(sourcePath) ?? sourcePath
+            : undefined;
 
           let workCode = code;
           if (hasInlineTemplate(code)) {

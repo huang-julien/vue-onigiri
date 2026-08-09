@@ -8,7 +8,19 @@ import { onigiriManifestPlugin } from "../packages/core/src/vite/manifest";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [onigiriCompilerPlugin(), vue(), onigiriManifestPlugin(), vueDevTools(), ViteMcp()],
+  plugins: [
+    onigiriCompilerPlugin(),
+    vue(),
+    onigiriManifestPlugin({
+      // Package component: a bare specifier the glob cannot cover; the
+      // literal entry makes each environment's bundler emit its chunk.
+      extraEntries: {
+        "@vue-onigiri/test-ui-lib/Button.vue": "@vue-onigiri/test-ui-lib/Button.vue",
+      },
+    }),
+    vueDevTools(),
+    ViteMcp(),
+  ],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("src", import.meta.url)),

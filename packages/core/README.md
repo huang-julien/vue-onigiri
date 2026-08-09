@@ -149,6 +149,13 @@ interface OnigiriManifestPluginOptions {
    */
   clientInclude?: "auto" | string | string[] | false;
   /**
+   * Literal loader entries merged over the glob, for chunk references
+   * a glob cannot express — typically package components. Key: the
+   * chunk reference as it appears in the AST; value: the specifier to
+   * import. Consulted before the glob and the native-import fallback.
+   */
+  extraEntries?: Record<string, string>;
+  /**
    * Force a no-glob manifest in **all** environments. Required for
    * bundlers that can't preprocess `import.meta.glob` or compile
    * `.vue` imports (e.g. Nitro's prerender rollup).
@@ -156,6 +163,25 @@ interface OnigiriManifestPluginOptions {
   stub?: boolean;
 }
 ```
+
+#### Package components (`extraEntries`)
+
+A `v-load-client` target imported from a package (`some-ui-lib/Button.vue`) can't be covered by the manifest glob: bare specifiers aren't valid `import.meta.glob` patterns, and in a built app a runtime `import()` of a bare specifier has no bundler behind it. `extraEntries` fixes this by emitting a literal `"key": () => import("spec")` into the manifest, so each environment's bundler resolves the specifier and emits its chunk (browser chunk in the client build, SSR chunk in the server build):
+
+```ts
+onigiriManifestPlugin({
+  extraEntries: {
+    "some-ui-lib/Button.vue": "some-ui-lib/Button.vue",
+  },
+});
+```
+
+- **Only needed for package components.** Project files are covered by the glob; dev doesn't strictly need entries either (the dev server resolves bare specifiers on demand), but the option is applied in dev too so behavior matches the build.
+- **Key**: the chunk reference as it appears in the AST — for package components the compiler bakes the source specifier (`some-ui-lib/Button.vue`), or the URL the host baked via `resolveChunkUrl`. Lookup tolerates a leading-slash difference (`some-ui-lib/Button.vue` also matches `/some-ui-lib/Button.vue`), so one canonical key is enough; any other prefixing (e.g. an assets-dir prefix) must be registered as its own key or stripped by the host before lookup.
+- **Values go through bundler resolution**, so aliased specifiers work too.
+- **Packages shipping raw `.vue` files must be `ssr.noExternal`** (e.g. `ssr: { noExternal: ["some-ui-lib"] }`): an externalized entry leaves a runtime `import()` of a `.vue` file that Node cannot load.
+- Under `stub: true` the entries are dropped along with the glob, for the same reason stub exists: those bundlers can't compile `.vue` imports.
+- With `"auto"` includes, scanned package targets that no entry covers are excluded from the glob and reported via a debug-level plugin log naming the specifier.
 
 ## Nuxt
 

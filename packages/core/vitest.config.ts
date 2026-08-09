@@ -10,7 +10,16 @@ export default defineProject({
   plugins: [
     onigiriCompilerPlugin(),
     vue(),
-    onigiriManifestPlugin({ clientInclude: "/test/fixtures/components/**/*.vue" }),
+    onigiriManifestPlugin({
+      clientInclude: "/test/fixtures/components/**/*.vue",
+      extraEntries: {
+        // Real node_modules package: the bare specifier is only loadable
+        // because the literal entry puts it through bundler resolution.
+        "@vue-onigiri/test-ui-lib/Button.vue": "@vue-onigiri/test-ui-lib/Button.vue",
+        // Aliased value: proves entry values resolve like source imports.
+        "onigiri-test/aliased-counter": "~fixtures/components/Counter.vue",
+      },
+    }),
   ],
   resolve: {
     alias: {

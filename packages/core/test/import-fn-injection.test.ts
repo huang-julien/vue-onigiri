@@ -78,7 +78,7 @@ describe("importFn resolution chain", () => {
 
   it("default manifest module throws with setup guidance outside Vite", async () => {
     await expect(defaultImportFn("/nope.vue")).rejects.toThrow(
-      '[vue-onigiri] No chunk loader available for "/nope.vue"',
+      "[vue-onigiri] No chunk loader available for \"/nope.vue\"",
     );
   });
 });

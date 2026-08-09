@@ -36,6 +36,18 @@ describe("buildImportMap", () => {
     expect(map.get("ComarkRenderer")).toBe("@comark/vue");
   });
 
+  it("keeps the bare specifier for workspace-linked packages resolving outside the root", async () => {
+    // pnpm `workspace:*` links resolve through the symlink to a realpath
+    // outside both node_modules and the project root.
+    const map = await buildImportMap(
+      `import Button from "@acme/ui-lib/Button.vue";`,
+      SFC,
+      ROOT,
+      async () => "D:/monorepo/packages/ui-lib/Button.vue",
+    );
+    expect(map.get("Button")).toBe("@acme/ui-lib/Button.vue");
+  });
+
   it("strips resolution queries before deriving the chunk path", async () => {
     const map = await buildImportMap(
       `import Widget from "@/Widget.vue";`,

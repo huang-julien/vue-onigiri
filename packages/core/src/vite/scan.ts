@@ -10,7 +10,8 @@ import { toRootRelative } from "./compiler/paths";
 export interface OnigiriScanOptions {
   /**
    * Directories to scan for SFCs, absolute or relative to the Vite root.
-   * Defaults to the root itself.
+   *
+   * @default ["."]
    */
   include?: string[];
   /** Directory names to skip, on top of the built-in defaults. */

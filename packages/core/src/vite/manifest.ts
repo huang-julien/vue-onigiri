@@ -8,54 +8,90 @@ export type OnigiriManifestInclude = "auto" | string | string[] | false;
 
 export interface OnigiriManifestOptions {
   /**
-   * What the server `__glob` covers: `"auto"` (default) globs only the
-   * v-load-client targets seen during transform, explicit pattern(s)
-   * override the auto list, `false` emits no glob at all.
+   * Server `__glob`: `"auto"` globs the v-load-client targets seen during
+   * transform, explicit pattern(s) override, `false` emits none.
+   *
+   * @default "auto"
    */
   serverInclude?: OnigiriManifestInclude;
   /**
-   * Client `__glob`, same shape as `serverInclude`; defaults to `false`
-   * so no source-path loader map ships to the browser. `"auto"` works
-   * because the compiler plugin's buildStart scan registers every
-   * v-load-client target before either environment builds; without a
-   * client glob, a source-path descriptor reaching the browser must be
-   * resolved by a custom `importFn` or it fails at render time.
+   * Client `__glob`, same shape as `serverInclude`; when `false`, a
+   * source-path descriptor reaching the browser needs a custom `importFn`.
+   *
+   * @default false
    */
   clientInclude?: OnigiriManifestInclude;
+  /**
+   * Literal `"key": () => import("spec")` loader entries consulted before
+   * the glob, for chunk references a glob cannot express — typically package
+   * components: the key is the AST chunk reference (leading-slash tolerant),
+   * the value is a bundler-resolved specifier, so aliases work.
+   */
+  extraEntries?: Record<string, string>;
 }
 
 export interface OnigiriManifestPluginOptions extends OnigiriManifestOptions {
   /**
-   * Force a no-glob manifest in **all** environments. Required for
-   * bundlers that can't preprocess `import.meta.glob` or compile `.vue`
-   * imports (Nitro's pure-Node rollup, including its prerender pass).
+   * Force a no-glob manifest in all environments, required for bundlers
+   * that can't preprocess `import.meta.glob` or compile `.vue` imports
+   * (e.g. Nitro's pure-Node rollup).
+   *
+   * @default false
    */
   stub?: boolean;
 }
 
 /**
  * Emit the `virtual:onigiri/manifest` module exporting `manifest` and
- * `importFn`, which resolves a chunk reference via its glob entry, then
- * native `import()` for absolute URLs, then a diagnostic throw.
+ * `importFn`, which resolves a chunk reference via extras, then glob,
+ * then native `import()` for absolute URLs, then a diagnostic throw.
  */
 export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}): Plugin {
   const stub = options.stub ?? false;
   const serverInclude: OnigiriManifestInclude = stub ? false : (options.serverInclude ?? "auto");
   const clientInclude: OnigiriManifestInclude = stub ? false : (options.clientInclude ?? false);
+  // Stub exists for bundlers that can't compile `.vue` imports, which a literal entry is too.
+  const extraEntries = stub ? undefined : options.extraEntries;
 
-  const resolveInclude = (include: OnigiriManifestInclude): string[] | false => {
+  // Once-per-spec guard for the bare-specifier diagnostic below.
+  const loggedBareTargets = new Set<string>();
+
+  const extrasCover = (spec: string): boolean => {
+    if (!extraEntries) return false;
+    const toggled = spec.startsWith("/") ? spec.slice(1) : "/" + spec;
+    return spec in extraEntries || toggled in extraEntries
+      || Object.values(extraEntries).includes(spec);
+  };
+
+  const resolveInclude = (
+    include: OnigiriManifestInclude,
+    debug?: (message: string) => void,
+  ): string[] | false => {
     if (include === false) return false;
     if (include === "auto") {
       const targets = getOnigiriTargets();
-      return targets.length > 0 ? [...targets] : false;
+      // Bare package specifiers can't be glob patterns; they need a literal entry.
+      const globbable = targets.filter((target) => target.startsWith("/"));
+      for (const target of targets) {
+        if (target.startsWith("/") || extrasCover(target) || loggedBareTargets.has(target)) {
+          continue;
+        }
+        loggedBareTargets.add(target);
+        debug?.(
+          `[vue-onigiri] v-load-client target "${target}" is a package specifier that `
+          + `\`import.meta.glob\` cannot cover, so no chunk is emitted for it. Add it to `
+          + `\`onigiriManifestPlugin\`'s \`extraEntries\` `
+          + `(e.g. { ${JSON.stringify(target)}: ${JSON.stringify(target)} }).`,
+        );
+      }
+      return globbable.length > 0 ? globbable : false;
     }
     return Array.isArray(include) ? include : [include];
   };
 
   return {
     name: "vite:vue-onigiri-manifest",
-    // Claim the id before default resolvers externalize the `virtual:`
-    // protocol; a missed resolution crashes Nitro's rollup.
+    // Claim the id before default resolvers externalize the `virtual:` protocol, which crashes Nitro's rollup.
     resolveId: {
       order: "pre",
       handler(id, importer) {
@@ -72,8 +108,7 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
       },
     },
     configureServer(server) {
-      // Dev: a new v-load-client target invalidates the manifest module
-      // so the next request re-loads it with the fresh set.
+      // Dev: a new v-load-client target invalidates the manifest module so the next request sees the fresh set.
       setOnigiriManifestInvalidator(() => {
         const mod
           = server.environments.ssr?.moduleGraph.getModuleById(MANIFEST_RESOLVED_ID)
@@ -86,23 +121,30 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
     },
     load(id, opts) {
       if (id !== MANIFEST_RESOLVED_ID) return;
-      // Treat undefined `ssr` as server: tests / non-Vite consumers don't
-      // set the flag, and a client bundle always sets it explicitly to false.
+      // Undefined `ssr` means server: only client bundles set the flag, explicitly to false.
       const isClient = opts?.ssr === false;
-      const include = resolveInclude(isClient ? clientInclude : serverInclude);
+      // Optional-chained: tests and non-Rollup callers invoke `load` without a plugin context.
+      const include = resolveInclude(
+        isClient ? clientInclude : serverInclude,
+        (message) => this?.debug?.(message),
+      );
       const useGlob = include !== false && include.length > 0;
+      const extras = extraEntries && Object.keys(extraEntries).length > 0
+        ? `{\n${Object.entries(extraEntries).map(([key, spec]) => `  ${JSON.stringify(key)}: () => import(${JSON.stringify(spec)}),`).join("\n")}\n}`
+        : undefined;
       return `
 ${useGlob ? `const __glob = import.meta.glob(${JSON.stringify(include)})\n` : ""}
+${extras ? `const __extra = ${extras}\n` : ""}
 export const manifest = ${useGlob ? "__glob" : "{}"}
 
 export async function importFn(src, exportName = 'default') {
   const key = src.startsWith('/') ? src : '/' + src
-  const loader = ${useGlob ? "__glob[key]" : "undefined"}
+  const loader = ${extras ? "__extra[src] ?? __extra[src.startsWith('/') ? src.slice(1) : key] ?? " : ""}${useGlob ? "__glob[key]" : "undefined"}
   if (loader) {
     const mod = await loader()
     return mod[exportName] ?? mod.default ?? mod
   }
-  // Absolute URLs baked via \`resolveChunkUrl\` (e.g. \`/_nuxt/Counter.abc123.js\`) load through native import().
+  // Absolute URLs baked via \`resolveChunkUrl\` load through native import().
   // Protocol-relative URLs ('//host/x') are rejected so a tampered payload cannot load cross-origin scripts.
   if (src.startsWith('/') && !src.startsWith('//')) {
     try {
@@ -130,7 +172,7 @@ export async function importFn(src, exportName = 'default') {
 
 /**
  * Convenience: returns just the manifest plugin in an array, so existing
- * callers using `[...onigiriPlugins()]` keep working.
+ * `[...onigiriPlugins()]` callers keep working.
  */
 export function onigiriPlugins(options: OnigiriManifestPluginOptions = {}): Plugin[] {
   return [onigiriManifestPlugin(options)];

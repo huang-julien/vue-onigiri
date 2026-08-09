@@ -11,7 +11,7 @@ export type ResolveImportFn = (source: string) => Promise<string | null | undefi
 /**
  * Map each `<script>` import's local identifier to the chunk path baked into v-load-client tuples (e.g. `Foo` → `/components/Foo.vue`).
  * Sources go through the bundler resolver when available, so aliases and package imports resolve.
- * Resolutions under `root` become root-relative paths; node_modules resolutions keep their bare specifier.
+ * Resolutions under `root` become root-relative paths; package resolutions (node_modules or out-of-root, e.g. workspace links) keep their bare specifier.
  * Without a resolver, relative imports fall back to plain path joining.
  */
 export async function buildImportMap(
@@ -50,11 +50,14 @@ async function resolveImportSource(
     const resolved = await resolveImport(source);
     if (resolved) {
       const clean = resolved.split("?")[0]!;
-      // A node_modules file path is useless to the client glob; the bare specifier stays mappable by the host.
-      if (!isRelative && clean.includes("node_modules")) {
+      const rel = toRootRelative(clean, root);
+      // Package files can't be glob keys, so the bare specifier stays
+      // mappable by the host. Out-of-root covers workspace-linked packages,
+      // whose realpath escapes both node_modules and the root.
+      if (!isRelative && (clean.includes("node_modules") || !rel.startsWith("/"))) {
         return source;
       }
-      return toRootRelative(clean, root);
+      return rel;
     }
   }
 

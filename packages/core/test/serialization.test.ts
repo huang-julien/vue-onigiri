@@ -411,7 +411,7 @@ describe("payload versioning", () => {
 describe("v-load-client via alias import", () => {
   it("resolves the aliased import to a root-relative chunk path", async () => {
     const ast = await serializeComponent(AliasLoad);
-    expect(JSON.stringify(ast)).toContain('"/test/fixtures/components/Counter.vue"');
+    expect(JSON.stringify(ast)).toContain("\"/test/fixtures/components/Counter.vue\"");
   });
 });
 

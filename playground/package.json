@@ -11,6 +11,7 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
+    "@vue-onigiri/test-ui-lib": "workspace:*",
     "vite-plugin-mcp": "^0.3.2",
     "vue": "^3.5.13"
   },

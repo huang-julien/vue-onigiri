@@ -1,11 +1,29 @@
 <script setup lang="ts">
-import { ref, computed, type VNode } from "vue";
+import { ref, computed, defineComponent, h, Suspense, watch, type VNode } from "vue";
+import { serializeComponent } from "vue-onigiri/runtime/serialize";
+import { renderOnigiri } from "vue-onigiri/runtime/deserialize";
 import AstViewer from "./components/AstViewer.vue";
 import Counter from "./components/Counter.vue";
 import LoadComponent from "./components/LoadComponent.vue";
 
 const vnode = ref();
-const activeTab = ref<"live" | "compiled">("live");
+const activeTab = ref<"live" | "compiled" | "onigiri">("live");
+
+// Serialize → renderOnigiri round trip: v-load-client chunks resolve
+// through the manifest importFn (glob + extraEntries) in the browser.
+const onigiriAst = ref<any>(null);
+watch(activeTab, async (tab) => {
+  if (tab === "onigiri" && !onigiriAst.value) {
+    onigiriAst.value = await serializeComponent(LoadComponent);
+  }
+});
+
+const OnigiriPreview = defineComponent({
+  props: { ast: { type: Object, required: true } },
+  setup(props) {
+    return () => h(Suspense, null, { default: () => renderOnigiri(props.ast as any) });
+  },
+});
 
 function onVnodeUpdated(_vnode: VNode) {
   vnode.value = _vnode;
@@ -35,6 +53,9 @@ const compiledAst = computed(() => {
       <button :class="{ active: activeTab === 'compiled' }" @click="activeTab = 'compiled'">
         Compiled AST
       </button>
+      <button :class="{ active: activeTab === 'onigiri' }" @click="activeTab = 'onigiri'">
+        Onigiri Render
+      </button>
     </nav>
 
     <main class="content">
@@ -60,6 +81,17 @@ const compiledAst = computed(() => {
           the Vite plugin
         </p>
         <pre class="ast">{{ JSON.stringify(compiledAst, null, 2) }}</pre>
+      </div>
+
+      <div v-else-if="activeTab === 'onigiri'" class="panel">
+        <h2>Serialized → renderOnigiri</h2>
+        <p class="description">
+          The AST below was produced by <code>serializeComponent</code> and rendered with
+          <code>renderOnigiri</code>; <code>v-load-client</code> chunks (including the
+          <code>@vue-onigiri/test-ui-lib</code> package button) load through the manifest.
+        </p>
+        <OnigiriPreview v-if="onigiriAst" :ast="onigiriAst" />
+        <p v-else>Serializing…</p>
       </div>
     </main>
   </div>
