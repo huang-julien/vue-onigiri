@@ -114,6 +114,15 @@ interface OnigiriCompilerOptions {
     | Record<string, string>
     | Map<string, string>
     | (() => Record<string, string> | Map<string, string>);
+  /**
+   * buildStart pre-pass scanning SFC templates for `v-load-client`
+   * targets so the manifest's `"auto"` includes are complete before
+   * any environment builds. `true` (default) scans the whole root;
+   * pass `{ include, exclude }` to narrow it, or `false` to disable.
+   * Unresolvable targets (`<component :is>`, tags with no matching
+   * import or `additionalImports` entry) warn at build time.
+   */
+  scan?: boolean | { include?: string[]; exclude?: string[] };
 }
 ```
 
@@ -124,19 +133,21 @@ Emits the `virtual:onigiri/manifest` virtual module that the runtime loader impo
 ```ts
 interface OnigiriManifestPluginOptions {
   /**
-   * Glob (relative to root) for the **server** lazy-load fallback.
-   * Default: `/**\/*.vue`. Set to `false` to disable.
+   * What the server `import.meta.glob` covers. `"auto"` (default)
+   * globs exactly the `v-load-client` targets the compiler saw,
+   * explicit pattern(s) override the auto list, `false` disables.
    */
-  serverInclude?: string | false;
+  serverInclude?: "auto" | string | string[] | false;
   /**
-   * Glob for the **client** lazy-load fallback. Default: `false`.
-   * Exposing `import.meta.glob` to the browser leaks every matching
-   * file path into the bundle, so the safer default is to pass a
-   * custom `importFn` via `renderOnigiri(ast, { importFn })`. Only set
-   * this if you have client islands that aren't reachable through your
-   * app's static import graph; scope it as narrowly as possible.
+   * Client glob, same shape. Default: `false`, so no source-path
+   * loader map ships to the browser. `"auto"` emits loaders for
+   * exactly the `v-load-client` targets found by the compiler
+   * plugin's buildStart scan — complete even when the client
+   * environment builds before any island transform runs. Explicit
+   * pattern(s) remain available for targets the scan can't see
+   * (`<component :is>`, dynamically registered components).
    */
-  clientInclude?: string | false;
+  clientInclude?: "auto" | string | string[] | false;
   /**
    * Force a no-glob manifest in **all** environments. Required for
    * bundlers that can't preprocess `import.meta.glob` or compile

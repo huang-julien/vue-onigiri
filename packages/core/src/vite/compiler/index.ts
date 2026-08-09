@@ -1,7 +1,8 @@
 import { existsSync } from "node:fs";
 import type { Plugin, ResolvedConfig } from "vite";
 import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "./constants";
-import { loadVirtualOnigiriModule } from "./load-virtual";
+import { loadVirtualOnigiriModule, normaliseAdditionalImports } from "./load-virtual";
+import { type OnigiriScanOptions, scanClientTargets } from "../scan";
 import { injectIntoSetupAsync } from "./inject-setup";
 import { attachAsProperty } from "./attach-property";
 import type { AdditionalImport } from "../../template-compiler/codegen/context";
@@ -61,6 +62,13 @@ export interface OnigiriCompilerOptions {
    * at runtime via the manifest's `import.meta.glob` or a custom `importFn`.
    */
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
+  /**
+   * buildStart pre-pass scanning SFC templates for v-load-client targets,
+   * so `"auto"` manifest includes are complete before any environment
+   * builds
+   * @default true
+   */
+  scan?: boolean | OnigiriScanOptions;
 }
 
 /**
@@ -69,8 +77,11 @@ export interface OnigiriCompilerOptions {
  * the render into `setup()` so it captures the setup-script closure.
  */
 export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plugin {
-  const { sourceMap = true, isCustomElement, additionalImports, resolveChunkUrl } = options;
+  const { sourceMap = true, isCustomElement, additionalImports, resolveChunkUrl, scan = true }
+    = options;
   let config: ResolvedConfig;
+  // Memoized so multi-environment builds (client + ssr) scan only once.
+  let scanPromise: Promise<void> | undefined;
 
   const resolveAdditionalImports = (): Map<string, AdditionalImport> => {
     const raw = typeof additionalImports === "function" ? additionalImports() : additionalImports;
@@ -102,6 +113,22 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
     },
     configResolved(resolvedConfig) {
       config = resolvedConfig;
+    },
+
+    async buildStart() {
+      if (scan === false) return;
+      scanPromise ??= scanClientTargets({
+        ...(scan === true ? {} : scan),
+        root: config.root,
+        additionalImports:
+          normaliseAdditionalImports(resolveAdditionalImports(), config.root) ?? new Map(),
+        isCustomElement,
+        resolveImport: async (source, importer) =>
+          (await this.resolve(source, importer, { skipSelf: true }))?.id,
+        registerTarget: registerOnigiriTarget,
+        warn: (msg) => this.warn(msg),
+      });
+      await scanPromise;
     },
 
     resolveId: {

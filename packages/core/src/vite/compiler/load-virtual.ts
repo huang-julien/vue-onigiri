@@ -120,7 +120,7 @@ ${componentDeclarations}
  * form, matching the manifest glob keys and the resolveId root join.
  * Paths outside `config.root` stay absolute.
  */
-function normaliseAdditionalImports(
+export function normaliseAdditionalImports(
   raw: Map<string, AdditionalImport> | undefined,
   root: string,
 ): Map<string, AdditionalImport> | undefined {

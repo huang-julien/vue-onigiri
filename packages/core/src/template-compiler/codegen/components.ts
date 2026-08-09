@@ -12,6 +12,7 @@ import { withoutRenderlessChildren, genNode } from "./vnode";
 import { genExpressionAsValue, prefixIdentifiers } from "./expressions";
 import { genProps } from "./props";
 import { genSlotsObject } from "./slots";
+import { tagCasings } from "./tag-casings";
 
 export function getComponentRef(tag: string, context: CodegenContext): string {
   const pascalName = tag
@@ -317,18 +318,15 @@ function genClientLoadedComponent(
  * under all tag casings, and neither resolving is a compile error.
  */
 function resolveClientChunkPath(tag: string, context: CodegenContext): string {
-  const pascal = tag
-    .replace(/-./g, (x) => x[1]?.toUpperCase() ?? "")
-    .replace(/^./, (x) => x.toUpperCase());
-  const camel = pascal.replace(/^./, (x) => x.toLowerCase());
-  const kebab = tag.replace(/([a-z\d])([A-Z])/g, "$1-$2").toLowerCase();
-  for (const key of [tag, pascal, camel, kebab]) {
+  const casings = tagCasings(tag);
+  for (const key of casings) {
     const fromImportMap = context.importMap.get(key);
     if (fromImportMap) return fromImportMap;
     const fromAdditional = context.additionalImports.get(key);
     if (fromAdditional) return fromAdditional.path;
   }
 
+  const pascal = casings[1];
   throw new Error(
     `[vue-onigiri] Cannot resolve v-load-client target "${tag}": no matching import in `
     + `the component's <script> block and no entry in additionalImports. `
@@ -343,12 +341,7 @@ function resolveClientChunkPath(tag: string, context: CodegenContext): string {
  * entries carry an explicit export; everything else is "default".
  */
 function resolveClientChunkExport(tag: string, context: CodegenContext): string {
-  const pascal = tag
-    .replace(/-./g, (x) => x[1]?.toUpperCase() ?? "")
-    .replace(/^./, (x) => x.toUpperCase());
-  const camel = pascal.replace(/^./, (x) => x.toLowerCase());
-  const kebab = tag.replace(/([a-z\d])([A-Z])/g, "$1-$2").toLowerCase();
-  for (const key of [tag, pascal, camel, kebab]) {
+  for (const key of tagCasings(tag)) {
     const entry = context.additionalImports.get(key);
     if (entry) return entry.export ?? "default";
   }

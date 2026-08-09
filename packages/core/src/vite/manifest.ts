@@ -15,9 +15,11 @@ export interface OnigiriManifestOptions {
   serverInclude?: OnigiriManifestInclude;
   /**
    * Client `__glob`, same shape as `serverInclude`; defaults to `false`
-   * so no source-path loader map ships to the browser. With no client
-   * glob, a source-path descriptor reaching the browser must be resolved
-   * by a custom `importFn` or it fails at render time.
+   * so no source-path loader map ships to the browser. `"auto"` works
+   * because the compiler plugin's buildStart scan registers every
+   * v-load-client target before either environment builds; without a
+   * client glob, a source-path descriptor reaching the browser must be
+   * resolved by a custom `importFn` or it fails at render time.
    */
   clientInclude?: OnigiriManifestInclude;
 }
