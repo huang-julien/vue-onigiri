@@ -134,8 +134,9 @@ Emits the `virtual:onigiri/manifest` virtual module that the runtime loader impo
 interface OnigiriManifestPluginOptions {
   /**
    * What the server `import.meta.glob` covers. `"auto"` (default)
-   * globs exactly the `v-load-client` targets the compiler saw,
-   * explicit pattern(s) override the auto list, `false` disables.
+   * includes exactly the scanned `v-load-client` targets. Include
+   * `"auto"` in an array to combine them with explicit patterns;
+   * negative patterns do not exclude scanned targets. `false` disables.
    */
   serverInclude?: "auto" | string | string[] | false;
   /**
@@ -144,7 +145,7 @@ interface OnigiriManifestPluginOptions {
    * exactly the `v-load-client` targets found by the compiler
    * plugin's buildStart scan — complete even when the client
    * environment builds before any island transform runs. Explicit
-   * pattern(s) remain available for targets the scan can't see
+   * patterns can be combined with `"auto"` for targets the scan can't see
    * (`<component :is>`, dynamically registered components).
    */
   clientInclude?: "auto" | string | string[] | false;

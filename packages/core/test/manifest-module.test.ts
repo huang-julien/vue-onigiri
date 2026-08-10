@@ -90,6 +90,21 @@ describe("generated manifest module: extraEntries", () => {
     expect(debug).toHaveBeenCalledTimes(1);
   });
 
+  it("splices 'auto' targets into explicit patterns without applying their negatives", () => {
+    registerOnigiriTarget("/components/Counter.vue");
+    const include = ["auto", "/pages/**/*.vue", "!**/components/**"];
+    const serverCode = loadManifest(onigiriManifestPlugin({ serverInclude: include }), { ssr: true });
+    const clientCode = loadManifest(onigiriManifestPlugin({ clientInclude: include }), { ssr: false });
+
+    for (const code of [serverCode, clientCode]) {
+      expect(code).toContain(`import.meta.glob(["/components/Counter.vue"])`);
+      expect(code).toContain(`import.meta.glob(["/pages/**/*.vue","!**/components/**"])`);
+      expect(code).not.toContain(
+        `import.meta.glob(["/components/Counter.vue","/pages/**/*.vue","!**/components/**"])`,
+      );
+    }
+  });
+
   it("'auto' with only bare targets emits no glob but keeps the fallback chain", () => {
     registerOnigiriTarget("ui-lib/Button.vue");
     const code = loadManifest(onigiriManifestPlugin(), { ssr: true }, { debug: vi.fn() });

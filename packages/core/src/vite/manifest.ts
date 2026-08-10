@@ -8,8 +8,8 @@ export type OnigiriManifestInclude = "auto" | string | string[] | false;
 
 export interface OnigiriManifestOptions {
   /**
-   * Server `__glob`: `"auto"` globs the v-load-client targets seen during
-   * transform, explicit pattern(s) override, `false` emits none.
+   * Server `__glob`: `"auto"` includes scanned v-load-client targets;
+   * include it in an array to combine them with explicit patterns.
    *
    * @default "auto"
    */
@@ -41,6 +41,11 @@ export interface OnigiriManifestPluginOptions extends OnigiriManifestOptions {
   stub?: boolean;
 }
 
+interface ResolvedInclude {
+  literalTargets: string[];
+  patterns: string[];
+}
+
 /**
  * Emit the `virtual:onigiri/manifest` module exporting `manifest` and
  * `importFn`, which resolves a chunk reference via extras, then glob,
@@ -66,27 +71,31 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
   const resolveInclude = (
     include: OnigiriManifestInclude,
     debug?: (message: string) => void,
-  ): string[] | false => {
+  ): ResolvedInclude | false => {
     if (include === false) return false;
-    if (include === "auto") {
-      const targets = getOnigiriTargets();
-      // Bare package specifiers can't be glob patterns; they need a literal entry.
-      const globbable = targets.filter((target) => target.startsWith("/"));
-      for (const target of targets) {
-        if (target.startsWith("/") || extrasCover(target) || loggedBareTargets.has(target)) {
-          continue;
-        }
-        loggedBareTargets.add(target);
-        debug?.(
-          `[vue-onigiri] v-load-client target "${target}" is a package specifier that `
-          + `\`import.meta.glob\` cannot cover, so no chunk is emitted for it. Add it to `
-          + `\`onigiriManifestPlugin\`'s \`extraEntries\` `
-          + `(e.g. { ${JSON.stringify(target)}: ${JSON.stringify(target)} }).`,
-        );
+    const patterns = Array.isArray(include) ? include : [include];
+    const hasAuto = patterns.includes("auto");
+    const explicitPatterns = patterns.filter((pattern) => pattern !== "auto");
+    const targets = hasAuto ? getOnigiriTargets() : [];
+
+    // Bare package specifiers can't be glob patterns; they need a literal entry.
+    const literalTargets = targets.filter((target) => target.startsWith("/"));
+    for (const target of targets) {
+      if (target.startsWith("/") || extrasCover(target) || loggedBareTargets.has(target)) {
+        continue;
       }
-      return globbable.length > 0 ? globbable : false;
+      loggedBareTargets.add(target);
+      debug?.(
+        `[vue-onigiri] v-load-client target "${target}" is a package specifier that `
+        + `\`import.meta.glob\` cannot cover, so no chunk is emitted for it. Add it to `
+        + `\`onigiriManifestPlugin\`'s \`extraEntries\` `
+        + `(e.g. { ${JSON.stringify(target)}: ${JSON.stringify(target)} }).`,
+      );
     }
-    return Array.isArray(include) ? include : [include];
+
+    return literalTargets.length > 0 || explicitPatterns.length > 0
+      ? { literalTargets, patterns: explicitPatterns }
+      : false;
   };
 
   return {
@@ -128,12 +137,20 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
         isClient ? clientInclude : serverInclude,
         (message) => this?.debug?.(message),
       );
-      const useGlob = include !== false && include.length > 0;
+      const globExpressions = include === false
+        ? []
+        : [include.literalTargets, include.patterns]
+            .filter((patterns) => patterns.length > 0)
+            .map((patterns) => `import.meta.glob(${JSON.stringify(patterns)})`);
+      const useGlob = globExpressions.length > 0;
+      const glob = globExpressions.length === 1
+        ? globExpressions[0]
+        : `{\n${globExpressions.map((expression) => `  ...${expression},`).join("\n")}\n}`;
       const extras = extraEntries && Object.keys(extraEntries).length > 0
         ? `{\n${Object.entries(extraEntries).map(([key, spec]) => `  ${JSON.stringify(key)}: () => import(${JSON.stringify(spec)}),`).join("\n")}\n}`
         : undefined;
       return `
-${useGlob ? `const __glob = import.meta.glob(${JSON.stringify(include)})\n` : ""}
+${useGlob ? `const __glob = ${glob}\n` : ""}
 ${extras ? `const __extra = ${extras}\n` : ""}
 export const manifest = ${useGlob ? "__glob" : "{}"}
 
