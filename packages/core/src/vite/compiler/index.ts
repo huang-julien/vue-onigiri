@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
-import type { Plugin, ResolvedConfig } from "vite";
+import type { Plugin, ResolvedConfig, Rollup } from "vite";
+import type { OnigiriCompileOptions } from "./analyze-sfc";
 import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "./constants";
 import { loadVirtualOnigiriModule, normaliseAdditionalImports } from "./load-virtual";
 import { type OnigiriScanOptions, scanClientTargets } from "../scan";
@@ -33,6 +34,12 @@ function hasInlineTemplate(code: string): boolean {
     || code.includes("ssrRenderStyle")
     || code.includes("ssrRenderVNode")
   );
+}
+
+/** Bundler resolver bound to a hook's plugin context, which differs per hook. */
+function makeResolveImport(ctx: Rollup.PluginContext) {
+  return async (source: string, importer?: string) =>
+    (await ctx.resolve(source, importer, { skipSelf: true }))?.id;
 }
 
 export type AdditionalImportInput = string | AdditionalImport;
@@ -123,8 +130,7 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
         additionalImports:
           normaliseAdditionalImports(resolveAdditionalImports(), config.root) ?? new Map(),
         isCustomElement,
-        resolveImport: async (source, importer) =>
-          (await this.resolve(source, importer, { skipSelf: true }))?.id,
+        resolveImport: makeResolveImport(this),
         registerTarget: registerOnigiriTarget,
         warn: (msg) => this.warn(msg),
       });
@@ -182,8 +188,7 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
           additionalImports: resolveAdditionalImports(),
           resolveChunkUrl,
           registerTarget: registerOnigiriTarget,
-          resolveImport: async (source, importer) =>
-            (await this.resolve(source, importer, { skipSelf: true }))?.id,
+          resolveImport: makeResolveImport(this),
         },
         (msg) => this.error(msg),
       );
@@ -195,6 +200,18 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
         if (!filePath || !filePath.endsWith(".vue") || filePath.startsWith(ONIGIRI_PREFIX)) {
           return null;
         }
+
+        // Built on demand: `additionalImports` may be a getter re-evaluated
+        // per transform, so it stays unread unless an injection happens.
+        const injectOptions = (): OnigiriCompileOptions => ({
+          config,
+          sourceMap,
+          isCustomElement,
+          additionalImports: resolveAdditionalImports(),
+          resolveChunkUrl,
+          registerTarget: registerOnigiriTarget,
+          resolveImport: makeResolveImport(this),
+        });
 
         // Bare `.vue`: inject the setup bridge first when an inline render is
         // present (build closures are otherwise dark), then attach render + descriptor.
@@ -210,18 +227,7 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
 
           let workCode = code;
           if (hasInlineTemplate(code)) {
-            const injected = await injectIntoSetupAsync(
-              code,
-              filePath,
-              sourceMap,
-              config,
-              isCustomElement,
-              resolveAdditionalImports(),
-              resolveChunkUrl,
-              registerOnigiriTarget,
-              async (source, importer) =>
-                (await this.resolve(source, importer, { skipSelf: true }))?.id,
-            );
+            const injected = await injectIntoSetupAsync(code, filePath, injectOptions());
             if (injected) workCode = injected.code;
           }
           return attachAsProperty(workCode, onigiriImport, sourceMap, descriptorChunk);
@@ -231,18 +237,7 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
         // render can't reach, so inject ours inside setup to share the closure.
         if (query.includes("type=script")) {
           if (hasInlineTemplate(code)) {
-            return injectIntoSetupAsync(
-              code,
-              filePath,
-              sourceMap,
-              config,
-              isCustomElement,
-              resolveAdditionalImports(),
-              resolveChunkUrl,
-              registerOnigiriTarget,
-              async (source, importer) =>
-                (await this.resolve(source, importer, { skipSelf: true }))?.id,
-            );
+            return injectIntoSetupAsync(code, filePath, injectOptions());
           }
           return null;
         }

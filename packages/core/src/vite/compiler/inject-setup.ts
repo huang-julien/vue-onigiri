@@ -1,10 +1,7 @@
-import { type BindingMetadata, compileScript, parse } from "@vue/compiler-sfc";
-import type { ResolvedConfig } from "vite";
+import type { BindingMetadata } from "@vue/compiler-sfc";
 import MagicString from "magic-string";
 import { compileOnigiriInline } from "../../template-compiler";
-import type { AdditionalImport } from "../../template-compiler/codegen/context";
-import { generateScopeId } from "./scope-id";
-import { buildImportMap } from "./imports";
+import { type OnigiriCompileOptions, analyzeSfc, parseSfcFile } from "./analyze-sfc";
 
 /**
  * Build a `_ctx` bridge exposing setup-script bindings from the closure.
@@ -47,14 +44,10 @@ function buildBridgeObject(bindingMetadata: BindingMetadata): string {
 export async function injectIntoSetupAsync(
   code: string,
   filePath: string,
-  sourceMap: boolean,
-  config: ResolvedConfig,
-  isCustomElement?: (tag: string) => boolean,
-  additionalImports?: Map<string, AdditionalImport>,
-  resolveChunkUrl?: (sourcePath: string) => string | undefined,
-  registerTarget?: (sourcePath: string) => void,
-  resolveImport?: (source: string, importer: string) => Promise<string | null | undefined>,
+  opts: OnigiriCompileOptions,
 ): Promise<{ code: string; map: any } | null> {
+  const { sourceMap, isCustomElement, additionalImports, resolveChunkUrl, registerTarget } = opts;
+
   const setupMatch = code.match(/setup\s*\(\s*([^,)]*?)(?:,\s*\{[^}]*\})?\s*\)\s*\{/);
   if (!setupMatch || setupMatch.index === undefined) return null;
 
@@ -88,37 +81,15 @@ export async function injectIntoSetupAsync(
     return null;
   }
 
-  const fs = await import("node:fs/promises");
-  const source = await fs.readFile(filePath, "utf8");
-  const { descriptor } = parse(source, { filename: filePath });
-  if (!descriptor.template) return null;
+  const parsed = await parseSfcFile(filePath, sourceMap);
+  if (!parsed.descriptor.template) return null;
 
-  let bindingMetadata: BindingMetadata = {};
-  if (descriptor.scriptSetup || descriptor.script) {
-    try {
-      const scriptResult = compileScript(descriptor, { id: filePath, sourceMap });
-      bindingMetadata = scriptResult.bindings || {};
-    } catch (error_) {
-      console.warn(`[vue-onigiri] Failed to compile script for ${filePath}:`, error_);
-    }
-  }
+  const { bindingMetadata, scopeId, importMap } = await analyzeSfc(parsed, filePath, opts);
 
-  const hasScoped = descriptor.styles.some((style) => style.scoped);
-  const scopeId = hasScoped
-    ? generateScopeId(filePath, source, config.root, config.isProduction)
-    : null;
-
-  const scriptContent = descriptor.scriptSetup?.content || descriptor.script?.content || "";
-  const importMap = await buildImportMap(
-    scriptContent,
-    filePath,
-    config.root,
-    resolveImport ? (src) => resolveImport(src, filePath) : undefined,
-  );
-
-  // Result unused (we delegate to the standalone render); compiling here
-  // still validates the template.
-  void compileOnigiriInline(descriptor.template.content, {
+  // Result unused (we delegate to the standalone render), but this call
+  // validates the template and registers its v-load-client targets for the
+  // manifest.
+  void compileOnigiriInline(parsed.descriptor.template.content, {
     filename: filePath,
     sourceMap,
     bindingMetadata,

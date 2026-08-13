@@ -207,7 +207,10 @@ describe("injectIntoSetupAsync setup bridge", () => {
     const { descriptor } = parse(source, { filename: fixturePath });
     const compiled = compileScript(descriptor, { id: fixturePath, inlineTemplate: true });
 
-    const result = await injectIntoSetupAsync(compiled.content, fixturePath, false, fakeConfig);
+    const result = await injectIntoSetupAsync(compiled.content, fixturePath, {
+      config: fakeConfig,
+      sourceMap: false,
+    });
 
     expect(result).not.toBeNull();
     // `const TITLE = "..."` / `const count = 1` are `literal-const`

@@ -1,22 +1,9 @@
-import { type BindingMetadata, compileScript, parse } from "@vue/compiler-sfc";
-import type { ResolvedConfig } from "vite";
 import { compileOnigiriInline } from "../../template-compiler";
 import type { AdditionalImport } from "../../template-compiler/codegen/context";
+import { type OnigiriCompileOptions, analyzeSfc, parseSfcFile } from "./analyze-sfc";
 import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "./constants";
-import { generateScopeId } from "./scope-id";
-import { buildImportMap, extractScriptImports } from "./imports";
+import { extractScriptImports } from "./imports";
 import { toRootRelative } from "./paths";
-
-export interface LoadVirtualOptions {
-  config: ResolvedConfig;
-  sourceMap: boolean;
-  isCustomElement?: (tag: string) => boolean;
-  additionalImports?: Map<string, AdditionalImport>;
-  resolveChunkUrl?: (sourcePath: string) => string | undefined;
-  registerTarget?: (sourcePath: string) => void;
-  /** Bundler resolver (`PluginContext.resolve`) so aliased and package imports resolve for `v-load-client`. */
-  resolveImport?: (source: string, importer: string) => Promise<string | null | undefined>;
-}
 
 /**
  * Build the per-SFC standalone `__onigiriRender` module loaded as
@@ -25,26 +12,18 @@ export interface LoadVirtualOptions {
  */
 export async function loadVirtualOnigiriModule(
   id: string,
-  opts: LoadVirtualOptions,
+  opts: OnigiriCompileOptions,
   reportError: (message: string) => void,
 ): Promise<{ code: string; map: null } | null> {
   if (!id.startsWith(ONIGIRI_PREFIX) || !id.endsWith(ONIGIRI_SUFFIX)) return null;
 
-  const {
-    config,
-    sourceMap,
-    isCustomElement,
-    additionalImports,
-    resolveChunkUrl,
-    registerTarget,
-    resolveImport,
-  } = opts;
+  const { config, sourceMap, isCustomElement, additionalImports, resolveChunkUrl, registerTarget }
+    = opts;
   const encoded = id.slice(ONIGIRI_PREFIX.length, -ONIGIRI_SUFFIX.length);
   const filePath = decodeURIComponent(encoded);
-  const fs = await import("node:fs/promises");
-  const source = await fs.readFile(filePath, "utf8");
 
-  const { descriptor, errors } = parse(source, { filename: filePath, sourceMap });
+  const parsed = await parseSfcFile(filePath, sourceMap);
+  const { descriptor, errors } = parsed;
   if (errors.length > 0) {
     for (const error of errors) reportError(error.message);
     return null;
@@ -62,29 +41,12 @@ export async function loadVirtualOnigiriModule(
     };
   }
 
-  let bindingMetadata: BindingMetadata = {};
-  if (descriptor.scriptSetup || descriptor.script) {
-    try {
-      const scriptResult = compileScript(descriptor, { id: filePath, sourceMap });
-      bindingMetadata = scriptResult.bindings || {};
-    } catch (error_) {
-      console.warn(`[vue-onigiri] Failed to compile script for ${filePath}:`, error_);
-    }
-  }
-
-  const hasScoped = descriptor.styles.some((style) => style.scoped);
-  const scopeId = hasScoped
-    ? generateScopeId(filePath, source, config.root, config.isProduction)
-    : null;
-
-  const scriptContent = descriptor.scriptSetup?.content || descriptor.script?.content || "";
-  const scriptImports = extractScriptImports(scriptContent);
-  const importMap = await buildImportMap(
-    scriptContent,
+  const { bindingMetadata, scopeId, scriptContent, importMap } = await analyzeSfc(
+    parsed,
     filePath,
-    config.root,
-    resolveImport ? (source) => resolveImport(source, filePath) : undefined,
+    opts,
   );
+  const scriptImports = extractScriptImports(scriptContent);
 
   const onigiriResult = compileOnigiriInline(descriptor.template.content, {
     filename: filePath,
