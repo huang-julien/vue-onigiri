@@ -233,6 +233,30 @@ describe("injectIntoSetupAsync setup bridge", () => {
   });
 });
 
+describe("load of a virtual:onigiri module", () => {
+  const ROOT = fileURLToPath(new URL("..", import.meta.url));
+
+  it("loads an SFC whose path contains \"devtools\"", async () => {
+    const filePath = path.resolve(ROOT, "test/fixtures/devtools/Panel.vue");
+    const plugin = onigiriCompilerPlugin({ scan: false }) as Plugin;
+    (plugin.configResolved as (c: ResolvedConfig) => void).call(
+      plugin,
+      { root: ROOT, isProduction: false } as ResolvedConfig,
+    );
+
+    const load = plugin.load as (
+      this: unknown,
+      id: string,
+    ) => Promise<{ code: string } | null>;
+    const result = await load.call(
+      { resolve: async (id: string) => ({ id }), error: (msg: string) => { throw new Error(msg); } },
+      ONIGIRI_PREFIX + encodeURIComponent(filePath) + ONIGIRI_SUFFIX,
+    );
+
+    expect(result?.code).toContain("__onigiriRender");
+  });
+});
+
 describe("resolveId of imports coming from a virtual:onigiri module", () => {
   // POSIX-shaped on purpose — see the `node:fs` mock above.
   const ROOT = "/project/app";

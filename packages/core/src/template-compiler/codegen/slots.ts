@@ -7,7 +7,7 @@ import {
 } from "@vue/compiler-dom";
 import { genImport } from "knitwork";
 import type { CodegenContext } from "./context";
-import { withoutRenderlessChildren, genNode } from "./vnode";
+import { withoutRenderlessChildren, genNode, genNodeList } from "./vnode";
 import { collectBindingNames, genExpressionAsValue } from "./expressions";
 import { genProps } from "./props";
 
@@ -23,15 +23,10 @@ function parseSlots(children: any[]): ParsedSlot[] {
 
   for (const child of children) {
     if (child.type === NodeTypes.ELEMENT && child.tag === "template") {
-      const slotDirective = child.props?.find(
-        (p: any) => p.type === NodeTypes.DIRECTIVE && p.name === "slot",
-      ) as DirectiveNode | undefined;
+      const slotDirective = findSlotDirective(child);
 
       if (slotDirective) {
-        let slotName = "default";
-        if (slotDirective.arg && slotDirective.arg.type === NodeTypes.SIMPLE_EXPRESSION) {
-          slotName = (slotDirective.arg as SimpleExpressionNode).content;
-        }
+        const slotName = slotDirectiveName(slotDirective);
 
         // Destructured slot params (`#default="{ item }"`) come through as
         // COMPOUND_EXPRESSION without a flat `.content`; fall back to loc.
@@ -104,12 +99,7 @@ export function genSlotsObject(
         }
       }
       try {
-        context.push("[");
-        for (const [j, child] of slot.children.entries()) {
-          if (j > 0) context.push(", ");
-          genNode(child, context);
-        }
-        context.push("]");
+        genNodeList(slot.children, context);
       } finally {
         for (const name of added) context.localVars.delete(name);
       }
@@ -126,12 +116,7 @@ export function genSlotsObject(
       if (slot.children.length === 1) {
         genNode(slot.children[0], context);
       } else {
-        context.push("[");
-        for (const [j, child] of slot.children.entries()) {
-          if (j > 0) context.push(", ");
-          genNode(child, context);
-        }
-        context.push("]");
+        genNodeList(slot.children, context);
       }
     }
   }
@@ -190,15 +175,25 @@ export function genSlotOutlet(node: ElementNode, context: CodegenContext): void 
   if (renderableChildren.length > 0) {
     // Always wrap in an array: a bare single child breaks when it's a v-for
     // spread, and the renderSlot runtime normalises both shapes anyway.
-    context.push("() => [");
-    for (const [i, child] of renderableChildren.entries()) {
-      if (i > 0) context.push(", ");
-      genNode(child, context);
-    }
-    context.push("]");
+    context.push("() => ");
+    genNodeList(renderableChildren, context);
   } else {
     context.push("undefined");
   }
 
   context.push(")");
+}
+
+/** The `v-slot` directive carried by a `<template>` child, if it declares one. */
+export function findSlotDirective(child: any): DirectiveNode | undefined {
+  return child.props?.find(
+    (p: any) => p.type === NodeTypes.DIRECTIVE && p.name === "slot",
+  ) as DirectiveNode | undefined;
+}
+
+/** Slot name a `v-slot` targets; an absent or unnamed directive means "default". */
+export function slotDirectiveName(slotDirective: DirectiveNode | undefined): string {
+  return slotDirective?.arg?.type === NodeTypes.SIMPLE_EXPRESSION
+    ? (slotDirective.arg as SimpleExpressionNode).content
+    : "default";
 }

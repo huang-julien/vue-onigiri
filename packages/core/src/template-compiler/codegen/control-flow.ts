@@ -1,8 +1,7 @@
 import { type ForNode, type IfNode, type SimpleExpressionNode, NodeTypes } from "@vue/compiler-dom";
 import { genImport } from "knitwork";
-import { VServerComponentType } from "../../runtime/shared";
 import type { CodegenContext } from "./context";
-import { withoutRenderlessChildren, genNode } from "./vnode";
+import { withoutRenderlessChildren, genFragment, genNode } from "./vnode";
 import { collectBindingNames, genExpressionAsValue } from "./expressions";
 
 function genChildrenAsNodeOrFragment(
@@ -17,14 +16,7 @@ function genChildrenAsNodeOrFragment(
     return;
   }
 
-  context.push("[");
-  context.push(VServerComponentType.Fragment.toString());
-  context.push(", [");
-  for (const [i, element_] of renderable.entries()) {
-    if (i > 0) context.push(", ");
-    genNode(element_, context);
-  }
-  context.push("]]");
+  genFragment(renderable, context);
 }
 
 /** v-if / v-else-if / v-else compiled to a chain of ternaries. */

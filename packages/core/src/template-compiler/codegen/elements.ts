@@ -2,7 +2,7 @@ import type { ElementNode } from "@vue/compiler-dom";
 import { genImport } from "knitwork";
 import { VServerComponentType } from "../../runtime/shared";
 import type { CodegenContext } from "./context";
-import { withoutRenderlessChildren, genNode } from "./vnode";
+import { withoutRenderlessChildren, genNodeList } from "./vnode";
 import { genComponent } from "./components";
 import { genSlotOutlet } from "./slots";
 import { genProps } from "./props";
@@ -101,12 +101,7 @@ function genHtmlElement(node: ElementNode, context: CodegenContext): void {
     if (renderableChildren.length === 0) {
       context.push("undefined");
     } else {
-      context.push("[");
-      for (const [i, child] of renderableChildren.entries()) {
-        if (i > 0) context.push(", ");
-        genNode(child, context);
-      }
-      context.push("]");
+      genNodeList(renderableChildren, context);
     }
   }
 

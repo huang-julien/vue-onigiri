@@ -178,7 +178,6 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
     },
 
     async load(id) {
-      if (id.includes("devtools")) return null;
       return loadVirtualOnigiriModule(
         id,
         {

@@ -8,10 +8,10 @@ import {
 import { genImport } from "knitwork";
 import { VServerComponentType } from "../../runtime/shared";
 import type { CodegenContext } from "./context";
-import { withoutRenderlessChildren, genNode } from "./vnode";
+import { withoutRenderlessChildren, genFragment, genNodeList } from "./vnode";
 import { genExpressionAsValue, prefixIdentifiers } from "./expressions";
 import { genProps } from "./props";
-import { genSlotsObject } from "./slots";
+import { findSlotDirective, genSlotsObject, slotDirectiveName } from "./slots";
 import { tagCasings } from "./tag-casings";
 
 export function getComponentRef(tag: string, context: CodegenContext): string {
@@ -117,15 +117,12 @@ function genSuspense(children: any[], context: CodegenContext): void {
   const defaultChildren: any[] = [];
   const fallbackChildren: any[] = [];
 
+  // Unlike `parseSlots`, every `<template>` is unwrapped here, even one without
+  // a `v-slot`, so its contents land in the content bucket rather than rendering
+  // a literal `<template>` element.
   for (const child of children) {
     if (child.type === NodeTypes.ELEMENT && child.tag === "template") {
-      const slotDirective = child.props?.find(
-        (p: any) => p.type === NodeTypes.DIRECTIVE && p.name === "slot",
-      ) as DirectiveNode | undefined;
-      const slotName
-        = slotDirective?.arg && slotDirective.arg.type === NodeTypes.SIMPLE_EXPRESSION
-          ? (slotDirective.arg as SimpleExpressionNode).content
-          : "default";
+      const slotName = slotDirectiveName(findSlotDirective(child));
       (slotName === "fallback" ? fallbackChildren : defaultChildren).push(
         ...(child.children ?? []),
       );
@@ -136,21 +133,13 @@ function genSuspense(children: any[], context: CodegenContext): void {
 
   context.push("[");
   context.push(VServerComponentType.Suspense.toString());
-  context.push(", [");
-  for (const [i, child] of withoutRenderlessChildren(defaultChildren).entries()) {
-    if (i > 0) context.push(", ");
-    genNode(child, context);
-  }
-  context.push("]");
+  context.push(", ");
+  genNodeList(withoutRenderlessChildren(defaultChildren), context);
 
   const fallback = withoutRenderlessChildren(fallbackChildren);
   if (fallback.length > 0) {
-    context.push(", [");
-    for (const [i, child] of fallback.entries()) {
-      if (i > 0) context.push(", ");
-      genNode(child, context);
-    }
-    context.push("]");
+    context.push(", ");
+    genNodeList(fallback, context);
   }
 
   context.push("]");
@@ -192,24 +181,14 @@ function genTeleport(node: ElementNode, context: CodegenContext): void {
   } else {
     context.push("undefined");
   }
-  context.push(", [");
+  context.push(", ");
 
-  for (const [i, child] of withoutRenderlessChildren(children).entries()) {
-    if (i > 0) context.push(", ");
-    genNode(child, context);
-  }
-  context.push("]]");
+  genNodeList(withoutRenderlessChildren(children), context);
+  context.push("]");
 }
 
 function genFragmentPassthrough(children: any[], context: CodegenContext): void {
-  context.push("[");
-  context.push(VServerComponentType.Fragment.toString());
-  context.push(", [");
-  for (const [i, child] of withoutRenderlessChildren(children).entries()) {
-    if (i > 0) context.push(", ");
-    genNode(child, context);
-  }
-  context.push("]]");
+  genFragment(withoutRenderlessChildren(children), context);
 }
 
 /**

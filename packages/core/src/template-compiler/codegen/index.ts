@@ -6,6 +6,8 @@ export { createCodegenContext, type CodegenContext } from "./context";
 export {
   withoutRenderlessChildren,
   genNode,
+  genNodeList,
+  genFragment,
   genElement,
   genText,
   genInterpolation,

@@ -18,7 +18,7 @@ import {
 import type { AdditionalImport } from "./codegen/context";
 import { isVoidTag } from "@vue/shared";
 import { VServerComponentType } from "../runtime/shared";
-import { createCodegenContext, withoutRenderlessChildren, genNode } from "./codegen";
+import { createCodegenContext, withoutRenderlessChildren, genFragment, genNode } from "./codegen";
 
 // Get Vue's default transforms (includes v-if, v-for, etc.)
 const [baseNodeTransforms] = getBaseTransformPreset(true);
@@ -163,14 +163,7 @@ export function compileOnigiriInline(
     }
   } else {
     // Multiple root nodes - wrap in fragment
-    context.push("[");
-    context.push(VServerComponentType.Fragment.toString());
-    context.push(", [");
-    for (const [i, rootChild] of rootChildren.entries()) {
-      if (i > 0) context.push(", ");
-      genNode(rootChild, context);
-    }
-    context.push("]]");
+    genFragment(rootChildren, context);
   }
 
   return {
