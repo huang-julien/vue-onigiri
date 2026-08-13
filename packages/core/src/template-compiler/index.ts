@@ -91,76 +91,10 @@ export function compileOnigiri(
   template: string,
   options: OnigiriCompilerOptions = {},
 ): OnigiriCodegenResult {
-  const ast = baseParse(template, {
-    ...options,
-    isVoidTag,
-  });
+  const { expression, imports, components, ast } = compileOnigiriInline(template, options);
 
-  // `expressionPlugins: ['typescript']` lets template expressions use
-  // TS-only syntax like `(x as any)?.foo` from `lang="ts"` SFCs.
-  transform(ast, {
-    ...options,
-    prefixIdentifiers: true,
-    expressionPlugins: ["typescript"],
-    nodeTransforms: onigiriNodeTransforms,
-    directiveTransforms: {},
-  });
-
-  const context = createCodegenContext({
-    bindingMetadata: options.bindingMetadata,
-    scopeId: options.scopeId,
-    importMap: options.importMap,
-    additionalImports: options.additionalImports,
-    isCustomElement: options.isCustomElement,
-    resolveChunkUrl: options.resolveChunkUrl,
-    registerTarget: options.registerTarget,
-  });
-
-  // Generate the return expression first to collect component references.
-  const bodyContext = createCodegenContext({
-    bindingMetadata: options.bindingMetadata,
-    scopeId: options.scopeId,
-    importMap: options.importMap,
-    additionalImports: options.additionalImports,
-    isCustomElement: options.isCustomElement,
-    resolveChunkUrl: options.resolveChunkUrl,
-    registerTarget: options.registerTarget,
-  });
-  // Filter root comments so a comment-only template emits `null` and no
-  // sparse-array hole lands in the Fragment.
-  const rootChildren = withoutRenderlessChildren(ast.children);
-  if (rootChildren.length === 0) {
-    bodyContext.push("null");
-  } else if (rootChildren.length === 1) {
-    const before = bodyContext.code.length;
-    genNode(rootChildren[0], bodyContext);
-    const produced = bodyContext.code.slice(before);
-    // A single root v-for emits a `...(...)` spread only valid inside an
-    // array literal, so wrap it in a Fragment tuple.
-    if (produced.startsWith("...")) {
-      bodyContext.code
-        = bodyContext.code.slice(0, before)
-          + "["
-          + VServerComponentType.Fragment.toString()
-          + ", ["
-          + produced
-          + "]]";
-    }
-  } else {
-    // Multiple root nodes - wrap in fragment
-    bodyContext.push("[");
-    bodyContext.push(VServerComponentType.Fragment.toString());
-    bodyContext.push(", [");
-    for (const [i, rootChild] of rootChildren.entries()) {
-      if (i > 0) bodyContext.push(", ");
-      genNode(rootChild, bodyContext);
-    }
-    bodyContext.push("]]");
-  }
-
-  for (const imp of bodyContext.imports) {
-    context.imports.add(imp);
-  }
+  // Only used to build the module shell, so it needs no compiler options.
+  const context = createCodegenContext();
 
   // Stable ABI: `_ctx` is the instance proxy, `__instance` the raw
   // ComponentInternalInstance forwarded to child serializer calls.
@@ -168,13 +102,13 @@ export function compileOnigiri(
   context.newline();
   context.indent();
 
-  for (const [tag, varName] of bodyContext.components) {
+  for (const [tag, varName] of components) {
     context.push(`const ${varName} = __onigiri_resolveComponent(__instance, "${tag}")`);
     context.newline();
   }
 
   context.push("return ");
-  context.push(bodyContext.code);
+  context.push(expression);
   context.push(";");
 
   context.deindent();
@@ -182,7 +116,7 @@ export function compileOnigiri(
   context.push("}");
 
   return {
-    code: `${[...context.imports, "\n"].join("\n")}${context.code}`.trim(),
+    code: `${[...imports, "\n"].join("\n")}${context.code}`.trim(),
     ast,
     map: undefined,
   };
@@ -209,17 +143,7 @@ export function compileOnigiriInline(
     directiveTransforms: {},
   });
 
-  const context = createCodegenContext({
-    bindingMetadata: options.bindingMetadata,
-    scopeId: options.scopeId,
-    importMap: options.importMap,
-    additionalImports: options.additionalImports,
-    isCustomElement: options.isCustomElement,
-    resolveChunkUrl: options.resolveChunkUrl,
-    registerTarget: options.registerTarget,
-  });
-
-  // Same root-comment filtering as compileOnigiri.
+  const context = createCodegenContext(options);
   const rootChildren = withoutRenderlessChildren(ast.children);
   if (rootChildren.length === 0) {
     context.push("null");
@@ -227,7 +151,7 @@ export function compileOnigiriInline(
     const before = context.code.length;
     genNode(rootChildren[0], context);
     const produced = context.code.slice(before);
-    // Same Fragment wrap as compileOnigiri for a root-level v-for spread.
+    // A single root v-for emits a `...(...)` spread only valid inside an array literal, so wrap it in a Fragment tuple
     if (produced.startsWith("...")) {
       context.code
         = context.code.slice(0, before)
@@ -238,6 +162,7 @@ export function compileOnigiriInline(
           + "]]";
     }
   } else {
+    // Multiple root nodes - wrap in fragment
     context.push("[");
     context.push(VServerComponentType.Fragment.toString());
     context.push(", [");
