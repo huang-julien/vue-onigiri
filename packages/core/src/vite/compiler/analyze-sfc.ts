@@ -8,7 +8,7 @@ import {
 } from "@vue/compiler-sfc";
 import type { ResolvedConfig } from "vite";
 import type { AdditionalImport } from "../../template-compiler/codegen/context";
-import { buildImportMap } from "./imports";
+import { type ScriptImports, buildImportMap } from "./imports";
 import { generateScopeId } from "./scope-id";
 
 /** Inputs shared by the two SFC compilation entry points (`load-virtual`, `inject-setup`). */
@@ -60,10 +60,12 @@ export async function analyzeSfc(
   const { config, sourceMap, resolveImport } = opts;
 
   let bindingMetadata: BindingMetadata = {};
+  let scriptImports: ScriptImports | undefined;
   if (descriptor.scriptSetup || descriptor.script) {
     try {
       const scriptResult = compileScript(descriptor, { id: filePath, sourceMap });
       bindingMetadata = scriptResult.bindings || {};
+      scriptImports = scriptResult.imports;
     } catch (error_) {
       console.warn(`[vue-onigiri] Failed to compile script for ${filePath}:`, error_);
     }
@@ -76,7 +78,7 @@ export async function analyzeSfc(
 
   const scriptContent = descriptor.scriptSetup?.content || descriptor.script?.content || "";
   const importMap = await buildImportMap(
-    scriptContent,
+    scriptImports,
     filePath,
     config.root,
     resolveImport ? (src) => resolveImport(src, filePath) : undefined,

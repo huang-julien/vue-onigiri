@@ -10,76 +10,55 @@ import { genEventHandler, genExpressionAsValue } from "./expressions";
 import { STRIPPED_DIRECTIVES, shouldWrapDirective } from "./directives";
 
 /**
- * Props generator for component positions; v-model expands to `modelValue` + `onUpdate:modelValue` here.
- * Element positions use `genPropsWithScopeId`, where v-model stays on the runtime-directive path.
+ * Position of the props being generated: element props carry the scopeId and leave
+ * v-model to the runtime-directive path, component props expand it to `modelValue`.
  */
-export function genProps(props: (AttributeNode | DirectiveNode)[], context: CodegenContext): void {
-  const bindDirective = props.find(
-    (prop) => prop.type === NodeTypes.DIRECTIVE && prop.name === "bind" && !prop.arg,
-  ) as DirectiveNode | undefined;
+export type PropsMode = "element" | "component";
 
-  const otherProps = props.filter(
-    (prop) => !(prop.type === NodeTypes.DIRECTIVE && prop.name === "bind" && !prop.arg),
-  );
+/** Props generator for both element and component positions. Defaults to component mode. */
+export function genProps(
+  props: (AttributeNode | DirectiveNode)[],
+  context: CodegenContext,
+  mode: PropsMode = "component",
+): void {
+  const bindDirective = props.find((prop) => isBareBind(prop)) as DirectiveNode | undefined;
 
-  if (bindDirective) {
-    if (otherProps.length > 0) {
-      context.imports.add(genImport("vue", [{ name: "mergeProps", as: "_mergeProps" }]));
-      context.push("_mergeProps(");
-      if (bindDirective.exp) {
-        genExpressionAsValue(bindDirective.exp, context);
-      } else {
-        context.push("undefined");
-      }
-      context.push(", ");
-
-      genPropsObject(otherProps, context);
-      context.push(")");
-    } else {
-      if (bindDirective.exp) {
-        genExpressionAsValue(bindDirective.exp, context);
-      } else {
-        context.push("undefined");
-      }
-    }
+  if (!bindDirective) {
+    genPropsObjectBody(props, context, mode);
     return;
   }
 
-  genPropsObject(props, context);
-}
+  const otherProps = props.filter((prop) => !isBareBind(prop));
+  const isElement = mode === "element";
 
-export function genPropsWithScopeId(
-  props: (AttributeNode | DirectiveNode)[],
-  context: CodegenContext,
-): void {
-  const bindDirective = props.find(
-    (prop) => prop.type === NodeTypes.DIRECTIVE && prop.name === "bind" && !prop.arg,
-  ) as DirectiveNode | undefined;
-
-  const otherProps = props.filter(
-    (prop) => !(prop.type === NodeTypes.DIRECTIVE && prop.name === "bind" && !prop.arg),
-  );
-
-  if (bindDirective) {
-    context.imports.add(genImport("vue", [{ name: "mergeProps", as: "_mergeProps" }]));
-    context.push("_mergeProps(");
-
+  if (!isElement && otherProps.length === 0) {
     if (bindDirective.exp) {
       genExpressionAsValue(bindDirective.exp, context);
     } else {
-      context.push("{}");
+      context.push("undefined");
     }
-
-    if (otherProps.length > 0 || context.scopeId) {
-      context.push(", ");
-      genPropsObjectWithScopeId(otherProps, context);
-    }
-
-    context.push(")");
     return;
   }
 
-  genPropsObjectWithScopeId(props, context);
+  context.imports.add(genImport("vue", [{ name: "mergeProps", as: "_mergeProps" }]));
+  context.push("_mergeProps(");
+
+  if (bindDirective.exp) {
+    genExpressionAsValue(bindDirective.exp, context);
+  } else {
+    context.push(isElement ? "{}" : "undefined");
+  }
+
+  if (!isElement || otherProps.length > 0 || context.scopeId) {
+    context.push(", ");
+    genPropsObjectBody(otherProps, context, mode);
+  }
+
+  context.push(")");
+}
+
+function isBareBind(prop: AttributeNode | DirectiveNode): boolean {
+  return prop.type === NodeTypes.DIRECTIVE && prop.name === "bind" && !prop.arg;
 }
 
 /** Dynamic args (`:[name]` / `@[name]`) need computed keys; quoting their content would emit a literal `"_ctx.name"` prop. */
@@ -299,13 +278,14 @@ function genComponentVModel(prop: DirectiveNode, context: CodegenContext): void 
 function genPropsObjectBody(
   props: (AttributeNode | DirectiveNode)[],
   context: CodegenContext,
-  withScopeId: boolean,
-  expandVModel: boolean,
+  mode: PropsMode,
 ): void {
+  const isElement = mode === "element";
+
   context.push("{");
   let first = true;
 
-  if (withScopeId && context.scopeId) {
+  if (isElement && context.scopeId) {
     context.push(`"${context.scopeId}": ""`);
     first = false;
   }
@@ -331,7 +311,7 @@ function genPropsObjectBody(
         context.push("true");
       }
     } else if (prop.type === NodeTypes.DIRECTIVE) {
-      if (expandVModel && prop.name === "model" && prop.exp) {
+      if (!isElement && prop.name === "model" && prop.exp) {
         if (!first) context.push(", ");
         first = false;
 
@@ -350,15 +330,4 @@ function genPropsObjectBody(
   }
 
   context.push("}");
-}
-
-function genPropsObjectWithScopeId(
-  props: (AttributeNode | DirectiveNode)[],
-  context: CodegenContext,
-): void {
-  genPropsObjectBody(props, context, true, false);
-}
-
-function genPropsObject(props: (AttributeNode | DirectiveNode)[], context: CodegenContext): void {
-  genPropsObjectBody(props, context, false, true);
 }

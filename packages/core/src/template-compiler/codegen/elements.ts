@@ -5,7 +5,7 @@ import type { CodegenContext } from "./context";
 import { withoutRenderlessChildren, genNode } from "./vnode";
 import { genComponent } from "./components";
 import { genSlotOutlet } from "./slots";
-import { genPropsWithScopeId } from "./props";
+import { genProps } from "./props";
 import {
   extractWrappedDirectives,
   filterPropsForSerialization,
@@ -88,7 +88,7 @@ function genHtmlElement(node: ElementNode, context: CodegenContext): void {
   const hasProps = filteredProps.length > 0;
 
   if (hasProps || hasScopeId) {
-    genPropsWithScopeId(filteredProps, context);
+    genProps(filteredProps, context, "element");
   } else {
     context.push("undefined");
   }

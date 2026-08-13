@@ -1,10 +1,10 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { parse as parseSfc } from "@vue/compiler-sfc";
+import { compileScript, parse as parseSfc } from "@vue/compiler-sfc";
 import { type DirectiveNode, type ElementNode, NodeTypes, parse as parseTemplate } from "@vue/compiler-dom";
 import type { AdditionalImport } from "../template-compiler/codegen/context";
 import { tagCasings } from "../template-compiler/codegen/tag-casings";
-import { buildImportMap } from "./compiler/imports";
+import { type ScriptImports, buildImportMap } from "./compiler/imports";
 import { toRootRelative } from "./compiler/paths";
 
 export interface OnigiriScanOptions {
@@ -90,9 +90,17 @@ async function scanFile(filePath: string, options: ScanClientTargetsOptions): Pr
 
   const { root, additionalImports, isCustomElement, resolveImport, registerTarget, warn }
     = options;
-  const scriptContent = descriptor.scriptSetup?.content || descriptor.script?.content || "";
+  let scriptImports: ScriptImports | undefined;
+  if (descriptor.scriptSetup || descriptor.script) {
+    try {
+      scriptImports = compileScript(descriptor, { id: filePath }).imports;
+    } catch {
+      // Script compile errors are reported by the real transform, not the pre-pass.
+    }
+  }
+
   const importMap = await buildImportMap(
-    scriptContent,
+    scriptImports,
     filePath,
     root,
     resolveImport ? (spec) => resolveImport(spec, filePath) : undefined,

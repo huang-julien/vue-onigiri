@@ -1,9 +1,9 @@
 import path from "node:path";
+import type { SFCScriptBlock } from "@vue/compiler-sfc";
 import { toRootRelative } from "./paths";
 
-function normalizePath(p: string): string {
-  return p.replace(/\\/g, "/");
-}
+/** `compileScript`'s `ImportBinding` records keyed by local identifier; the element type itself is not exported by @vue/compiler-sfc. */
+export type ScriptImports = NonNullable<SFCScriptBlock["imports"]>;
 
 /** Bundler resolver (`PluginContext.resolve` bound to the importing SFC). */
 export type ResolveImportFn = (source: string) => Promise<string | null | undefined>;
@@ -15,25 +15,27 @@ export type ResolveImportFn = (source: string) => Promise<string | null | undefi
  * Without a resolver, relative imports fall back to plain path joining.
  */
 export async function buildImportMap(
-  scriptContent: string,
+  imports: ScriptImports | undefined,
   currentFilePath: string,
   root: string,
   resolveImport?: ResolveImportFn,
 ): Promise<Map<string, string>> {
   const map = new Map<string, string>();
-  if (!scriptContent) return map;
+  if (!imports) return map;
 
-  const importRegex = /import\s+(?!type\b)([^;]+?)\s+from\s+['"]([^'"]+)['"]/g;
-  for (const match of scriptContent.matchAll(importRegex)) {
-    const [, clauseRaw, source] = match;
-    if (!clauseRaw || !source) continue;
+  const chunkPaths = new Map<string, string | undefined>();
+  for (const binding of Object.values(imports)) {
+    // Types are erased and a namespace object is never a component reference.
+    if (binding.isType || binding.imported === "*") continue;
 
-    const chunkPath = await resolveImportSource(source, currentFilePath, root, resolveImport);
-    if (!chunkPath) continue;
-
-    for (const id of parseImportClause(clauseRaw.trim())) {
-      map.set(id, chunkPath);
+    if (!chunkPaths.has(binding.source)) {
+      chunkPaths.set(
+        binding.source,
+        await resolveImportSource(binding.source, currentFilePath, root, resolveImport),
+      );
     }
+    const chunkPath = chunkPaths.get(binding.source);
+    if (chunkPath) map.set(binding.local, chunkPath);
   }
   return map;
 }
@@ -67,36 +69,6 @@ async function resolveImportSource(
   return "/" + normalizePath(path.relative(root, abs));
 }
 
-function parseImportClause(clause: string): string[] {
-  const results: string[] = [];
-  const namedMatch = clause.match(/\{([^}]*)\}/);
-  const defaultPart = namedMatch
-    ? clause.slice(0, namedMatch.index).replace(/,\s*$/, "").trim()
-    : clause.trim();
-
-  if (defaultPart && !defaultPart.startsWith("*")) {
-    const clean = defaultPart.replace(/^type\s+/, "");
-    if (clean && /^[a-zA-Z_$][\w$]*$/.test(clean)) {
-      results.push(clean);
-    }
-  }
-
-  if (namedMatch?.[1]) {
-    for (const raw of namedMatch[1].split(",")) {
-      const spec = raw.trim();
-      if (!spec || spec.startsWith("type ")) continue;
-      const asMatch = spec.match(/^\S+\s+as\s+([a-zA-Z_$][\w$]*)$/);
-      if (asMatch?.[1]) {
-        results.push(asMatch[1]);
-      } else if (/^[a-zA-Z_$][\w$]*$/.test(spec)) {
-        results.push(spec);
-      }
-    }
-  }
-
-  return results;
-}
-
 /** Strip type-only imports / specifiers from a `<script>` block. */
 export function extractScriptImports(scriptContent: string): string {
   if (!scriptContent) return "";
@@ -119,4 +91,8 @@ export function extractScriptImports(scriptContent: string): string {
     .filter((imp) => !/^import\s+\{\s*\}\s+from/.test(imp) && !/^import\s+from/.test(imp));
 
   return cleaned.length > 0 ? cleaned.join("\n") + "\n" : "";
+}
+
+function normalizePath(p: string): string {
+  return p.replace(/\\/g, "/");
 }
