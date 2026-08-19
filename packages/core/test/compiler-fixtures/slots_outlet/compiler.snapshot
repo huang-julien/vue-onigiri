@@ -1,0 +1,16 @@
+import { renderSlot as __renderSlot } from "vue-onigiri/runtime/render-slot";
+
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "div",
+    undefined,
+    [
+      __renderSlot(_ctx, _ctx.slots, "default", undefined, undefined),
+      __renderSlot(_ctx, _ctx.slots, "header", undefined, undefined),
+      __renderSlot(_ctx, _ctx.slots, "footer", undefined, () => [[2, "Default footer"]]),
+      __renderSlot(_ctx, _ctx.slots, "row", { item: _ctx.item, index: 0 }, undefined),
+      __renderSlot(_ctx, _ctx.slots, _ctx.dynamicName, undefined, undefined),
+    ],
+  ];
+}

@@ -1,0 +1,11 @@
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "div",
+    undefined,
+    [
+      [0, "p", { ref: "el" }, [[2, "static ref"]]],
+      [0, "p", { ref: _ctx.name }, [[2, "dynamic ref"]]],
+    ],
+  ];
+}

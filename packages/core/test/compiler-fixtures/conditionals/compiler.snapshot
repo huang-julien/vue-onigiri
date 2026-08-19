@@ -1,0 +1,24 @@
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "div",
+    undefined,
+    [
+      _ctx.status === "loading"
+        ? [0, "p", undefined, [[2, "Loading"]]]
+        : _ctx.status === "error"
+          ? [0, "p", undefined, [[2, "Error"]]]
+          : [0, "p", undefined, [[2, "Ready"]]],
+      _ctx.show
+        ? [
+            3,
+            [
+              [0, "h2", undefined, [[2, "Title"]]],
+              [0, "p", undefined, [[2, "Body"]]],
+            ],
+          ]
+        : null,
+      _ctx.show ? [0, "span", undefined, [[2, "Only when shown"]]] : null,
+    ],
+  ];
+}

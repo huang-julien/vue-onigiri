@@ -1,0 +1,24 @@
+import { withDirective as __withDirective } from "vue-onigiri/runtime/with-directive";
+
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "div",
+    undefined,
+    [
+      __withDirective(_ctx.vFocus, [0, "input", undefined], {}, __instance),
+      __withDirective(
+        "highlight",
+        [0, "p", undefined, [[2, "modifiers"]]],
+        { value: _ctx.color, modifiers: { lazy: true, deep: true } },
+        __instance,
+      ),
+      __withDirective(
+        "color",
+        [0, "p", undefined, [[2, "argument"]]],
+        { value: _ctx.color, arg: "background" },
+        __instance,
+      ),
+    ],
+  ];
+}

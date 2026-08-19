@@ -1,0 +1,15 @@
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "div",
+    undefined,
+    [
+      [7, "#modal", undefined, [[0, "p", undefined, [[2, "static target"]]]]],
+      [7, _ctx.target, _ctx.disabled, [[0, "p", undefined, [[2, "dynamic target"]]]]],
+      [3, [[0, "p", undefined, [[2, "kept"]]]]],
+      [3, [[0, "p", undefined, [[2, "faded"]]]]],
+      [3, [[0, "li", undefined, [[2, "one"]]]]],
+      [4, [[0, "p", undefined, [[2, "content"]]]], [[0, "p", undefined, [[2, "loading"]]]]],
+    ],
+  ];
+}

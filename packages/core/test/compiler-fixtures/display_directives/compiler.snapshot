@@ -1,0 +1,22 @@
+import { withDirective as __withDirective } from "vue-onigiri/runtime/with-directive";
+import { toDisplayString as _toDisplayString } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "div",
+    {},
+    [
+      __withDirective(
+        "show",
+        [0, "p", undefined, [[2, "Shown"]]],
+        { value: _ctx.visible },
+        __instance,
+      ),
+      __withDirective("html", [0, "div", undefined, undefined], { value: _ctx.html }, __instance),
+      __withDirective("text", [0, "span", undefined, undefined], { value: _ctx.label }, __instance),
+      [0, "span", {}, [[2, _toDisplayString(_ctx.frozen)]]],
+      [0, "span", undefined, [[2, "{{ raw }}"]]],
+    ],
+  ];
+}

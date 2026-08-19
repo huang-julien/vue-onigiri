@@ -1,0 +1,10 @@
+import { toDisplayString as _toDisplayString } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "button",
+    { onClick: _ctx.increment },
+    [[2, _toDisplayString(_ctx.label) + ": " + _toDisplayString(_ctx.count)]],
+  ];
+}

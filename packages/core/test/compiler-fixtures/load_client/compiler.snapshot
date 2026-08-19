@@ -1,0 +1,8 @@
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "div",
+    undefined,
+    [[1, { initial: 5 }, "/load_client/Counter.vue", "default", undefined]],
+  ];
+}

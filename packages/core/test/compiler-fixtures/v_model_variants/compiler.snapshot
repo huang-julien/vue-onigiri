@@ -1,0 +1,49 @@
+import { withDirective as __withDirective } from "vue-onigiri/runtime/with-directive";
+
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "form",
+    undefined,
+    [
+      __withDirective(
+        "model",
+        [0, "input", undefined],
+        { value: _ctx.text, modifiers: { trim: true } },
+        __instance,
+      ),
+      __withDirective(
+        "model",
+        [0, "input", { type: "number" }],
+        { value: _ctx.age, modifiers: { number: true, lazy: true } },
+        __instance,
+      ),
+      __withDirective(
+        "model",
+        [0, "textarea", undefined, undefined],
+        { value: _ctx.bio },
+        __instance,
+      ),
+      __withDirective(
+        "model",
+        [0, "input", { type: "checkbox" }],
+        { value: _ctx.agreed },
+        __instance,
+      ),
+      __withDirective(
+        "model",
+        [
+          0,
+          "select",
+          undefined,
+          [
+            [0, "option", { value: "a" }, [[2, "A"]]],
+            [0, "option", { value: "b" }, [[2, "B"]]],
+          ],
+        ],
+        { value: _ctx.picked },
+        __instance,
+      ),
+    ],
+  ];
+}

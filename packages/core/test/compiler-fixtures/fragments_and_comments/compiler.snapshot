@@ -1,0 +1,10 @@
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    3,
+    [
+      [0, "header", undefined, [[2, "One"]]],
+      [0, "main", undefined, [[2, "Two"]]],
+      [0, "footer", undefined, [[2, "Three"]]],
+    ],
+  ];
+}

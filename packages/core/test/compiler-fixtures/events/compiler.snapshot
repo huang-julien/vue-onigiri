@@ -1,0 +1,46 @@
+import { withModifiers as _withModifiers } from "vue";
+import { withKeys as _withKeys } from "vue";
+import { toHandlerKey as _toHandlerKey } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "form",
+    { onSubmit: _withModifiers(_ctx.submit, ["prevent"]) },
+    [
+      [
+        0,
+        "input",
+        {
+          onKeyup: _withKeys(_ctx.onEnter, ["enter"]),
+          onKeydown: _withKeys(_withModifiers(_ctx.submit, ["ctrl"]), ["enter"]),
+        },
+      ],
+      [
+        0,
+        "button",
+        {
+          onClick: _withModifiers(_ctx.submit, ["stop", "prevent"]),
+          onMouseenter: ($event) => _ctx.count++,
+        },
+        [[2, "Go"]],
+      ],
+      [
+        0,
+        "button",
+        { onClick: ($event) => (_ctx.count += 1), onDblclick: () => _ctx.count-- },
+        [[2, "Inline"]],
+      ],
+      [
+        0,
+        "div",
+        {
+          onScrollPassive: _ctx.submit,
+          [_toHandlerKey(_ctx.eventName)]: _ctx.submit,
+          onClick: _withModifiers(_ctx.submit, ["self"]),
+        },
+        undefined,
+      ],
+    ],
+  ];
+}

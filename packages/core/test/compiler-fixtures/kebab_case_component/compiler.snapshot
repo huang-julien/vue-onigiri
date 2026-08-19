@@ -1,0 +1,8 @@
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "div",
+    undefined,
+    [[1, { label: "kebab" }, "/kebab_case_component/MyWidget.vue", "default", undefined]],
+  ];
+}

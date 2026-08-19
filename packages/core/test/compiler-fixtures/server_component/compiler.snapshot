@@ -1,0 +1,10 @@
+import { serializeComponentInContext as __serializeComponentInContext } from "vue-onigiri/runtime/serialize";
+import { toDisplayString as _toDisplayString } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+  return __serializeComponentInContext(Child, { title: _ctx.title, count: "2" }, __instance, {
+    footer: () => [[0, "span", undefined, [[2, "footer"]]]],
+    row: ({ item }) => [[2, _toDisplayString(item.id)]],
+    default: () => [[0, "p", undefined, [[2, "default content"]]]],
+  });
+}

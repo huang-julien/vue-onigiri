@@ -1,0 +1,26 @@
+import { mergeProps as _mergeProps } from "vue";
+import { normalizeClass as _normalizeClass } from "vue";
+import { normalizeStyle as _normalizeStyle } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "div",
+    { id: _ctx.id, class: { active: _ctx.isActive }, style: { color: _ctx.color } },
+    [
+      [0, "span", { class: ["base", _ctx.extra] }, undefined],
+      [0, "span", _mergeProps(_ctx.attrs, { title: _ctx.extra }), undefined],
+      [0, "span", { [_ctx.attrName]: _ctx.extra }, undefined],
+      [0, "span", { id: _ctx.id }, undefined],
+      [
+        0,
+        "span",
+        {
+          class: _normalizeClass(["static", _ctx.extra]),
+          style: _normalizeStyle(["color: red", _ctx.styles]),
+        },
+        undefined,
+      ],
+    ],
+  ];
+}

@@ -1,0 +1,19 @@
+import { resolveDynamicComponentInInstance as __onigiri_resolveDynamicComponent } from "vue-onigiri/runtime/resolve-component";
+import { serializeComponentInContext as __serializeComponentInContext } from "vue-onigiri/runtime/serialize";
+
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "div",
+    undefined,
+    [
+      __serializeComponentInContext(
+        __onigiri_resolveDynamicComponent(__instance, _ctx.current),
+        { title: _ctx.title },
+        __instance,
+        { default: () => [[0, "p", undefined, [[2, "slotted"]]]] },
+      ),
+      __serializeComponentInContext(Panel, undefined, __instance, undefined),
+    ],
+  ];
+}

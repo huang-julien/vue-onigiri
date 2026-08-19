@@ -1,0 +1,28 @@
+import { renderList as _renderList } from "vue";
+import { toDisplayString as _toDisplayString } from "vue";
+import { withDirective as __withDirective } from "vue-onigiri/runtime/with-directive";
+
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "div",
+    undefined,
+    [
+      _ctx.show ? [0, "p", undefined, [[2, "Visible"]]] : [0, "p", undefined, [[2, "Hidden"]]],
+      [
+        0,
+        "ul",
+        undefined,
+        [
+          ..._renderList(_ctx.items, (item) => [
+            0,
+            "li",
+            { key: item },
+            [[2, _toDisplayString(item)]],
+          ]),
+        ],
+      ],
+      __withDirective("model", [0, "input", undefined], { value: _ctx.text }, __instance),
+    ],
+  ];
+}

@@ -1,0 +1,55 @@
+import { renderList as _renderList } from "vue";
+import { toDisplayString as _toDisplayString } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "div",
+    undefined,
+    [
+      [
+        0,
+        "ul",
+        undefined,
+        [
+          ..._renderList(_ctx.items, (item, index) => [
+            0,
+            "li",
+            { key: item.id },
+            [[2, _toDisplayString(index) + " - " + _toDisplayString(item.label)]],
+          ]),
+        ],
+      ],
+      [
+        0,
+        "dl",
+        undefined,
+        [
+          ..._renderList(_ctx.record, (value, key, index) => [
+            0,
+            "dt",
+            { key: key },
+            [
+              [
+                2,
+                _toDisplayString(key) +
+                  ":" +
+                  _toDisplayString(value) +
+                  ":" +
+                  _toDisplayString(index),
+              ],
+            ],
+          ]),
+        ],
+      ],
+      ..._renderList(3, (n) => [0, "span", { key: n }, [[2, _toDisplayString(n)]]]),
+      ..._renderList(_ctx.items, (item) => [
+        3,
+        [
+          [0, "b", undefined, [[2, _toDisplayString(item.label)]]],
+          ..._renderList(item.tags, (tag) => [0, "i", { key: tag }, [[2, _toDisplayString(tag)]]]),
+        ],
+      ]),
+    ],
+  ];
+}

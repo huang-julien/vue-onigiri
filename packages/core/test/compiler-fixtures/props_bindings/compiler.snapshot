@@ -1,0 +1,14 @@
+import { toDisplayString as _toDisplayString } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "div",
+    undefined,
+    [
+      [0, "h1", undefined, [[2, _toDisplayString(_ctx.title)]]],
+      [0, "span", undefined, [[2, _toDisplayString(_ctx.props.count)]]],
+      [0, "button", { onClick: ($event) => _ctx.emit("change", 1) }, [[2, "emit"]]],
+    ],
+  ];
+}

@@ -1,0 +1,22 @@
+import { toDisplayString as _toDisplayString } from "vue";
+
+export function renderOnigiri(_ctx, __instance) {
+  return [
+    0,
+    "div",
+    undefined,
+    [
+      [0, "span", undefined, [[2, _toDisplayString(_ctx.count > 0 ? "positive" : "zero")]]],
+      [0, "span", undefined, [[2, _toDisplayString(_ctx.format(_ctx.count))]]],
+      [0, "span", undefined, [[2, _toDisplayString(_ctx.count * 2 + 1)]]],
+      [0, "span", undefined, [[2, _toDisplayString(_ctx.user?.name)]]],
+      [0, "span", undefined, [[2, _toDisplayString(`total: ${_ctx.count}`)]]],
+      [
+        0,
+        "span",
+        undefined,
+        [[2, _toDisplayString(_ctx.count) + " of " + _toDisplayString(_ctx.unit)]],
+      ],
+    ],
+  ];
+}

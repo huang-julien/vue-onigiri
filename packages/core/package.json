@@ -51,6 +51,7 @@
     "@vue/test-utils": "^2.4.10",
     "automd": "^0.4.3",
     "happy-dom": "^20.9.0",
+    "oxfmt": "^0.64.0",
     "typescript": "^6.0.3",
     "unbuild": "^3.6.1",
     "vite": "catalog:",
