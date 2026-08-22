@@ -14,12 +14,12 @@ import { toRootRelative } from "./compiler/paths";
 
 export interface OnigiriScanOptions {
   /**
-   * Directories to scan for SFCs, absolute or relative to the Vite root.
+   * Limits the scan to these directories, absolute or relative to the Vite root.
    *
    * @default ["."]
    */
   include?: string[];
-  /** Directory names to skip, on top of the built-in defaults. */
+  /** Skips these directory names during the scan, on top of the built-in defaults. */
   exclude?: string[];
 }
 

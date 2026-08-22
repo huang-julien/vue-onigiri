@@ -45,34 +45,38 @@ function makeResolveImport(ctx: Rollup.PluginContext) {
 export type AdditionalImportInput = string | AdditionalImport;
 
 export interface OnigiriCompilerOptions {
-  /** @default true */
+  /**
+   * Emits a source map for the generated render function.
+   *
+   * @default true
+   */
   sourceMap?: boolean;
   /**
-   * Predicate for native custom elements; matching tags emit as plain
-   * HTML instead of resolved components. Mirrors Vue's `isCustomElement`.
+   * Decides whether a tag is a native custom element and should be emitted
+   * as plain HTML instead of being resolved as a component, like Vue's
+   * `isCustomElement`.
    */
   isCustomElement?: (tag: string) => boolean;
   /**
-   * Tag to entry for components the SFC doesn't import statically (Nuxt
-   * auto-imports, globals): a path string or `{ path, export? }`. Accepts
-   * a static map/object or a getter re-evaluated per transform.
+   * Registers components the SFC doesn't import statically, so
+   * `v-load-client` can resolve them (Nuxt auto-imports, globals). A getter
+   * is re-evaluated on every transform.
    */
   additionalImports?:
     | Record<string, AdditionalImportInput>
     | Map<string, AdditionalImportInput>
     | (() => Record<string, AdditionalImportInput> | Map<string, AdditionalImportInput>);
   /**
-   * Optional optimization: maps a root-relative source path
-   * (`/components/Counter.vue`) to the public chunk URL to bake into the
-   * AST (`/_nuxt/Counter-XXX.js`). Re-evaluated per transform. Returning
-   * `undefined` is normal and keeps the source path, which hosts resolve
-   * at runtime via the manifest's `import.meta.glob` or a custom `importFn`.
+   * Bakes a public chunk URL into the AST in place of the root-relative
+   * source path of a `v-load-client` target.
+   *
+   * @remarks Returning `undefined` keeps the source path for runtime resolution.
    */
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
   /**
-   * buildStart pre-pass scanning SFC templates for v-load-client targets,
-   * so `"auto"` manifest includes are complete before any environment
-   * builds
+   * Scans SFC templates for `v-load-client` targets at `buildStart`, so the
+   * manifest's `"auto"` includes are complete before any environment builds.
+   *
    * @default true
    */
   scan?: boolean | OnigiriScanOptions;

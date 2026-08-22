@@ -4,37 +4,41 @@ import { getOnigiriTargets, setOnigiriManifestInvalidator } from "./shared";
 const MANIFEST_VIRTUAL_ID = "virtual:onigiri/manifest";
 const MANIFEST_RESOLVED_ID = "\0" + MANIFEST_VIRTUAL_ID;
 
+/**
+ * Glob selection for one manifest environment: explicit patterns, or
+ * `"auto"` for the scanned `v-load-client` targets, alone or in an array.
+ *
+ * @remarks `false` disables the glob.
+ */
 export type OnigiriManifestInclude = "auto" | string | string[] | false;
 
 export interface OnigiriManifestOptions {
   /**
-   * Server `__glob`: `"auto"` includes scanned v-load-client targets;
-   * include it in an array to combine them with explicit patterns.
+   * Selects which source files the server manifest can load.
    *
    * @default "auto"
    */
   serverInclude?: OnigiriManifestInclude;
   /**
-   * Client `__glob`, same shape as `serverInclude`; when `false`, a
-   * source-path descriptor reaching the browser needs a custom `importFn`.
+   * Selects which source files the client manifest can load.
    *
+   * @remarks `false` means a source-path descriptor reaching the browser needs a custom `importFn`.
    * @default false
    */
   clientInclude?: OnigiriManifestInclude;
   /**
-   * Literal `"key": () => import("spec")` loader entries consulted before
-   * the glob, for chunk references a glob cannot express — typically package
-   * components: the key is the AST chunk reference (leading-slash tolerant),
-   * the value is a bundler-resolved specifier, so aliases work.
+   * Adds literal loader entries, consulted before the glob, for chunk
+   * references a glob cannot express, typically package components. Keys are
+   * AST chunk references, values are bundler-resolved specifiers.
    */
   extraEntries?: Record<string, string>;
 }
 
 export interface OnigiriManifestPluginOptions extends OnigiriManifestOptions {
   /**
-   * Force a no-glob manifest in all environments, required for bundlers
-   * that can't preprocess `import.meta.glob` or compile `.vue` imports
-   * (e.g. Nitro's pure-Node rollup).
+   * Emits a manifest without `import.meta.glob` in every environment, for
+   * bundlers that can't preprocess it or compile `.vue` imports, such as
+   * Nitro's pure-Node rollup.
    *
    * @default false
    */
