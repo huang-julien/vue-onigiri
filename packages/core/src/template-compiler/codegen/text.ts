@@ -5,7 +5,7 @@ import {
   type TextNode,
   NodeTypes,
 } from "@vue/compiler-dom";
-import { genImport } from "knitwork";
+import { genImport, genString } from "knitwork";
 import { VServerComponentType } from "../../runtime/shared";
 import type { CodegenContext } from "./context";
 import { genNode } from "./vnode";
@@ -22,7 +22,7 @@ export function genText(node: TextNode, context: CodegenContext): void {
   context.push("[");
   context.push(VServerComponentType.Text.toString());
   context.push(", ");
-  context.push(JSON.stringify(node.content));
+  context.push(genString(node.content));
   context.push("]");
 }
 
@@ -48,7 +48,7 @@ export function genCompoundExpression(node: CompoundExpressionNode, context: Cod
     } else if (child && typeof child === "object" && "type" in child) {
       switch (child.type) {
         case NodeTypes.TEXT: {
-          context.push(JSON.stringify((child as TextNode).content));
+          context.push(genString((child as TextNode).content));
           break;
         }
         case NodeTypes.INTERPOLATION: {
@@ -69,7 +69,7 @@ export function genCompoundExpression(node: CompoundExpressionNode, context: Cod
                 context.push(innerChild);
               } else if (innerChild && typeof innerChild === "object" && "type" in innerChild) {
                 if (innerChild.type === NodeTypes.TEXT) {
-                  context.push(JSON.stringify((innerChild as TextNode).content));
+                  context.push(genString((innerChild as TextNode).content));
                 } else if (innerChild.type === NodeTypes.SIMPLE_EXPRESSION) {
                   context.push((innerChild as SimpleExpressionNode).content);
                 }

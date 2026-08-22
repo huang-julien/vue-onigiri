@@ -1,4 +1,5 @@
 import type { BindingMetadata } from "@vue/compiler-sfc";
+import { genImport } from "knitwork";
 import MagicString from "magic-string";
 import { compileOnigiriInline } from "../../template-compiler";
 import { type OnigiriCompileOptions, analyzeSfc, parseSfcFile } from "./analyze-sfc";
@@ -103,9 +104,17 @@ export async function injectIntoSetupAsync(
 
   const s = new MagicString(code);
 
-  const imports = `import { inject as __onigiri_inject, getCurrentInstance as __getCurrentInstance, unref as __onigiri_unref } from "vue";
-import { ONIGIRI_RENDER_SYMBOL as __ONIGIRI_SYMBOL } from "vue-onigiri/runtime/shared";
-`;
+  const imports =
+    [
+      genImport("vue", [
+        { name: "inject", as: "__onigiri_inject" },
+        { name: "getCurrentInstance", as: "__getCurrentInstance" },
+        { name: "unref", as: "__onigiri_unref" },
+      ]),
+      genImport("vue-onigiri/runtime/shared", [
+        { name: "ONIGIRI_RENDER_SYMBOL", as: "__ONIGIRI_SYMBOL" },
+      ]),
+    ].join("\n") + "\n";
 
   const bridgeObject = buildBridgeObject(bindingMetadata);
 

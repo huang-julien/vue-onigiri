@@ -15,6 +15,7 @@ import {
   type RootNode,
   type SimpleExpressionNode,
 } from "@vue/compiler-dom";
+import { genString } from "knitwork";
 import type { AdditionalImport } from "./codegen/context";
 import { isVoidTag } from "@vue/shared";
 import { VServerComponentType } from "../runtime/shared";
@@ -103,9 +104,7 @@ export function compileOnigiri(
   context.indent();
 
   for (const [tag, varName] of components) {
-    context.push(
-      `const ${varName} = __onigiri_resolveComponent(__instance, ${JSON.stringify(tag)})`,
-    );
+    context.push(`const ${varName} = __onigiri_resolveComponent(__instance, ${genString(tag)})`);
     context.newline();
   }
 

@@ -1,3 +1,10 @@
+import {
+  genDynamicImport,
+  genImport,
+  genObjectFromRawEntries,
+  genString,
+  wrapInDelimiters,
+} from "knitwork";
 import type { Plugin } from "vite";
 import { getOnigiriTargets, setOnigiriManifestInvalidator } from "./shared";
 
@@ -96,7 +103,7 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
         `[vue-onigiri] v-load-client target "${target}" is a package specifier that ` +
           `\`import.meta.glob\` cannot cover, so no chunk is emitted for it. Add it to ` +
           `\`onigiriManifestPlugin\`'s \`extraEntries\` ` +
-          `(e.g. { ${JSON.stringify(target)}: ${JSON.stringify(target)} }).`,
+          `(e.g. { ${genString(target)}: ${genString(target)} }).`,
       );
     }
 
@@ -143,7 +150,7 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
       const include = resolveInclude(isClient ? clientInclude : serverInclude, (message) =>
         this?.debug?.(message),
       );
-      return `import { createImportFn as __createImportFn } from ${JSON.stringify(MANIFEST_RUNTIME_ID)}
+      return `${genImport(MANIFEST_RUNTIME_ID, [{ name: "createImportFn", as: "__createImportFn" }])}
 
 const __glob = ${genGlobTable(include)}
 const __extra = ${genExtrasTable(extraEntries)}
@@ -168,18 +175,18 @@ function genGlobTable(include: ResolvedInclude | false): string {
   if (include === false) return "{}";
   const expressions = [include.literalTargets, include.patterns]
     .filter((patterns) => patterns.length > 0)
-    .map((patterns) => `import.meta.glob(${JSON.stringify(patterns)})`);
+    // Joined by hand: `genArrayFromRaw` would put each pattern on its own line.
+    .map(
+      (patterns) =>
+        `import.meta.glob([${patterns.map((pattern) => genString(pattern)).join(",")}])`,
+    );
   if (expressions.length === 0) return "{}";
   if (expressions.length === 1) return expressions[0]!;
-  return `{\n${expressions.map((expression) => `  ...${expression},`).join("\n")}\n}`;
+  return wrapInDelimiters(expressions.map((expression) => `  ...${expression}`));
 }
 
 /** Literal `"key": () => import("spec")` loaders, or an empty table. */
 function genExtrasTable(extraEntries: Record<string, string> | undefined): string {
   const entries = Object.entries(extraEntries ?? {});
-  if (entries.length === 0) return "{}";
-  const properties = entries
-    .map(([key, spec]) => `  ${JSON.stringify(key)}: () => import(${JSON.stringify(spec)}),`)
-    .join("\n");
-  return `{\n${properties}\n}`;
+  return genObjectFromRawEntries(entries.map(([key, spec]) => [key, genDynamicImport(spec)]));
 }

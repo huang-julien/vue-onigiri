@@ -5,7 +5,7 @@ import {
   type SimpleExpressionNode,
   NodeTypes,
 } from "@vue/compiler-dom";
-import { genImport } from "knitwork";
+import { genImport, genString } from "knitwork";
 import type { CodegenContext } from "./context";
 import { withoutRenderlessChildren, genNode, genNodeList } from "./vnode";
 import { collectBindingNames, genExpressionAsValue } from "./expressions";
@@ -80,7 +80,7 @@ export function genSlotsObject(
   for (const [i, slot] of slots.entries()) {
     if (i > 0) context.push(", ");
 
-    context.push(`"${slot.name}": `);
+    context.push(`${genString(slot.name)}: `);
 
     if (asFunction) {
       if (slot.slotProps) {
@@ -140,7 +140,7 @@ export function genSlotOutlet(node: ElementNode, context: CodegenContext): void 
 
   for (const prop of props) {
     if (prop.type === NodeTypes.ATTRIBUTE && prop.name === "name") {
-      slotName = JSON.stringify(prop.value ? prop.value.content : "default");
+      slotName = genString(prop.value ? prop.value.content : "default");
     } else if (
       prop.type === NodeTypes.DIRECTIVE &&
       prop.name === "bind" &&

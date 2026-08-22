@@ -1,5 +1,5 @@
 import type { ElementNode } from "@vue/compiler-dom";
-import { genImport } from "knitwork";
+import { genImport, genString } from "knitwork";
 import { VServerComponentType } from "../../runtime/shared";
 import type { CodegenContext } from "./context";
 import { withoutRenderlessChildren, genNodeList } from "./vnode";
@@ -81,7 +81,7 @@ function genHtmlElement(node: ElementNode, context: CodegenContext): void {
   context.push("[");
   context.push(VServerComponentType.Element.toString());
   context.push(", ");
-  context.push(JSON.stringify(tag));
+  context.push(genString(tag));
   context.push(", ");
 
   const hasScopeId = !!context.scopeId;

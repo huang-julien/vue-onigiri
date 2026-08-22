@@ -5,7 +5,7 @@ import {
   type SimpleExpressionNode,
   NodeTypes,
 } from "@vue/compiler-dom";
-import { genImport } from "knitwork";
+import { genImport, genString } from "knitwork";
 import { VServerComponentType } from "../../runtime/shared";
 import type { CodegenContext } from "./context";
 import { withoutRenderlessChildren, genFragment, genNodeList } from "./vnode";
@@ -165,7 +165,7 @@ function genTeleport(node: ElementNode, context: CodegenContext): void {
 
   const to = findProp("to");
   if (to?.type === NodeTypes.ATTRIBUTE && to.value) {
-    context.push(JSON.stringify(to.value.content));
+    context.push(genString(to.value.content));
   } else if (to?.type === NodeTypes.DIRECTIVE && to.exp) {
     genExpressionAsValue(to.exp, context);
   } else {
@@ -281,9 +281,9 @@ function genClientLoadedComponent(
   context.push(", ");
 
   const exportName = resolveClientChunkExport(tag, context);
-  context.push(JSON.stringify(staticSource));
+  context.push(genString(staticSource));
   context.push(", ");
-  context.push(JSON.stringify(exportName));
+  context.push(genString(exportName));
   context.push(", ");
 
   genSlotsObject(children, context, false);
@@ -400,9 +400,9 @@ function genDynamicLoadClientComponent(
 
   const exportName = resolveClientChunkExport(tag, context);
   context.push(", ");
-  context.push(JSON.stringify(chunkPath));
+  context.push(genString(chunkPath));
   context.push(", ");
-  context.push(JSON.stringify(exportName));
+  context.push(genString(exportName));
 
   context.push(")");
 }

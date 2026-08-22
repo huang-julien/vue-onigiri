@@ -6,7 +6,7 @@ import { genScriptImports } from "../src/vite/compiler/imports";
 /**
  * Template-derived strings reach codegen as raw text. Quoting them by hand lets a
  * value containing `"` close the emitted literal and run as code, so every site
- * that emits one goes through JSON.stringify.
+ * that emits one goes through knitwork's genString.
  */
 describe("codegen escapes template-derived strings", () => {
   it("a slot name cannot close the emitted literal", () => {

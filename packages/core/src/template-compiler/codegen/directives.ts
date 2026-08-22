@@ -5,6 +5,7 @@ import {
   type SimpleExpressionNode,
   NodeTypes,
 } from "@vue/compiler-dom";
+import { genString } from "knitwork";
 import type { CodegenContext } from "./context";
 import { genExpressionAsValue } from "./expressions";
 
@@ -55,7 +56,7 @@ export function getDirectiveRef(name: string, context: CodegenContext): string {
   if (context.bindingMetadata?.[camelName]) {
     return `_ctx.${camelName}`;
   }
-  return JSON.stringify(name);
+  return genString(name);
 }
 
 export function genDirectiveBinding(dir: DirectiveNode, context: CodegenContext): void {
@@ -73,7 +74,7 @@ export function genDirectiveBinding(dir: DirectiveNode, context: CodegenContext)
     if (!first) context.push(", ");
     context.push('"arg": ');
     if (typeof dir.arg === "object" && "isStatic" in dir.arg && dir.arg.isStatic) {
-      context.push(JSON.stringify((dir.arg as SimpleExpressionNode).content));
+      context.push(genString((dir.arg as SimpleExpressionNode).content));
     } else {
       genExpressionAsValue(dir.arg as ExpressionNode, context);
     }
@@ -90,7 +91,7 @@ export function genDirectiveBinding(dir: DirectiveNode, context: CodegenContext)
       // Read `.content`, tolerating a plain string for older shapes.
       const mod = dir.modifiers[i] as SimpleExpressionNode | string;
       const modName = typeof mod === "string" ? mod : mod.content;
-      context.push(`${JSON.stringify(modName)}: true`);
+      context.push(`${genString(modName)}: true`);
     }
     context.push("}");
   }

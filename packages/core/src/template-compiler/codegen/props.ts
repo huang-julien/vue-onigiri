@@ -4,7 +4,7 @@ import {
   type SimpleExpressionNode,
   NodeTypes,
 } from "@vue/compiler-dom";
-import { genImport } from "knitwork";
+import { genImport, genString } from "knitwork";
 import type { CodegenContext } from "./context";
 import { genEventHandler, genExpressionAsValue } from "./expressions";
 import { STRIPPED_DIRECTIVES, shouldWrapDirective } from "./directives";
@@ -135,10 +135,10 @@ function genDirectivePropEntry(prop: DirectiveNode, context: CodegenContext): vo
       context.push("[_toHandlerKey(");
       genExpressionAsValue(prop.arg, context);
       context.push(")");
-      if (optionSuffix) context.push(` + ${JSON.stringify(optionSuffix)}`);
+      if (optionSuffix) context.push(` + ${genString(optionSuffix)}`);
       context.push("]: ");
     } else {
-      context.push(`"on${capitalize(camelize(staticEvent))}${optionSuffix}": `);
+      context.push(`${genString(`on${capitalize(camelize(staticEvent))}${optionSuffix}`)}: `);
     }
 
     const useKeys =
@@ -159,10 +159,10 @@ function genDirectivePropEntry(prop: DirectiveNode, context: CodegenContext): vo
     }
 
     if (nonKey.length > 0) {
-      context.push(`, ${JSON.stringify(nonKey)})`);
+      context.push(`, [${nonKey.map((mod) => genString(mod)).join(",")}])`);
     }
     if (useKeys) {
-      context.push(`, ${JSON.stringify(keys)})`);
+      context.push(`, [${keys.map((key) => genString(key)).join(",")}])`);
     }
     return;
   }
@@ -177,7 +177,7 @@ function genDirectivePropEntry(prop: DirectiveNode, context: CodegenContext): vo
       prop.arg && typeof prop.arg === "object" && "content" in prop.arg
         ? (prop.arg as SimpleExpressionNode).content
         : "";
-    context.push(`"${propName}": `);
+    context.push(`${genString(propName)}: `);
   }
 
   if (prop.exp) {
@@ -220,11 +220,11 @@ function genClassStyleMerge(
   const helper = merge.name === "class" ? "normalizeClass" : "normalizeStyle";
   context.imports.add(genImport("vue", [{ name: helper, as: `_${helper}` }]));
 
-  context.push(`"${merge.name}": _${helper}([`);
+  context.push(`${genString(merge.name)}: _${helper}([`);
   for (const [i, part] of merge.parts.entries()) {
     if (i > 0) context.push(", ");
     if (part.type === NodeTypes.ATTRIBUTE) {
-      context.push(part.value ? JSON.stringify(part.value.content) : '""');
+      context.push(part.value ? genString(part.value.content) : '""');
     } else {
       genExpressionAsValue((part as DirectiveNode).exp, context);
     }
@@ -241,11 +241,11 @@ function genComponentVModel(prop: DirectiveNode, context: CodegenContext): void 
 
   const pushArgKey = (prefix: string, suffix: string): void => {
     if (dynamicArg) {
-      context.push(`[${JSON.stringify(prefix)} + (`);
+      context.push(`[${genString(prefix)} + (`);
       genExpressionAsValue(prop.arg, context);
-      context.push(`)${suffix ? ` + ${JSON.stringify(suffix)}` : ""}]: `);
+      context.push(`)${suffix ? ` + ${genString(suffix)}` : ""}]: `);
     } else {
-      context.push(`"${prefix}${staticName}${suffix}": `);
+      context.push(`${genString(`${prefix}${staticName}${suffix}`)}: `);
     }
   };
 
@@ -263,13 +263,15 @@ function genComponentVModel(prop: DirectiveNode, context: CodegenContext): void 
     if (dynamicArg) {
       pushArgKey("", "Modifiers");
     } else {
-      context.push(`"${staticName === "modelValue" ? "model" : staticName}Modifiers": `);
+      context.push(
+        `${genString(`${staticName === "modelValue" ? "model" : staticName}Modifiers`)}: `,
+      );
     }
     context.push("{");
     for (const [i, mod] of prop.modifiers.entries()) {
       if (i > 0) context.push(", ");
       const modName = typeof mod === "string" ? mod : (mod as SimpleExpressionNode).content;
-      context.push(`${JSON.stringify(modName)}: true`);
+      context.push(`${genString(modName)}: true`);
     }
     context.push("}");
   }
@@ -286,7 +288,7 @@ function genPropsObjectBody(
   let first = true;
 
   if (isElement && context.scopeId) {
-    context.push(`"${context.scopeId}": ""`);
+    context.push(`${genString(context.scopeId)}: ""`);
     first = false;
   }
 
@@ -304,9 +306,9 @@ function genPropsObjectBody(
       if (!first) context.push(", ");
       first = false;
 
-      context.push(`"${prop.name}": `);
+      context.push(`${genString(prop.name)}: `);
       if (prop.value) {
-        context.push(JSON.stringify(prop.value.content));
+        context.push(genString(prop.value.content));
       } else {
         context.push("true");
       }

@@ -1,3 +1,4 @@
+import { genString } from "knitwork";
 import { compileOnigiriInline } from "../../template-compiler";
 import type { AdditionalImport } from "../../template-compiler/codegen/context";
 import { type OnigiriCompileOptions, analyzeSfc, parseSfcFile } from "./analyze-sfc";
@@ -64,7 +65,7 @@ export async function loadVirtualOnigiriModule(
   const componentDeclarations = [...onigiriResult.components.entries()]
     .map(
       ([tag, varName]) =>
-        `  const ${varName} = __onigiri_resolveComponent(__instance, ${JSON.stringify(tag)})`,
+        `  const ${varName} = __onigiri_resolveComponent(__instance, ${genString(tag)})`,
     )
     .join("\n");
 

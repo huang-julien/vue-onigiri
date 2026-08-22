@@ -1,3 +1,4 @@
+import { genImport } from "knitwork";
 import MagicString from "magic-string";
 
 /**
@@ -15,7 +16,7 @@ export function attachAsProperty(
   if (!code.includes("export default")) return null;
 
   const s = new MagicString(code);
-  const importStatement = `import __onigiriRender from "${resolvedOnigiriId}";\n`;
+  const importStatement = genImport(resolvedOnigiriId, "__onigiriRender") + "\n";
   const descriptorJSON = descriptorChunk
     ? JSON.stringify({ chunk: descriptorChunk, export: descriptorExport })
     : null;
