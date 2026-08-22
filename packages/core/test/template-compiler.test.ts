@@ -17,7 +17,7 @@ describe("compileOnigiri", () => {
     const result = compileOnigiri(`<my-widget />`);
     // Default heuristic: hyphenated tag → resolveComponent path
     expect(result.code).toContain("__onigiri_resolveComponent");
-    expect(result.code).toContain("\"my-widget\"");
+    expect(result.code).toContain('"my-widget"');
   });
 
   it("isCustomElement skips the resolveComponent path", () => {
@@ -26,8 +26,8 @@ describe("compileOnigiri", () => {
     });
     // With isCustomElement → emitted as a plain HTML element
     expect(result.code).not.toContain("__onigiri_resolveComponent");
-    expect(result.code).toContain("\"my-widget\"");
-    expect(result.code).toContain("[0, \"my-widget\"");
+    expect(result.code).toContain('"my-widget"');
+    expect(result.code).toContain('[0, "my-widget"');
   });
 });
 

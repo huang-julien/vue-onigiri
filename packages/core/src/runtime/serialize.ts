@@ -711,7 +711,6 @@ function applySSRDirectives(
   dirs: DirectiveBinding[],
 ): VNodeProps {
   const toMerge: VNodeProps[] = [];
-  // eslint-disable-next-line unicorn/no-for-loop
   for (let i = 0; i < dirs.length; i++) {
     const binding = dirs[i];
     const getSSRProps = binding?.dir.getSSRProps;

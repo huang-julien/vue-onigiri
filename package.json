@@ -8,17 +8,16 @@
   "scripts": {
     "build": "pnpm --filter vue-onigiri build",
     "dev": "pnpm --filter playground dev",
-    "lint": "pnpm -r lint",
-    "lint:fix": "pnpm -r lint:fix",
+    "lint": "oxlint && oxfmt --check",
+    "lint:fix": "pnpm --filter vue-onigiri exec automd && oxlint --fix && oxfmt",
     "test": "pnpm --filter vue-onigiri test",
     "test:types": "pnpm -r test:types",
     "release": "pnpm test && changelogen --release --cwd packages/core && pnpm --filter vue-onigiri publish && git push --follow-tags"
   },
   "devDependencies": {
-    "@stylistic/eslint-plugin": "^5.10.0",
     "changelogen": "^0.6.2",
-    "eslint": "^9.39.4",
-    "eslint-config-unjs": "^0.6.2",
+    "oxfmt": "^0.64.0",
+    "oxlint": "^1.79.0",
     "vitest": "catalog:"
   },
   "packageManager": "pnpm@10.7.0"

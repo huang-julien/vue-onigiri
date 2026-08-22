@@ -69,10 +69,8 @@ describe("loader chunk-load failure", () => {
       return Island;
     };
 
-    const { wrapper, ast, resolved } = mountAst(
-      islandTuple("/x/Island.vue"),
-      importFn,
-      (err) => errors.push(err),
+    const { wrapper, ast, resolved } = mountAst(islandTuple("/x/Island.vue"), importFn, (err) =>
+      errors.push(err),
     );
     await resolved;
     await flushPromises();

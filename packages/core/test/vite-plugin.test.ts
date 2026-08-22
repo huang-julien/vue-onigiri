@@ -185,8 +185,8 @@ const msg = 'hello'
     expect(result).not.toBeNull();
 
     // Should contain element type (0) for div and span
-    expect(result).toContain("[0, \"div\"");
-    expect(result).toContain("[0, \"span\"");
+    expect(result).toContain('[0, "div"');
+    expect(result).toContain('[0, "span"');
     // Should contain text type (2) for the interpolation
     expect(result).toContain("[2,");
   });
@@ -225,7 +225,7 @@ describe("injectIntoSetupAsync setup bridge", () => {
     // the bindings so the bridge getters never hit the TDZ.
     const injectedAt = result!.code.indexOf("if (__onigiri_inject(__ONIGIRI_SYMBOL");
     const inlineRenderAt = result!.code.indexOf("return (_ctx");
-    const lastBindingAt = result!.code.lastIndexOf("const TITLE = \"Hello from literal\"");
+    const lastBindingAt = result!.code.lastIndexOf('const TITLE = "Hello from literal"');
     expect(injectedAt).toBeGreaterThan(-1);
     expect(inlineRenderAt).toBeGreaterThan(-1);
     expect(injectedAt).toBeLessThan(inlineRenderAt);
@@ -236,20 +236,22 @@ describe("injectIntoSetupAsync setup bridge", () => {
 describe("load of a virtual:onigiri module", () => {
   const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
-  it("loads an SFC whose path contains \"devtools\"", async () => {
+  it('loads an SFC whose path contains "devtools"', async () => {
     const filePath = path.resolve(ROOT, "test/fixtures/devtools/Panel.vue");
     const plugin = onigiriCompilerPlugin({ scan: false }) as Plugin;
-    (plugin.configResolved as (c: ResolvedConfig) => void).call(
-      plugin,
-      { root: ROOT, isProduction: false } as ResolvedConfig,
-    );
+    (plugin.configResolved as (c: ResolvedConfig) => void).call(plugin, {
+      root: ROOT,
+      isProduction: false,
+    } as ResolvedConfig);
 
-    const load = plugin.load as (
-      this: unknown,
-      id: string,
-    ) => Promise<{ code: string } | null>;
+    const load = plugin.load as (this: unknown, id: string) => Promise<{ code: string } | null>;
     const result = await load.call(
-      { resolve: async (id: string) => ({ id }), error: (msg: string) => { throw new Error(msg); } },
+      {
+        resolve: async (id: string) => ({ id }),
+        error: (msg: string) => {
+          throw new Error(msg);
+        },
+      },
       ONIGIRI_PREFIX + encodeURIComponent(filePath) + ONIGIRI_SUFFIX,
     );
 
@@ -262,8 +264,7 @@ describe("resolveId of imports coming from a virtual:onigiri module", () => {
   const ROOT = "/project/app";
   const IN_ROOT = "/components/Counter.vue";
   const OUT_OF_ROOT = "/project/node_modules/@nuxt/ui/dist/runtime/components/Button.vue";
-  const IMPORTER
-    = ONIGIRI_PREFIX + encodeURIComponent(`${ROOT}/pages/index.vue`) + ONIGIRI_SUFFIX;
+  const IMPORTER = ONIGIRI_PREFIX + encodeURIComponent(`${ROOT}/pages/index.vue`) + ONIGIRI_SUFFIX;
 
   /**
    * Rollup answers truthy for absolute ids it never stat'd, which is why
@@ -274,11 +275,13 @@ describe("resolveId of imports coming from a virtual:onigiri module", () => {
 
   function resolveFromVirtual(id: string) {
     const plugin = onigiriCompilerPlugin() as Plugin;
-    (plugin.configResolved as (c: ResolvedConfig) => void).call(
-      plugin,
-      { root: ROOT, isProduction: false } as ResolvedConfig,
-    );
-    const { handler } = plugin.resolveId as { handler: (this: unknown, id: string, importer?: string) => Promise<{ id: string } | null> };
+    (plugin.configResolved as (c: ResolvedConfig) => void).call(plugin, {
+      root: ROOT,
+      isProduction: false,
+    } as ResolvedConfig);
+    const { handler } = plugin.resolveId as {
+      handler: (this: unknown, id: string, importer?: string) => Promise<{ id: string } | null>;
+    };
     return handler.call(pluginContext, id, IMPORTER);
   }
 

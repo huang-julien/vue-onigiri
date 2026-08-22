@@ -17,8 +17,8 @@ export async function loadVirtualOnigiriModule(
 ): Promise<{ code: string; map: null } | null> {
   if (!id.startsWith(ONIGIRI_PREFIX) || !id.endsWith(ONIGIRI_SUFFIX)) return null;
 
-  const { config, sourceMap, isCustomElement, additionalImports, resolveChunkUrl, registerTarget }
-    = opts;
+  const { config, sourceMap, isCustomElement, additionalImports, resolveChunkUrl, registerTarget } =
+    opts;
   const encoded = id.slice(ONIGIRI_PREFIX.length, -ONIGIRI_SUFFIX.length);
   const filePath = decodeURIComponent(encoded);
 
@@ -34,9 +34,9 @@ export async function loadVirtualOnigiriModule(
     // through to Vue's real render instead of this no-op.
     return {
       code:
-        `function __onigiriRender(_ctx, __instance) { return null; }\n`
-        + `__onigiriRender.__onigiriEmpty = true;\n`
-        + `export default __onigiriRender;\n`,
+        `function __onigiriRender(_ctx, __instance) { return null; }\n` +
+        `__onigiriRender.__onigiriEmpty = true;\n` +
+        `export default __onigiriRender;\n`,
       map: null,
     };
   }

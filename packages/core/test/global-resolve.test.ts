@@ -44,7 +44,7 @@ describe("global component resolution during serialize", () => {
 
     expect(actual).not.toContain("<RouterLinkStub");
     expect(actual).not.toContain("<LinkLike");
-    expect(actual).toContain("class=\"resolved\"");
+    expect(actual).toContain('class="resolved"');
     expect(removeCommentsFromHtml(actual)).toBe(removeCommentsFromHtml(expected));
   });
 
@@ -64,7 +64,7 @@ describe("global component resolution during serialize", () => {
 
     expect(actual).not.toContain("<RouterLinkStub");
     expect(actual).not.toContain("<LinkLike");
-    expect(actual).toContain("class=\"resolved\"");
+    expect(actual).toContain('class="resolved"');
     expect(removeCommentsFromHtml(actual)).toBe(removeCommentsFromHtml(expected));
   });
 

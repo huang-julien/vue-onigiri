@@ -48,9 +48,13 @@ describe("loader payload reactivity", () => {
     };
 
     const withSlot = (label: string, text: string) =>
-      islandTuple("/x/IslandA.vue", { label }, {
-        default: [[VServerComponentType.Text, text]],
-      });
+      islandTuple(
+        "/x/IslandA.vue",
+        { label },
+        {
+          default: [[VServerComponentType.Text, text]],
+        },
+      );
 
     const { wrapper, ast, resolved } = mountAst(withSlot("one", "slot-one"), importFn);
     await resolved;

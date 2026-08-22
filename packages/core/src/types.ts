@@ -2,7 +2,6 @@ import type { VServerComponent } from "./runtime/shared";
 import type { ObjectDirectiveBinding } from "./runtime/with-directive";
 
 declare module "vue" {
-
   interface ObjectDirective<
     HostElement = any,
     Value = any,

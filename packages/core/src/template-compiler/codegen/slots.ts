@@ -108,9 +108,9 @@ export function genSlotsObject(
       // can't be embedded in frozen AST.
       if (slot.slotProps) {
         throw new Error(
-          `[vue-onigiri] Scoped slots are not supported on client-loaded components ('v-load-client'). `
-          + `Slot "${slot.name}" declares scope "${slot.slotProps}" but the scope is only available on `
-          + `the client and cannot be embedded in pre-rendered AST.`,
+          `[vue-onigiri] Scoped slots are not supported on client-loaded components ('v-load-client'). ` +
+            `Slot "${slot.name}" declares scope "${slot.slotProps}" but the scope is only available on ` +
+            `the client and cannot be embedded in pre-rendered AST.`,
         );
       }
       if (slot.children.length === 1) {
@@ -142,10 +142,10 @@ export function genSlotOutlet(node: ElementNode, context: CodegenContext): void 
     if (prop.type === NodeTypes.ATTRIBUTE && prop.name === "name") {
       slotName = JSON.stringify(prop.value ? prop.value.content : "default");
     } else if (
-      prop.type === NodeTypes.DIRECTIVE
-      && prop.name === "bind"
-      && prop.arg?.type === NodeTypes.SIMPLE_EXPRESSION
-      && prop.arg.content === "name"
+      prop.type === NodeTypes.DIRECTIVE &&
+      prop.name === "bind" &&
+      prop.arg?.type === NodeTypes.SIMPLE_EXPRESSION &&
+      prop.arg.content === "name"
     ) {
       isDynamicName = true;
       slotName = null;
@@ -160,7 +160,7 @@ export function genSlotOutlet(node: ElementNode, context: CodegenContext): void 
   if (isDynamicName && (node as any).__dynamicSlotNameExp) {
     genExpressionAsValue((node as any).__dynamicSlotNameExp, context);
   } else {
-    context.push(slotName || "\"default\"");
+    context.push(slotName || '"default"');
   }
   context.push(", ");
 
@@ -186,9 +186,9 @@ export function genSlotOutlet(node: ElementNode, context: CodegenContext): void 
 
 /** The `v-slot` directive carried by a `<template>` child, if it declares one. */
 export function findSlotDirective(child: any): DirectiveNode | undefined {
-  return child.props?.find(
-    (p: any) => p.type === NodeTypes.DIRECTIVE && p.name === "slot",
-  ) as DirectiveNode | undefined;
+  return child.props?.find((p: any) => p.type === NodeTypes.DIRECTIVE && p.name === "slot") as
+    | DirectiveNode
+    | undefined;
 }
 
 /** Slot name a `v-slot` targets; an absent or unnamed directive means "default". */

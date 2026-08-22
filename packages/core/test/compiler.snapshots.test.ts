@@ -12,7 +12,7 @@ const FIXTURES_DIR = fileURLToPath(new URL("compiler-fixtures", import.meta.url)
 const FIXTURE_NAMES = readdirSync(FIXTURES_DIR, { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)
-  .sort();
+  .toSorted();
 
 describe("compiler fixture snapshots", () => {
   for (const name of FIXTURE_NAMES) {
@@ -24,8 +24,8 @@ describe("compiler fixture snapshots", () => {
       const { descriptor, errors } = parse(source, { filename: `${name}/input.vue` });
       expect(errors).toEqual([]);
 
-      const scriptResult
-        = descriptor.scriptSetup || descriptor.script
+      const scriptResult =
+        descriptor.scriptSetup || descriptor.script
           ? compileScript(descriptor, { id: `${name}/input.vue` })
           : undefined;
 

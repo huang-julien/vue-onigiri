@@ -31,11 +31,7 @@ const trackedImportFn = (result: any) => {
   return { fn, calls };
 };
 
-const mountAst = (
-  ast: VServerComponent,
-  options?: RenderOnigiriOptions,
-  plugins: any[] = [],
-) => {
+const mountAst = (ast: VServerComponent, options?: RenderOnigiriOptions, plugins: any[] = []) => {
   const { promise, resolve } = Promise.withResolvers();
   const wrapper = mount(
     defineComponent({
@@ -54,7 +50,9 @@ const mountAst = (
 describe("importFn resolution chain", () => {
   it("uses the app-level importFn provided by onigiriPlugin", async () => {
     const { fn, calls } = trackedImportFn(Island);
-    const { wrapper, resolved } = mountAst(componentAst(), undefined, [[onigiriPlugin, { importFn: fn }]]);
+    const { wrapper, resolved } = mountAst(componentAst(), undefined, [
+      [onigiriPlugin, { importFn: fn }],
+    ]);
     await resolved;
     await flushPromises();
     expect(calls).toEqual([["/virtual/Island.vue", "default"]]);
@@ -62,9 +60,7 @@ describe("importFn resolution chain", () => {
   });
 
   it("per-render importFn wins over the app-level one", async () => {
-    const appFn = trackedImportFn(
-      defineComponent({ setup: () => () => h("div", "from-app") }),
-    );
+    const appFn = trackedImportFn(defineComponent({ setup: () => () => h("div", "from-app") }));
     const renderFn = trackedImportFn(Island);
     const { wrapper, resolved } = mountAst(componentAst(), { importFn: renderFn.fn }, [
       [onigiriPlugin, { importFn: appFn.fn }],
@@ -78,7 +74,7 @@ describe("importFn resolution chain", () => {
 
   it("default manifest module throws with setup guidance outside Vite", async () => {
     await expect(defaultImportFn("/nope.vue")).rejects.toThrow(
-      "[vue-onigiri] No chunk loader available for \"/nope.vue\"",
+      '[vue-onigiri] No chunk loader available for "/nope.vue"',
     );
   });
 });
@@ -105,6 +101,8 @@ describe("onigiriManifestPlugin manifest-default redirect", () => {
 
   it("does not hijack user modules named manifest-default", () => {
     expect(resolveId("./manifest-default", "/app/src/main.ts")).toBeUndefined();
-    expect(resolveId("./manifest-default.ts", "/app/src/components/loader-panel.vue")).toBeUndefined();
+    expect(
+      resolveId("./manifest-default.ts", "/app/src/components/loader-panel.vue"),
+    ).toBeUndefined();
   });
 });

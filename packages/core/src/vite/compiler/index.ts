@@ -18,21 +18,21 @@ import { toRootRelative } from "./paths";
 function hasInlineTemplate(code: string): boolean {
   return (
     // Client render-fn codegen
-    code.includes("_createElementVNode")
-    || code.includes("_createVNode")
-    || code.includes("_createBlock")
-    || code.includes("_createElementBlock")
-    || code.includes("ssrInterpolate")
-    || code.includes("ssrRenderAttrs")
+    code.includes("_createElementVNode") ||
+    code.includes("_createVNode") ||
+    code.includes("_createBlock") ||
+    code.includes("_createElementBlock") ||
+    code.includes("ssrInterpolate") ||
+    code.includes("ssrRenderAttrs") ||
     // SSR render-fn codegen (production build, ?vue&type=template SSR sub-module)
-    || code.includes("_push(`<")
-    || code.includes("_push(ssr")
-    || code.includes("ssrRenderComponent")
-    || code.includes("ssrRenderSlot")
-    || code.includes("ssrRenderList")
-    || code.includes("ssrRenderClass")
-    || code.includes("ssrRenderStyle")
-    || code.includes("ssrRenderVNode")
+    code.includes("_push(`<") ||
+    code.includes("_push(ssr") ||
+    code.includes("ssrRenderComponent") ||
+    code.includes("ssrRenderSlot") ||
+    code.includes("ssrRenderList") ||
+    code.includes("ssrRenderClass") ||
+    code.includes("ssrRenderStyle") ||
+    code.includes("ssrRenderVNode")
   );
 }
 
@@ -84,8 +84,13 @@ export interface OnigiriCompilerOptions {
  * the render into `setup()` so it captures the setup-script closure.
  */
 export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plugin {
-  const { sourceMap = true, isCustomElement, additionalImports, resolveChunkUrl, scan = true }
-    = options;
+  const {
+    sourceMap = true,
+    isCustomElement,
+    additionalImports,
+    resolveChunkUrl,
+    scan = true,
+  } = options;
   let config: ResolvedConfig;
   // Memoized so multi-environment builds (client + ssr) scan only once.
   let scanPromise: Promise<void> | undefined;
@@ -155,10 +160,10 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
           // Root-relative additionalImports paths resolve against the Vite
           // root; skip Windows-absolute (`/D:/...`) and `/@...` internal forms.
           if (
-            id.startsWith("/")
-            && !id.startsWith("//")
-            && !id.startsWith("/@")
-            && !/^\/[A-Za-z]:/.test(id)
+            id.startsWith("/") &&
+            !id.startsWith("//") &&
+            !id.startsWith("/@") &&
+            !/^\/[A-Za-z]:/.test(id)
           ) {
             const rootJoined = config.root.replace(/[/\\]+$/, "") + id;
             const abs = existsSync(rootJoined) || !existsSync(id) ? rootJoined : id;
@@ -219,9 +224,10 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
           const onigiriImport = `${ONIGIRI_PREFIX}${encodeURIComponent(filePath)}${ONIGIRI_SUFFIX}`;
           const sourcePath = toRootRelative(filePath, config.root);
 
-          const addressable = sourcePath.startsWith("/") && !sourcePath.startsWith("/node_modules/");
+          const addressable =
+            sourcePath.startsWith("/") && !sourcePath.startsWith("/node_modules/");
           const descriptorChunk = addressable
-            ? resolveChunkUrl?.(sourcePath) ?? sourcePath
+            ? (resolveChunkUrl?.(sourcePath) ?? sourcePath)
             : undefined;
 
           let workCode = code;

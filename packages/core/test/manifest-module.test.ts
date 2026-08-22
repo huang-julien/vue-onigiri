@@ -114,8 +114,12 @@ describe("generated manifest module: extraEntries", () => {
   it("splices 'auto' targets into explicit patterns without applying their negatives", () => {
     registerOnigiriTarget("/components/Counter.vue");
     const include = ["auto", "/pages/**/*.vue", "!**/components/**"];
-    const serverCode = loadManifest(onigiriManifestPlugin({ serverInclude: include }), { ssr: true });
-    const clientCode = loadManifest(onigiriManifestPlugin({ clientInclude: include }), { ssr: false });
+    const serverCode = loadManifest(onigiriManifestPlugin({ serverInclude: include }), {
+      ssr: true,
+    });
+    const clientCode = loadManifest(onigiriManifestPlugin({ clientInclude: include }), {
+      ssr: false,
+    });
 
     for (const code of [serverCode, clientCode]) {
       expect(code).toContain(`import.meta.glob(["/components/Counter.vue"])`);

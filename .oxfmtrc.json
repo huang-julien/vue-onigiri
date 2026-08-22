@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 100,
+  "tabWidth": 2,
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all",
+  "arrowParens": "always",
+  "ignorePatterns": [
+    "**/dist",
+    "**/coverage",
+    "**/node_modules",
+    "**/.omc",
+    ".claude",
+    "pnpm-lock.yaml",
+    "**/CHANGELOG.md",
+    "**/__snapshots__",
+    "packages/core/test/fixtures",
+    "packages/core/test/compiler-fixtures"
+  ]
+}

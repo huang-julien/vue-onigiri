@@ -20,9 +20,9 @@ export function resolveComponentInInstance(
 ): Component | string {
   if (!instance) return name;
 
-  const resolved
-    = lookup((instance.type as any)?.components, name)
-      ?? lookup(instance.appContext?.components as Record<string, Component> | undefined, name);
+  const resolved =
+    lookup((instance.type as any)?.components, name) ??
+    lookup(instance.appContext?.components as Record<string, Component> | undefined, name);
   if (resolved) return resolved;
 
   const self = (instance.type as Component & { name?: string }).name;

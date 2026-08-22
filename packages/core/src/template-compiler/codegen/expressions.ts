@@ -51,9 +51,9 @@ function classifyExpression(content: string): "member" | "fn" | "statement" {
     const ast = parseExpression(trimmed, { plugins: ["typescript"] });
     if (ast.type === "ArrowFunctionExpression" || ast.type === "FunctionExpression") return "fn";
     if (
-      ast.type === "Identifier"
-      || ast.type === "MemberExpression"
-      || ast.type === "OptionalMemberExpression"
+      ast.type === "Identifier" ||
+      ast.type === "MemberExpression" ||
+      ast.type === "OptionalMemberExpression"
     )
       return "member";
     return "statement";
@@ -340,10 +340,10 @@ export function genEventHandler(node: ExpressionNode | undefined, context: Codeg
           return child;
         }
         if (
-          child
-          && typeof child === "object"
-          && "type" in child
-          && child.type === NodeTypes.SIMPLE_EXPRESSION
+          child &&
+          typeof child === "object" &&
+          "type" in child &&
+          child.type === NodeTypes.SIMPLE_EXPRESSION
         ) {
           return (child as SimpleExpressionNode).content;
         }

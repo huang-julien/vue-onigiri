@@ -21,30 +21,30 @@ export function getComponentRef(tag: string, context: CodegenContext): string {
   const camelName = pascalName.replace(/^./, (x) => x.toLowerCase());
   const kebabName = tag.replace(/([a-z\d])([A-Z])/g, "$1-$2").toLowerCase();
 
-  const isImported
-    = context.bindingMetadata[tag]
-      || context.bindingMetadata[pascalName]
-      || context.bindingMetadata[camelName];
+  const isImported =
+    context.bindingMetadata[tag] ||
+    context.bindingMetadata[pascalName] ||
+    context.bindingMetadata[camelName];
 
   if (isImported) {
     return context.bindingMetadata[tag]
       ? tag
-      : (context.bindingMetadata[pascalName]
-          ? pascalName
-          : camelName);
+      : context.bindingMetadata[pascalName]
+        ? pascalName
+        : camelName;
   }
 
-  const additionalEntry
-    = context.additionalImports.get(tag)
-      ?? context.additionalImports.get(pascalName)
-      ?? context.additionalImports.get(camelName)
-      ?? context.additionalImports.get(kebabName);
+  const additionalEntry =
+    context.additionalImports.get(tag) ??
+    context.additionalImports.get(pascalName) ??
+    context.additionalImports.get(camelName) ??
+    context.additionalImports.get(kebabName);
   if (additionalEntry) {
     const exportName = additionalEntry.export ?? "default";
-    const importedName
-      = "__onigiri_imported_"
-        + pascalName.replace(/[^a-zA-Z0-9_$]/g, "_")
-        + (exportName === "default" ? "" : "_" + exportName.replace(/[^a-zA-Z0-9_$]/g, "_"));
+    const importedName =
+      "__onigiri_imported_" +
+      pascalName.replace(/[^a-zA-Z0-9_$]/g, "_") +
+      (exportName === "default" ? "" : "_" + exportName.replace(/[^a-zA-Z0-9_$]/g, "_"));
     context.imports.add(genImport(additionalEntry.path, [{ name: exportName, as: importedName }]));
     return importedName;
   }
@@ -83,12 +83,12 @@ export function genComponent(node: ElementNode, context: CodegenContext): void {
   }
   // KeepAlive / Transition have no server-side DOM effect; pass children through.
   if (
-    tag === "KeepAlive"
-    || tag === "keep-alive"
-    || tag === "Transition"
-    || tag === "transition"
-    || tag === "TransitionGroup"
-    || tag === "transition-group"
+    tag === "KeepAlive" ||
+    tag === "keep-alive" ||
+    tag === "Transition" ||
+    tag === "transition" ||
+    tag === "TransitionGroup" ||
+    tag === "transition-group"
   ) {
     genFragmentPassthrough(children, context);
     return;
@@ -152,11 +152,11 @@ function genTeleport(node: ElementNode, context: CodegenContext): void {
   const findProp = (name: string) =>
     props.find(
       (p) =>
-        (p.type === NodeTypes.ATTRIBUTE && p.name === name)
-        || (p.type === NodeTypes.DIRECTIVE
-          && p.name === "bind"
-          && p.arg?.type === NodeTypes.SIMPLE_EXPRESSION
-          && p.arg.content === name),
+        (p.type === NodeTypes.ATTRIBUTE && p.name === name) ||
+        (p.type === NodeTypes.DIRECTIVE &&
+          p.name === "bind" &&
+          p.arg?.type === NodeTypes.SIMPLE_EXPRESSION &&
+          p.arg.content === name),
     );
 
   context.push("[");
@@ -200,11 +200,11 @@ function genDynamicComponent(node: ElementNode, context: CodegenContext): void {
 
   const isAttr = props.find(
     (p) =>
-      (p.type === NodeTypes.ATTRIBUTE && p.name === "is")
-      || (p.type === NodeTypes.DIRECTIVE
-        && p.name === "bind"
-        && p.arg
-        && (p.arg as SimpleExpressionNode).content === "is"),
+      (p.type === NodeTypes.ATTRIBUTE && p.name === "is") ||
+      (p.type === NodeTypes.DIRECTIVE &&
+        p.name === "bind" &&
+        p.arg &&
+        (p.arg as SimpleExpressionNode).content === "is"),
   );
 
   let targetExpr = "null";
@@ -233,12 +233,12 @@ function genDynamicComponent(node: ElementNode, context: CodegenContext): void {
 
   const propsWithoutIs = props.filter(
     (p) =>
-      !(p.type === NodeTypes.ATTRIBUTE && p.name === "is")
-      && !(
-        p.type === NodeTypes.DIRECTIVE
-        && p.name === "bind"
-        && p.arg
-        && (p.arg as SimpleExpressionNode).content === "is"
+      !(p.type === NodeTypes.ATTRIBUTE && p.name === "is") &&
+      !(
+        p.type === NodeTypes.DIRECTIVE &&
+        p.name === "bind" &&
+        p.arg &&
+        (p.arg as SimpleExpressionNode).content === "is"
       ),
   );
   if (propsWithoutIs.length > 0) {
@@ -307,10 +307,10 @@ function resolveClientChunkPath(tag: string, context: CodegenContext): string {
 
   const pascal = casings[1];
   throw new Error(
-    `[vue-onigiri] Cannot resolve v-load-client target "${tag}": no matching import in `
-    + `the component's <script> block and no entry in additionalImports. `
-    + `Either import the component statically (\`import ${pascal} from './path/to/${pascal}.vue'\`), `
-    + `or pass it through the compiler plugin's \`additionalImports\` option.`,
+    `[vue-onigiri] Cannot resolve v-load-client target "${tag}": no matching import in ` +
+      `the component's <script> block and no entry in additionalImports. ` +
+      `Either import the component statically (\`import ${pascal} from './path/to/${pascal}.vue'\`), ` +
+      `or pass it through the compiler plugin's \`additionalImports\` option.`,
   );
 }
 

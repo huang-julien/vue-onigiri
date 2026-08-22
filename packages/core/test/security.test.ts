@@ -88,9 +88,9 @@ describe("v-load-client prop serializability warnings (dev)", () => {
     ] as any);
 
     const messages = warn.mock.calls.map((c) => String(c[0]));
-    expect(messages.some((m) => m.includes("\"formatter\" (function)"))).toBe(true);
-    expect(messages.some((m) => m.includes("\"when\" (Date instance)"))).toBe(true);
-    expect(messages.some((m) => m.includes("\"loop.self\" (circular reference)"))).toBe(true);
+    expect(messages.some((m) => m.includes('"formatter" (function)'))).toBe(true);
+    expect(messages.some((m) => m.includes('"when" (Date instance)'))).toBe(true);
+    expect(messages.some((m) => m.includes('"loop.self" (circular reference)'))).toBe(true);
     expect(messages.length).toBe(3);
 
     // A separate payload gets its own dedupe scope: warns again.

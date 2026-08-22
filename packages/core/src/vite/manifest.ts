@@ -66,8 +66,8 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
   const extrasCover = (spec: string): boolean => {
     if (!extraEntries) return false;
     return (
-      candidateKeys(spec).some((key) => key in extraEntries)
-      || Object.values(extraEntries).includes(spec)
+      candidateKeys(spec).some((key) => key in extraEntries) ||
+      Object.values(extraEntries).includes(spec)
     );
   };
 
@@ -89,10 +89,10 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
       }
       loggedBareTargets.add(target);
       debug?.(
-        `[vue-onigiri] v-load-client target "${target}" is a package specifier that `
-        + `\`import.meta.glob\` cannot cover, so no chunk is emitted for it. Add it to `
-        + `\`onigiriManifestPlugin\`'s \`extraEntries\` `
-        + `(e.g. { ${JSON.stringify(target)}: ${JSON.stringify(target)} }).`,
+        `[vue-onigiri] v-load-client target "${target}" is a package specifier that ` +
+          `\`import.meta.glob\` cannot cover, so no chunk is emitted for it. Add it to ` +
+          `\`onigiriManifestPlugin\`'s \`extraEntries\` ` +
+          `(e.g. { ${JSON.stringify(target)}: ${JSON.stringify(target)} }).`,
       );
     }
 
@@ -110,10 +110,10 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
         if (id === MANIFEST_VIRTUAL_ID) return MANIFEST_RESOLVED_ID;
 
         if (
-          id === "vue-onigiri/runtime/manifest-default"
-          || (/(^|[\\/])manifest-default(\.\w+)?$/.test(id)
-            && !!importer
-            && /[\\/]runtime[\\/]loader\.\w+$/.test(importer))
+          id === "vue-onigiri/runtime/manifest-default" ||
+          (/(^|[\\/])manifest-default(\.\w+)?$/.test(id) &&
+            !!importer &&
+            /[\\/]runtime[\\/]loader\.\w+$/.test(importer))
         ) {
           return MANIFEST_RESOLVED_ID;
         }
@@ -122,9 +122,9 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
     configureServer(server) {
       // Dev: a new v-load-client target invalidates the manifest module so the next request sees the fresh set.
       setOnigiriManifestInvalidator(() => {
-        const mod
-          = server.environments.ssr?.moduleGraph.getModuleById(MANIFEST_RESOLVED_ID)
-            ?? server.environments.client?.moduleGraph.getModuleById(MANIFEST_RESOLVED_ID);
+        const mod =
+          server.environments.ssr?.moduleGraph.getModuleById(MANIFEST_RESOLVED_ID) ??
+          server.environments.client?.moduleGraph.getModuleById(MANIFEST_RESOLVED_ID);
         if (mod) {
           server.environments.ssr?.moduleGraph.invalidateModule(mod);
           server.environments.client?.moduleGraph.invalidateModule(mod);

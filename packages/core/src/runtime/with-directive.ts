@@ -127,7 +127,7 @@ function findTagEnd(html: string, from: number): number {
     const c = html[i];
     if (quote) {
       if (c === quote) quote = undefined;
-    } else if (c === "\"" || c === "'") {
+    } else if (c === '"' || c === "'") {
       quote = c;
     } else if (c === ">") {
       return i;
@@ -171,8 +171,11 @@ function countHtmlRootNodes(html: string): number {
     } else if (/[a-zA-Z]/.test(next)) {
       const end = findTagEnd(html, i + 1);
       if (end === -1) break;
-      const tagName
-        = html.slice(i + 1, end).match(/^([a-zA-Z][\w-]*)/)?.[1]?.toLowerCase() ?? "";
+      const tagName =
+        html
+          .slice(i + 1, end)
+          .match(/^([a-zA-Z][\w-]*)/)?.[1]
+          ?.toLowerCase() ?? "";
       if (depth === 0) count++;
       const selfClosing = html[end - 1] === "/";
       i = end + 1;
@@ -263,8 +266,8 @@ export const vShow: ObjectDirective<HTMLElement, boolean> = {
     if (!binding.value) {
       // Hide element by setting display: none
       const existingStyle = props?.style || {};
-      const newStyle
-        = typeof existingStyle === "string"
+      const newStyle =
+        typeof existingStyle === "string"
           ? existingStyle + "; display: none"
           : { ...existingStyle, display: "none" };
 
@@ -336,7 +339,12 @@ export const vModel: ObjectDirective<HTMLElement, any> = {
 
     if (tag === "select") {
       const multiple = !!props?.multiple;
-      return [type, tag, props, markSelectedOptions(children, binding.value, multiple)] as VServerComponent;
+      return [
+        type,
+        tag,
+        props,
+        markSelectedOptions(children, binding.value, multiple),
+      ] as VServerComponent;
     }
 
     if (tag === "input" || tag === "textarea") {

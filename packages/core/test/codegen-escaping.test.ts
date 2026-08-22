@@ -15,7 +15,7 @@ describe("codegen escapes template-derived strings", () => {
       `<div><slot name="a&quot;+(globalThis.PWNED=1)+&quot;b" /></div>`,
     );
     expect(code).toContain(String.raw`"a\"+(globalThis.PWNED=1)+\"b"`);
-    expect(code).not.toContain("(globalThis.PWNED=1)+\"b\",");
+    expect(code).not.toContain('(globalThis.PWNED=1)+"b",');
   });
 
   it("a component tag cannot close the emitted literal", () => {
@@ -89,9 +89,9 @@ import {
 `;
     const { descriptor } = parse(source, { filename: "test.vue" });
     const script = compileScript(descriptor, { id: "test" });
-    const emitted
-      = genScriptImports(script.imports)
-        + compileOnigiri(descriptor.template!.content, { bindingMetadata: script.bindings }).code;
+    const emitted =
+      genScriptImports(script.imports) +
+      compileOnigiri(descriptor.template!.content, { bindingMetadata: script.bindings }).code;
 
     expect(emitted).toContain(`import { Bar } from "./widgets";`);
     // The render references `Bar` directly; without the import it is a ReferenceError.

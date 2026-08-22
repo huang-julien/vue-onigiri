@@ -41,9 +41,9 @@ const transformVOnEventKind: NodeTransform = (node, context) => {
     if (exp.isStatic) continue;
     exp._onigiriEventKind = isMemberExpression(exp, context)
       ? "member"
-      : (isFnExpression(exp, context)
-          ? "fn"
-          : "statement");
+      : isFnExpression(exp, context)
+        ? "fn"
+        : "statement";
   }
 };
 
@@ -155,13 +155,13 @@ export function compileOnigiriInline(
     const produced = context.code.slice(before);
     // A single root v-for emits a `...(...)` spread only valid inside an array literal, so wrap it in a Fragment tuple
     if (produced.startsWith("...")) {
-      context.code
-        = context.code.slice(0, before)
-          + "["
-          + VServerComponentType.Fragment.toString()
-          + ", ["
-          + produced
-          + "]]";
+      context.code =
+        context.code.slice(0, before) +
+        "[" +
+        VServerComponentType.Fragment.toString() +
+        ", [" +
+        produced +
+        "]]";
     }
   } else {
     // Multiple root nodes - wrap in fragment

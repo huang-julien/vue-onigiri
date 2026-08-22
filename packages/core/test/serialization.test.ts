@@ -393,9 +393,9 @@ describe("payload versioning", () => {
   });
 
   it("renderOnigiri rejects payloads from a different format version", () => {
-    expect(() =>
-      renderOnigiri({ v: 999, ast: [VServerComponentType.Text, "x"] }),
-    ).toThrow("[vue-onigiri] Unsupported payload version: 999");
+    expect(() => renderOnigiri({ v: 999, ast: [VServerComponentType.Text, "x"] })).toThrow(
+      "[vue-onigiri] Unsupported payload version: 999",
+    );
   });
 
   it("renderOnigiri still accepts bare tuple arrays", () => {
@@ -411,23 +411,24 @@ describe("payload versioning", () => {
 describe("v-load-client via alias import", () => {
   it("resolves the aliased import to a root-relative chunk path", async () => {
     const ast = await serializeComponent(AliasLoad);
-    expect(JSON.stringify(ast)).toContain("\"/test/fixtures/components/Counter.vue\"");
+    expect(JSON.stringify(ast)).toContain('"/test/fixtures/components/Counter.vue"');
   });
 });
 
 describe("static vnodes and teleport", () => {
   it("serializes Static vnodes as StaticHtml instead of dropping them", async () => {
     const WithStatic = defineComponent({
-      setup: () => () => h("section", null, [createStaticVNode("<p>static A</p><p>static B</p>", 2)]),
+      setup: () => () =>
+        h("section", null, [createStaticVNode("<p>static A</p><p>static B</p>", 2)]),
     });
     const { ast } = (await serializeComponent(WithStatic)) as any;
     const json = JSON.stringify(ast);
     expect(json).toContain("static A");
-    expect(json).toContain(`[${VServerComponentType.StaticHtml},"<p>static A</p><p>static B</p>",2]`);
-
-    const wrapper = mount(
-      defineComponent({ setup: () => () => renderOnigiri(ast) }),
+    expect(json).toContain(
+      `[${VServerComponentType.StaticHtml},"<p>static A</p><p>static B</p>",2]`,
     );
+
+    const wrapper = mount(defineComponent({ setup: () => () => renderOnigiri(ast) }));
     expect(wrapper.html()).toContain("<p>static A</p>");
     expect(wrapper.html()).toContain("<p>static B</p>");
   });
@@ -444,7 +445,9 @@ describe("static vnodes and teleport", () => {
     target.id = "tp-target";
     document.body.append(target);
     try {
-      mount(defineComponent({ setup: () => () => renderOnigiri(ast) }), { attachTo: document.body });
+      mount(defineComponent({ setup: () => () => renderOnigiri(ast) }), {
+        attachTo: document.body,
+      });
       expect(target.innerHTML).toContain("teleported");
     } finally {
       target.remove();
@@ -582,7 +585,7 @@ describe("fallback walk (non-onigiri components)", () => {
   it("preserves the root element of an async-setup child", async () => {
     const astSync = await serializeComponent(makeParent(SyncChild));
     const astAsync = await serializeComponent(makeParent(AsyncChild));
-    expect(JSON.stringify(astAsync)).toContain("\"wrapper\"");
+    expect(JSON.stringify(astAsync)).toContain('"wrapper"');
     expect(astAsync).toEqual(astSync);
   });
 

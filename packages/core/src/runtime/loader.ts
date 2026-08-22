@@ -50,14 +50,11 @@ export default defineComponent({
     const Loaded = shallowRef(await loadComponent(props.data[2], props.data[3] ?? "default"));
 
     let loadId = 0;
-    watch(
-      [() => props.data[2], () => props.data[3]],
-      async ([chunk, exportName]) => {
-        const id = ++loadId;
-        const component = await loadComponent(chunk, exportName ?? "default");
-        if (id === loadId) Loaded.value = component;
-      },
-    );
+    watch([() => props.data[2], () => props.data[3]], async ([chunk, exportName]) => {
+      const id = ++loadId;
+      const component = await loadComponent(chunk, exportName ?? "default");
+      if (id === loadId) Loaded.value = component;
+    });
 
     const buildSlots = () =>
       Object.fromEntries(
@@ -66,8 +63,8 @@ export default defineComponent({
             key,
             () => {
               if (!value) return undefined;
-              const asArr
-                = Array.isArray(value) && typeof value[0] === "number"
+              const asArr =
+                Array.isArray(value) && typeof value[0] === "number"
                   ? [value as unknown as VServerComponent]
                   : (value as VServerComponent[]);
               return renderChildren(asArr, { importFn: props.importFn });

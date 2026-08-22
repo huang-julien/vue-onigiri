@@ -3,7 +3,7 @@ coverage
 dist
 .vscode
 .DS_Store
-.eslintcache
+.oxlintcache
 *.log*
 *.env*
 *.tgz

@@ -9,6 +9,7 @@
   ],
   "type": "module",
   "sideEffects": false,
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -24,11 +25,10 @@
     },
     "./package.json": "./package.json"
   },
-  "types": "./dist/index.d.ts",
   "scripts": {
     "build": "unbuild",
-    "lint": "eslint .",
-    "lint:fix": "automd && eslint . --fix",
+    "lint": "oxlint && oxfmt --check",
+    "lint:fix": "automd && oxlint --fix && oxfmt",
     "prepack": "pnpm build",
     "test": "pnpm lint && pnpm test:types && vitest run --coverage",
     "test:types": "vue-tsc"
@@ -51,7 +51,6 @@
     "@vue/test-utils": "^2.4.10",
     "automd": "^0.4.3",
     "happy-dom": "^20.9.0",
-    "oxfmt": "^0.64.0",
     "typescript": "^6.0.3",
     "unbuild": "^3.6.1",
     "vite": "catalog:",

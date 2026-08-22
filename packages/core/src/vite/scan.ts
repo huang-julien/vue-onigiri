@@ -1,7 +1,12 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { compileScript, parse as parseSfc } from "@vue/compiler-sfc";
-import { type DirectiveNode, type ElementNode, NodeTypes, parse as parseTemplate } from "@vue/compiler-dom";
+import {
+  type DirectiveNode,
+  type ElementNode,
+  NodeTypes,
+  parse as parseTemplate,
+} from "@vue/compiler-dom";
 import type { AdditionalImport } from "../template-compiler/codegen/context";
 import { tagCasings } from "../template-compiler/codegen/tag-casings";
 import { type ScriptImports, buildImportMap } from "./compiler/imports";
@@ -88,8 +93,7 @@ async function scanFile(filePath: string, options: ScanClientTargetsOptions): Pr
   const marked = findMarkedTags(descriptor.template.content);
   if (marked.length === 0) return;
 
-  const { root, additionalImports, isCustomElement, resolveImport, registerTarget, warn }
-    = options;
+  const { root, additionalImports, isCustomElement, resolveImport, registerTarget, warn } = options;
   let scriptImports: ScriptImports | undefined;
   if (descriptor.scriptSetup || descriptor.script) {
     try {
@@ -110,8 +114,8 @@ async function scanFile(filePath: string, options: ScanClientTargetsOptions): Pr
   for (const tag of marked) {
     if (tag === "component" || tag === "Component") {
       warn(
-        `[vue-onigiri] ${relFile}: <component :is> with v-load-client cannot be scanned; `
-        + `add its possible targets to the manifest plugin's \`clientInclude\` manually.`,
+        `[vue-onigiri] ${relFile}: <component :is> with v-load-client cannot be scanned; ` +
+          `add its possible targets to the manifest plugin's \`clientInclude\` manually.`,
       );
       continue;
     }
@@ -122,9 +126,9 @@ async function scanFile(filePath: string, options: ScanClientTargetsOptions): Pr
       registerTarget(sourcePath);
     } else {
       warn(
-        `[vue-onigiri] ${relFile}: cannot resolve v-load-client target "${tag}" through the `
-        + `file's <script> imports or \`additionalImports\`; its chunk will be missing from `
-        + `the "auto" manifest.`,
+        `[vue-onigiri] ${relFile}: cannot resolve v-load-client target "${tag}" through the ` +
+          `file's <script> imports or \`additionalImports\`; its chunk will be missing from ` +
+          `the "auto" manifest.`,
       );
     }
   }

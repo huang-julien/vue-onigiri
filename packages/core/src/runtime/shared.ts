@@ -5,7 +5,8 @@ import type { InjectionKey } from "vue";
  * When this symbol is provided, setup should return the onigiri render function
  * instead of the normal render function.
  */
-export const ONIGIRI_RENDER_SYMBOL: InjectionKey<true> = /* #__PURE__ */ Symbol.for("onigiri-render");
+export const ONIGIRI_RENDER_SYMBOL: InjectionKey<true> =
+  /* #__PURE__ */ Symbol.for("onigiri-render");
 
 export const ONIGIRI_PAYLOAD_VERSION = 1;
 
@@ -110,25 +111,25 @@ type VServerComponentTeleportBuffered = [
 
 type VServerComponentStaticHtmlBuffered = [VServerComponentType.StaticHtml, string, number];
 
-export type VServerComponentBuffered
-  = | VServerComponentElementBuffered
-    | VServerComponentComponentBuffered
-    | VServerComponentTextBuffered
-    | VServerComponentCommentBuffered
-    | VServerComponentFragmentBuffered
-    | VServerComponentSuspenseBuffered
-    | VServerComponentTeleportBuffered
-    | VServerComponentStaticHtmlBuffered;
+export type VServerComponentBuffered =
+  | VServerComponentElementBuffered
+  | VServerComponentComponentBuffered
+  | VServerComponentTextBuffered
+  | VServerComponentCommentBuffered
+  | VServerComponentFragmentBuffered
+  | VServerComponentSuspenseBuffered
+  | VServerComponentTeleportBuffered
+  | VServerComponentStaticHtmlBuffered;
 
-export type VServerComponent
-  = | VServerComponentElement
-    | VServerComponentComponent
-    | VServerComponentText
-    | VServerComponentComment
-    | VServerComponentFragment
-    | VServerComponentSuspense
-    | VServerComponentTeleport
-    | VServerComponentStaticHtml;
+export type VServerComponent =
+  | VServerComponentElement
+  | VServerComponentComponent
+  | VServerComponentText
+  | VServerComponentComment
+  | VServerComponentFragment
+  | VServerComponentSuspense
+  | VServerComponentTeleport
+  | VServerComponentStaticHtml;
 
 /**
  * The render function signature for onigiri components.

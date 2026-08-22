@@ -44,15 +44,27 @@ describe("withDirective resolution", () => {
   it("warns and returns the node unchanged when a directive cannot be resolved", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const node = el();
-    const result = withDirective("nope", node, {}, { type: {}, appContext: { directives: {} } } as any);
+    const result = withDirective("nope", node, {}, {
+      type: {},
+      appContext: { directives: {} },
+    } as any);
     expect(result).toBe(node);
     expect(warn).toHaveBeenCalledWith("[vue-onigiri] Failed to resolve directive: nope");
   });
 
   it("vModel sets checked on checkboxes instead of value", () => {
-    const checkbox = (value: string) => [T.Element, "input", { type: "checkbox", value }, undefined];
+    const checkbox = (value: string) => [
+      T.Element,
+      "input",
+      { type: "checkbox", value },
+      undefined,
+    ];
 
-    expect(applyModel(checkbox("a"), true)[2]).toEqual({ type: "checkbox", value: "a", checked: true });
+    expect(applyModel(checkbox("a"), true)[2]).toEqual({
+      type: "checkbox",
+      value: "a",
+      checked: true,
+    });
     expect(applyModel(checkbox("a"), false)[2]).toEqual({ type: "checkbox", value: "a" });
     expect(applyModel(checkbox("a"), ["a", "b"])[2].checked).toBe(true);
     expect(applyModel(checkbox("c"), ["a", "b"])[2].checked).toBeUndefined();
@@ -127,7 +139,7 @@ describe("withDirective resolution", () => {
       getSSRProps: (binding) => ({ "data-tip": binding.value }),
     });
     const { ast } = await serializeApp(appWithDirective);
-    expect(JSON.stringify(ast)).toContain("\"data-tip\":\"hello\"");
+    expect(JSON.stringify(ast)).toContain('"data-tip":"hello"');
 
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const bareApp = createApp(DirectiveUse);

@@ -100,16 +100,18 @@ beforeAll(async () => {
     },
   })) as Rollup.RollupOutput;
   const clientUrl = pathToFileURL(
-    path.join(FIXTURE_ROOT, "dist/client", clientOutput.output.find((o) => o.type === "chunk" && o.isEntry)!.fileName),
+    path.join(
+      FIXTURE_ROOT,
+      "dist/client",
+      clientOutput.output.find((o) => o.type === "chunk" && o.isEntry)!.fileName,
+    ),
   ).href;
   clientEntry = await import(clientUrl);
 }, BUILD_TIMEOUT);
 
 describe("production build e2e: package component via extraEntries", () => {
   it("client build emits a browser chunk for the package component", () => {
-    const chunks = clientOutput.output.filter(
-      (o): o is Rollup.OutputChunk => o.type === "chunk",
-    );
+    const chunks = clientOutput.output.filter((o): o is Rollup.OutputChunk => o.type === "chunk");
     const buttonChunk = chunks.find((chunk) =>
       chunk.moduleIds.some((id) => id.replaceAll("\\", "/").endsWith("test-ui-lib/Button.vue")),
     );
@@ -133,9 +135,13 @@ describe("production build e2e: package component via extraEntries", () => {
     const makeApp = (importFn: ImportFn, onResolve?: () => void) =>
       createSSRApp({
         setup: () => () =>
-          h(Suspense, { onResolve }, {
-            default: () => renderOnigiri(payload, { importFn }),
-          }),
+          h(
+            Suspense,
+            { onResolve },
+            {
+              default: () => renderOnigiri(payload, { importFn }),
+            },
+          ),
       });
 
     // Server side: the built server importFn resolves the bare specifier

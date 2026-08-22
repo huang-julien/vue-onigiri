@@ -28,8 +28,8 @@ const CASES: string[] = [
   "text only",
   "a<b>c</b>",
   "<ul><li>x</li><li>y</li></ul>",
-  "<br><img src=\"x\">",
-  "<div data-x=\"a>b\">in</div>after",
+  '<br><img src="x">',
+  '<div data-x="a>b">in</div>after',
   "<style>a>b{color:red}</style>",
   // NOT in this list: "<script>if(a<b){}</script><p>x</p>" — happy-dom mis-parses
   // it to a single empty <script> where real browsers produce [script, p].
@@ -48,7 +48,7 @@ describe("countHtmlRootNodes (via vHtml)", () => {
   });
 
   it("is not fooled by > inside quoted attributes", () => {
-    expect(count("<div data-x=\"a>b\">in</div>after")).toBe(2);
+    expect(count('<div data-x="a>b">in</div>after')).toBe(2);
   });
 
   it("treats rawtext content as text, not markup (per spec; happy-dom diverges here)", () => {
@@ -60,7 +60,7 @@ describe("countHtmlRootNodes (via vHtml)", () => {
   });
 
   it("survives unterminated markup without hanging", () => {
-    expect(count("<div class=\"x")).toBe(1);
+    expect(count('<div class="x')).toBe(1);
     expect(count("<!-- never closed")).toBe(1);
   });
 });

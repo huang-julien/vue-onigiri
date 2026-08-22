@@ -127,6 +127,8 @@ describe("manifest-based component loading", () => {
       }),
     );
     await promise;
+    // `called` flips inside the async setup callback, not in the loop body
+    // oxlint-disable-next-line no-unmodified-loop-condition
     for (let i = 0; i < 30 && !called; i++) {
       await new Promise((r) => setTimeout(r, 10));
       await flushPromises();

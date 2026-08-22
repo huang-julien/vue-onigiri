@@ -46,7 +46,7 @@ export default defineProject({
     setupFiles: ["./test/vitest.setup.ts"],
   },
   define: {
-    "__DEV__": "true",
+    __DEV__: "true",
     "import.meta.hot.on": "globalThis.mockedFn",
     "import.meta.hot.accept": "globalThis.mockedFn",
   },
