@@ -64,8 +64,9 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
   const extrasCover = (spec: string): boolean => {
     if (!extraEntries) return false;
     const toggled = spec.startsWith("/") ? spec.slice(1) : "/" + spec;
-    return spec in extraEntries || toggled in extraEntries
-      || Object.values(extraEntries).includes(spec);
+    return (
+      spec in extraEntries || toggled in extraEntries || Object.values(extraEntries).includes(spec)
+    );
   };
 
   const resolveInclude = (
@@ -86,10 +87,10 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
       }
       loggedBareTargets.add(target);
       debug?.(
-        `[vue-onigiri] v-load-client target "${target}" is a package specifier that `
-        + `\`import.meta.glob\` cannot cover, so no chunk is emitted for it. Add it to `
-        + `\`onigiriManifestPlugin\`'s \`extraEntries\` `
-        + `(e.g. { ${JSON.stringify(target)}: ${JSON.stringify(target)} }).`,
+        `[vue-onigiri] v-load-client target "${target}" is a package specifier that ` +
+          `\`import.meta.glob\` cannot cover, so no chunk is emitted for it. Add it to ` +
+          `\`onigiriManifestPlugin\`'s \`extraEntries\` ` +
+          `(e.g. { ${JSON.stringify(target)}: ${JSON.stringify(target)} }).`,
       );
     }
 
@@ -107,10 +108,10 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
         if (id === MANIFEST_VIRTUAL_ID) return MANIFEST_RESOLVED_ID;
 
         if (
-          id === "vue-onigiri/runtime/manifest-default"
-          || (/(^|[\\/])manifest-default(\.\w+)?$/.test(id)
-            && !!importer
-            && /[\\/]runtime[\\/]loader\.\w+$/.test(importer))
+          id === "vue-onigiri/runtime/manifest-default" ||
+          (/(^|[\\/])manifest-default(\.\w+)?$/.test(id) &&
+            !!importer &&
+            /[\\/]runtime[\\/]loader\.\w+$/.test(importer))
         ) {
           return MANIFEST_RESOLVED_ID;
         }
@@ -119,9 +120,9 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
     configureServer(server) {
       // Dev: a new v-load-client target invalidates the manifest module so the next request sees the fresh set.
       setOnigiriManifestInvalidator(() => {
-        const mod
-          = server.environments.ssr?.moduleGraph.getModuleById(MANIFEST_RESOLVED_ID)
-            ?? server.environments.client?.moduleGraph.getModuleById(MANIFEST_RESOLVED_ID);
+        const mod =
+          server.environments.ssr?.moduleGraph.getModuleById(MANIFEST_RESOLVED_ID) ??
+          server.environments.client?.moduleGraph.getModuleById(MANIFEST_RESOLVED_ID);
         if (mod) {
           server.environments.ssr?.moduleGraph.invalidateModule(mod);
           server.environments.client?.moduleGraph.invalidateModule(mod);
@@ -133,26 +134,41 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
       // Undefined `ssr` means server: only client bundles set the flag, explicitly to false.
       const isClient = opts?.ssr === false;
       // Optional-chained: tests and non-Rollup callers invoke `load` without a plugin context.
-      const include = resolveInclude(
-        isClient ? clientInclude : serverInclude,
-        (message) => this?.debug?.(message),
+      const include = resolveInclude(isClient ? clientInclude : serverInclude, (message) =>
+        this?.debug?.(message),
       );
-      const globExpressions = include === false
-        ? []
-        : [include.literalTargets, include.patterns]
-            .filter((patterns) => patterns.length > 0)
-            .map((patterns) => `import.meta.glob(${JSON.stringify(patterns)})`);
+      const globExpressions =
+        include === false
+          ? []
+          : [include.literalTargets, include.patterns]
+              .filter((patterns) => patterns.length > 0)
+              .map((patterns) => `import.meta.glob(${JSON.stringify(patterns)})`);
       const useGlob = globExpressions.length > 0;
-      const glob = globExpressions.length === 1
-        ? globExpressions[0]
-        : `{\n${globExpressions.map((expression) => `  ...${expression},`).join("\n")}\n}`;
-      const extras = extraEntries && Object.keys(extraEntries).length > 0
-        ? `{\n${Object.entries(extraEntries).map(([key, spec]) => `  ${JSON.stringify(key)}: () => import(${JSON.stringify(spec)}),`).join("\n")}\n}`
-        : undefined;
+      const glob =
+        globExpressions.length === 1
+          ? globExpressions[0]
+          : `{\n${globExpressions.map((expression) => `  ...${expression},`).join("\n")}\n}`;
+      const extras =
+        extraEntries && Object.keys(extraEntries).length > 0
+          ? `{\n${Object.entries(extraEntries)
+              .map(
+                ([key, spec]) => `  ${JSON.stringify(key)}: () => import(${JSON.stringify(spec)}),`,
+              )
+              .join("\n")}\n}`
+          : undefined;
       return `
 ${useGlob ? `const __glob = ${glob}\n` : ""}
 ${extras ? `const __extra = ${extras}\n` : ""}
 export const manifest = ${useGlob ? "__glob" : "{}"}
+
+// import() resolves the specifier as a URL, and the URL parser reads a backslash
+// as the second slash, then deletes tab/newline/return before parsing at all. So
+// a host can be spelled '//host/x', '/\\host/x' or '/<tab>/host/x'. Refuse all of
+// them. Testing the raw string also covers a leading control character: the parser
+// would trim it into one of those shapes, but startsWith('/') rejects it first.
+const __isSameOriginPath = (src) =>
+  src.startsWith('/') && src[1] !== '/' && src[1] !== '\\\\'
+  && !src.includes('\\t') && !src.includes('\\n') && !src.includes('\\r')
 
 export async function importFn(src, exportName = 'default') {
   const key = src.startsWith('/') ? src : '/' + src
@@ -162,8 +178,7 @@ export async function importFn(src, exportName = 'default') {
     return mod[exportName] ?? mod.default ?? mod
   }
   // Absolute URLs baked via \`resolveChunkUrl\` load through native import().
-  // Protocol-relative URLs ('//host/x') are rejected so a tampered payload cannot load cross-origin scripts.
-  if (src.startsWith('/') && !src.startsWith('//')) {
+  if (__isSameOriginPath(src)) {
     try {
       const mod = await import(/* @vite-ignore */ src)
       return mod[exportName] ?? mod.default ?? mod
