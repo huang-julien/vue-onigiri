@@ -1,5 +1,6 @@
 import path from "node:path";
 import type { SFCScriptBlock } from "@vue/compiler-sfc";
+import { genImport } from "knitwork";
 import { toRootRelative } from "./paths";
 
 /** `compileScript`'s `ImportBinding` records keyed by local identifier; the element type itself is not exported by @vue/compiler-sfc. */
@@ -69,28 +70,34 @@ async function resolveImportSource(
   return "/" + normalizePath(path.relative(root, abs));
 }
 
-/** Strip type-only imports / specifiers from a `<script>` block. */
-export function extractScriptImports(scriptContent: string): string {
-  if (!scriptContent) return "";
-  const importRegex = /^import\s+.+?from\s+['"].+?['"];?\s*$/gm;
-  const imports = scriptContent.match(importRegex);
+export function genScriptImports(imports: ScriptImports | undefined): string {
   if (!imports) return "";
 
-  const cleaned = imports
-    .filter((imp) => !/^import\s+type\s+/.test(imp))
-    .map((imp) =>
-      imp.replace(/\{([^}]*)\}/g, (_match, inner) => {
-        const inner_ = inner
-          .split(",")
-          .map((s: string) => s.trim())
-          .filter((s: string) => !s.startsWith("type "))
-          .join(", ");
-        return inner_ ? `{ ${inner_} }` : "";
-      }),
-    )
-    .filter((imp) => !/^import\s+\{\s*\}\s+from/.test(imp) && !/^import\s+from/.test(imp));
+  const named = new Map<string, { name: string; as: string }[]>();
+  const statements: string[] = [];
 
-  return cleaned.length > 0 ? cleaned.join("\n") + "\n" : "";
+  for (const binding of Object.values(imports)) {
+    // Types are erased before the render ever runs.
+    if (binding.isType) continue;
+    if (binding.imported === "*") {
+      // A namespace has no named form; knitwork emits `import * as X from "…"`.
+      statements.push(genImport(binding.source, { name: "*", as: binding.local }));
+      continue;
+    }
+    const entry = { name: binding.imported, as: binding.local };
+    const existing = named.get(binding.source);
+    if (existing) existing.push(entry);
+    else named.set(binding.source, [entry]);
+  }
+
+  for (const [source, entries] of named) {
+    const only = entries.length === 1 ? entries[0] : undefined;
+    statements.push(
+      only?.name === "default" ? genImport(source, only.as) : genImport(source, entries),
+    );
+  }
+
+  return statements.length > 0 ? statements.join("\n") + "\n" : "";
 }
 
 function normalizePath(p: string): string {

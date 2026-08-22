@@ -81,7 +81,7 @@ function genHtmlElement(node: ElementNode, context: CodegenContext): void {
   context.push("[");
   context.push(VServerComponentType.Element.toString());
   context.push(", ");
-  context.push(`"${tag}"`);
+  context.push(JSON.stringify(tag));
   context.push(", ");
 
   const hasScopeId = !!context.scopeId;

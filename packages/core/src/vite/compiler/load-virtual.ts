@@ -2,7 +2,7 @@ import { compileOnigiriInline } from "../../template-compiler";
 import type { AdditionalImport } from "../../template-compiler/codegen/context";
 import { type OnigiriCompileOptions, analyzeSfc, parseSfcFile } from "./analyze-sfc";
 import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "./constants";
-import { extractScriptImports } from "./imports";
+import { genScriptImports } from "./imports";
 import { toRootRelative } from "./paths";
 
 /**
@@ -41,12 +41,12 @@ export async function loadVirtualOnigiriModule(
     };
   }
 
-  const { bindingMetadata, scopeId, scriptContent, importMap } = await analyzeSfc(
+  const { bindingMetadata, scopeId, scriptImports, importMap } = await analyzeSfc(
     parsed,
     filePath,
     opts,
   );
-  const scriptImports = extractScriptImports(scriptContent);
+  const scriptImportStatements = genScriptImports(scriptImports);
 
   const onigiriResult = compileOnigiriInline(descriptor.template.content, {
     filename: filePath,
@@ -63,12 +63,13 @@ export async function loadVirtualOnigiriModule(
   const codegenImports = [...onigiriResult.imports].join("\n");
   const componentDeclarations = [...onigiriResult.components.entries()]
     .map(
-      ([tag, varName]) => `  const ${varName} = __onigiri_resolveComponent(__instance, "${tag}")`,
+      ([tag, varName]) =>
+        `  const ${varName} = __onigiri_resolveComponent(__instance, ${JSON.stringify(tag)})`,
     )
     .join("\n");
 
   return {
-    code: `${scriptImports}${codegenImports}
+    code: `${scriptImportStatements}${codegenImports}
 export default function __onigiriRender(_ctx, __instance) {
 ${componentDeclarations}
   return ${onigiriResult.expression};

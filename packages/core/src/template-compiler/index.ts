@@ -103,7 +103,9 @@ export function compileOnigiri(
   context.indent();
 
   for (const [tag, varName] of components) {
-    context.push(`const ${varName} = __onigiri_resolveComponent(__instance, "${tag}")`);
+    context.push(
+      `const ${varName} = __onigiri_resolveComponent(__instance, ${JSON.stringify(tag)})`,
+    );
     context.newline();
   }
 

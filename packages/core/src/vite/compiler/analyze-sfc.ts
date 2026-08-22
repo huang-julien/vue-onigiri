@@ -32,7 +32,7 @@ export interface ParsedSfc {
 export interface SfcAnalysis {
   bindingMetadata: BindingMetadata;
   scopeId: string | null;
-  scriptContent: string;
+  scriptImports: ScriptImports | undefined;
   importMap: Map<string, string>;
 }
 
@@ -76,7 +76,6 @@ export async function analyzeSfc(
     ? generateScopeId(filePath, source, config.root, config.isProduction)
     : null;
 
-  const scriptContent = descriptor.scriptSetup?.content || descriptor.script?.content || "";
   const importMap = await buildImportMap(
     scriptImports,
     filePath,
@@ -84,5 +83,5 @@ export async function analyzeSfc(
     resolveImport ? (src) => resolveImport(src, filePath) : undefined,
   );
 
-  return { bindingMetadata, scopeId, scriptContent, importMap };
+  return { bindingMetadata, scopeId, scriptImports, importMap };
 }

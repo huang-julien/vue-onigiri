@@ -140,7 +140,7 @@ export function genSlotOutlet(node: ElementNode, context: CodegenContext): void 
 
   for (const prop of props) {
     if (prop.type === NodeTypes.ATTRIBUTE && prop.name === "name") {
-      slotName = prop.value ? `"${prop.value.content}"` : "\"default\"";
+      slotName = JSON.stringify(prop.value ? prop.value.content : "default");
     } else if (
       prop.type === NodeTypes.DIRECTIVE
       && prop.name === "bind"
