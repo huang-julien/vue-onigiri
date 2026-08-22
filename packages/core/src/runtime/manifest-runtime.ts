@@ -6,12 +6,12 @@ export type ChunkTable = Record<string, () => Promise<unknown>>;
 
 function isSameOriginPath(src: string): boolean {
   return (
-    src.startsWith("/") &&
-    src[1] !== "/" &&
-    src[1] !== "\\" &&
-    !src.includes("\t") &&
-    !src.includes("\n") &&
-    !src.includes("\r")
+    src.startsWith("/")
+    && src[1] !== "/"
+    && src[1] !== "\\"
+    && !src.includes("\t")
+    && !src.includes("\n")
+    && !src.includes("\r")
   );
 }
 
@@ -48,18 +48,18 @@ export function createImportFn(glob: ChunkTable, extra: ChunkTable): ImportFn {
         return (mod[exportName] ?? mod.default ?? mod) as DefineComponent;
       } catch (error_) {
         throw new Error(
-          `[vue-onigiri] Failed to load chunk "${src}": ${(error_ as Error)?.message ?? error_}. ` +
-            `This descriptor is a source path unless the host baked a URL via \`resolveChunkUrl\`; ` +
-            `it must be resolvable at runtime. `,
+          `[vue-onigiri] Failed to load chunk "${src}": ${(error_ as Error)?.message ?? error_}. `
+          + `This descriptor is a source path unless the host baked a URL via \`resolveChunkUrl\`; `
+          + `it must be resolvable at runtime. `,
         );
       }
     }
 
     throw new Error(
-      `[vue-onigiri] No loader registered for chunk "${src}". ` +
-        `Pass a custom \`importFn\` to \`renderOnigiri(ast, { importFn })\`, ` +
-        `or set an \`include\` on \`onigiriManifestPlugin\`, ` +
-        `or have the host bake a fetchable URL via \`resolveChunkUrl\`.`,
+      `[vue-onigiri] No loader registered for chunk "${src}". `
+      + `Pass a custom \`importFn\` to \`renderOnigiri(ast, { importFn })\`, `
+      + `or set an \`include\` on \`onigiriManifestPlugin\`, `
+      + `or have the host bake a fetchable URL via \`resolveChunkUrl\`.`,
     );
   };
 }
