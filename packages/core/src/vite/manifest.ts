@@ -46,6 +46,8 @@ interface ResolvedInclude {
   patterns: string[];
 }
 
+const MANIFEST_RUNTIME_ID = "vue-onigiri/runtime/manifest-runtime";
+
 /**
  * Emit the `virtual:onigiri/manifest` module exporting `manifest` and
  * `importFn`, which resolves a chunk reference via extras, then glob,
@@ -63,9 +65,9 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
 
   const extrasCover = (spec: string): boolean => {
     if (!extraEntries) return false;
-    const toggled = spec.startsWith("/") ? spec.slice(1) : "/" + spec;
     return (
-      spec in extraEntries || toggled in extraEntries || Object.values(extraEntries).includes(spec)
+      candidateKeys(spec).some((key) => key in extraEntries) ||
+      Object.values(extraEntries).includes(spec)
     );
   };
 
@@ -137,75 +139,43 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
       const include = resolveInclude(isClient ? clientInclude : serverInclude, (message) =>
         this?.debug?.(message),
       );
-      const globExpressions =
-        include === false
-          ? []
-          : [include.literalTargets, include.patterns]
-              .filter((patterns) => patterns.length > 0)
-              .map((patterns) => `import.meta.glob(${JSON.stringify(patterns)})`);
-      const useGlob = globExpressions.length > 0;
-      const glob =
-        globExpressions.length === 1
-          ? globExpressions[0]
-          : `{\n${globExpressions.map((expression) => `  ...${expression},`).join("\n")}\n}`;
-      const extras =
-        extraEntries && Object.keys(extraEntries).length > 0
-          ? `{\n${Object.entries(extraEntries)
-              .map(
-                ([key, spec]) => `  ${JSON.stringify(key)}: () => import(${JSON.stringify(spec)}),`,
-              )
-              .join("\n")}\n}`
-          : undefined;
-      return `
-${useGlob ? `const __glob = ${glob}\n` : ""}
-${extras ? `const __extra = ${extras}\n` : ""}
-export const manifest = ${useGlob ? "__glob" : "{}"}
+      return `import { createImportFn as __createImportFn } from ${JSON.stringify(MANIFEST_RUNTIME_ID)}
 
-// import() resolves the specifier as a URL, and the URL parser reads a backslash
-// as the second slash, then deletes tab/newline/return before parsing at all. So
-// a host can be spelled '//host/x', '/\\host/x' or '/<tab>/host/x'. Refuse all of
-// them. Testing the raw string also covers a leading control character: the parser
-// would trim it into one of those shapes, but startsWith('/') rejects it first.
-const __isSameOriginPath = (src) =>
-  src.startsWith('/') && src[1] !== '/' && src[1] !== '\\\\'
-  && !src.includes('\\t') && !src.includes('\\n') && !src.includes('\\r')
+const __glob = ${genGlobTable(include)}
+const __extra = ${genExtrasTable(extraEntries)}
 
-export async function importFn(src, exportName = 'default') {
-  const key = src.startsWith('/') ? src : '/' + src
-  const loader = ${extras ? "__extra[src] ?? __extra[src.startsWith('/') ? src.slice(1) : key] ?? " : ""}${useGlob ? "__glob[key]" : "undefined"}
-  if (loader) {
-    const mod = await loader()
-    return mod[exportName] ?? mod.default ?? mod
-  }
-  // Absolute URLs baked via \`resolveChunkUrl\` load through native import().
-  if (__isSameOriginPath(src)) {
-    try {
-      const mod = await import(/* @vite-ignore */ src)
-      return mod[exportName] ?? mod.default ?? mod
-    } catch (cause) {
-      throw new Error(
-        '[vue-onigiri] Failed to load chunk "' + src + '": ' + (cause?.message ?? cause) + '. ' +
-        'This descriptor is a source path unless the host baked a URL via \`resolveChunkUrl\`; ' +
-        'it must be resolvable at runtime. '
-      )
-    }
-  }
-  throw new Error(
-    '[vue-onigiri] No loader registered for chunk "' + src + '". ' +
-    'Pass a custom \`importFn\` to \`renderOnigiri(ast, { importFn })\`, ' +
-    'or set an \`include\` on \`onigiriManifestPlugin\`, ' +
-    'or have the host bake a fetchable URL via \`resolveChunkUrl\`.'
-  )
-}
+export const manifest = __glob
+export const importFn = __createImportFn(__glob, __extra)
 `;
     },
   };
 }
 
-/**
- * Convenience: returns just the manifest plugin in an array, so existing
- * `[...onigiriPlugins()]` callers keep working.
- */
 export function onigiriPlugins(options: OnigiriManifestPluginOptions = {}): Plugin[] {
   return [onigiriManifestPlugin(options)];
+}
+
+function candidateKeys(spec: string): [string, string] {
+  return [spec, spec.startsWith("/") ? spec.slice(1) : "/" + spec];
+}
+
+/** `import.meta.glob(...)` for the resolved include, or an empty table. */
+function genGlobTable(include: ResolvedInclude | false): string {
+  if (include === false) return "{}";
+  const expressions = [include.literalTargets, include.patterns]
+    .filter((patterns) => patterns.length > 0)
+    .map((patterns) => `import.meta.glob(${JSON.stringify(patterns)})`);
+  if (expressions.length === 0) return "{}";
+  if (expressions.length === 1) return expressions[0]!;
+  return `{\n${expressions.map((expression) => `  ...${expression},`).join("\n")}\n}`;
+}
+
+/** Literal `"key": () => import("spec")` loaders, or an empty table. */
+function genExtrasTable(extraEntries: Record<string, string> | undefined): string {
+  const entries = Object.entries(extraEntries ?? {});
+  if (entries.length === 0) return "{}";
+  const properties = entries
+    .map(([key, spec]) => `  ${JSON.stringify(key)}: () => import(${JSON.stringify(spec)}),`)
+    .join("\n");
+  return `{\n${properties}\n}`;
 }

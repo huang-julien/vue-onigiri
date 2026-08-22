@@ -38,6 +38,7 @@ const RUNTIME_ALIASES = Object.fromEntries(
     "resolve-component",
     "loader",
     "plugin",
+    "manifest-runtime",
   ].map((mod) => [`vue-onigiri/runtime/${mod}`, srcUrl(`runtime/${mod}.ts`)]),
 );
 

@@ -3,7 +3,7 @@ import {
   serializePayloadForInline,
   unrollServerComponentBufferPromises,
 } from "../src/runtime/serialize";
-import { onigiriManifestPlugin } from "../src/vite/manifest";
+import { createImportFn } from "../src/runtime/manifest-runtime";
 import { VServerComponentType, type OnigiriPayload } from "../src/runtime/shared";
 
 describe("serializePayloadForInline", () => {
@@ -25,14 +25,12 @@ describe("manifest importFn hardening", () => {
   const NEWLINE = String.fromCharCode(10);
   const RETURN = String.fromCharCode(13);
 
-  const loadImportFn = async (options?: Record<string, unknown>) => {
-    const plugin = onigiriManifestPlugin(options ?? { stub: true }) as any;
-    const code: string = plugin.load("\0virtual:onigiri/manifest");
-    return await import(/* @vite-ignore */ `data:text/javascript,${encodeURIComponent(code)}`);
-  };
+  // One implementation backs every generated manifest, so the guard is exercised
+  // directly instead of through a generated module.
+  const importFn = createImportFn({}, {});
 
   // Every spelling below resolves to https://evil.com through the URL parser,
-  // which strips tab/newline before parsing and treats `\` as a second `/`.
+  // which deletes tab/newline/return before parsing and reads `\` as a second `/`.
   const CROSS_ORIGIN = [
     "//evil.com/pwn.js",
     `/${BACKSLASH}evil.com/pwn.js`,
@@ -43,11 +41,10 @@ describe("manifest importFn hardening", () => {
   ];
 
   it.each(CROSS_ORIGIN)("refuses %j instead of importing cross-origin", async (src) => {
-    // Guards against a fix that only handles the spellings we thought of.
+    // Asserting the premise guards against a fix that only handles the spellings
+    // we happened to think of.
     expect(new URL(src, "https://app.example.com/page").origin).toBe("https://evil.com");
-
-    const mod = await loadImportFn();
-    await expect(mod.importFn(src)).rejects.toThrow("No loader registered for chunk");
+    await expect(importFn(src)).rejects.toThrow("No loader registered for chunk");
   });
 
   // The import() fallback exists for URLs a host baked via `resolveChunkUrl`;
@@ -58,20 +55,9 @@ describe("manifest importFn hardening", () => {
     "/x/My Component.vue",
     "/x/Foo.vue?v=123",
   ])("still attempts a same-origin descriptor %j", async (src) => {
-    const mod = await loadImportFn();
-    // No module resolver under Node, so reaching import() surfaces as the
-    // load error rather than the "no loader" refusal.
-    await expect(mod.importFn(src)).rejects.toThrow("Failed to load chunk");
-  });
-
-  it("keeps the guard identical once globs and extras are present", async () => {
-    const mod = await loadImportFn({
-      serverInclude: false,
-      extraEntries: { "/x/Pkg.vue": "pkg/Comp.vue" },
-    });
-    await expect(mod.importFn(`/${BACKSLASH}evil.com/pwn.js`)).rejects.toThrow(
-      "No loader registered for chunk",
-    );
+    // No module resolver here, so reaching import() surfaces as the load error
+    // rather than the "no loader" refusal.
+    await expect(importFn(src)).rejects.toThrow("Failed to load chunk");
   });
 });
 

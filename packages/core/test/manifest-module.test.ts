@@ -32,7 +32,7 @@ describe("generated manifest module: extraEntries", () => {
     }
   });
 
-  it("looks up extras (exact, then slash-toggled) before the glob, before the native fallback, before the throw", () => {
+  it("wires importFn to createImportFn over the two generated tables", () => {
     const code = loadManifest(
       onigiriManifestPlugin({
         serverInclude: "/components/**/*.vue",
@@ -41,19 +41,13 @@ describe("generated manifest module: extraEntries", () => {
       { ssr: true },
     );
 
-    const exact = code.indexOf("__extra[src]");
-    const toggled = code.indexOf("__extra[src.startsWith('/') ? src.slice(1) : key]");
-    const glob = code.indexOf("__glob[key]");
-    const fallback = code.indexOf("await import(/* @vite-ignore */ src)");
-    const noLoader = code.indexOf("No loader registered");
-    expect(exact).toBeGreaterThan(-1);
-    expect(toggled).toBeGreaterThan(exact);
-    expect(glob).toBeGreaterThan(toggled);
-    expect(fallback).toBeGreaterThan(glob);
-    expect(noLoader).toBeGreaterThan(fallback);
+    // Resolution lives in runtime/manifest-runtime; the module only supplies the tables.
+    expect(code).toContain(`from "vue-onigiri/runtime/manifest-runtime"`);
+    expect(code).toContain("export const importFn = __createImportFn(__glob, __extra)");
+    expect(code).toContain("export const manifest = __glob");
   });
 
-  it("stub mode drops extras along with the glob", () => {
+  it("stub mode emits empty tables, with no glob and no literal loaders", () => {
     const code = loadManifest(
       onigiriManifestPlugin({
         stub: true,
@@ -62,14 +56,41 @@ describe("generated manifest module: extraEntries", () => {
       { ssr: true },
     );
 
-    expect(code).not.toContain("__extra");
+    // Nitro's rollup can compile neither, so both tables must be bare literals.
+    expect(code).toContain("const __glob = {}");
+    expect(code).toContain("const __extra = {}");
     expect(code).not.toContain("import.meta.glob");
+    expect(code).not.toContain("() => import(");
   });
 
-  it("omits __extra entirely for missing or empty extraEntries", () => {
-    expect(loadManifest(onigiriManifestPlugin(), { ssr: true })).not.toContain("__extra");
-    expect(loadManifest(onigiriManifestPlugin({ extraEntries: {} }), { ssr: true }))
-      .not.toContain("__extra");
+  it("emits an empty extras table for missing or empty extraEntries", () => {
+    for (const plugin of [onigiriManifestPlugin(), onigiriManifestPlugin({ extraEntries: {} })]) {
+      const code = loadManifest(plugin, { ssr: true });
+      expect(code).toContain("const __extra = {}");
+      expect(code).not.toContain("() => import(");
+    }
+  });
+
+  it("wires the runtime identically in every configuration", () => {
+    registerOnigiriTarget("/components/Counter.vue");
+    const shapes = [
+      onigiriManifestPlugin({ stub: true }),
+      onigiriManifestPlugin({ serverInclude: "auto" }),
+      onigiriManifestPlugin({ serverInclude: false, extraEntries: { "a/B.vue": "a/B.vue" } }),
+      onigiriManifestPlugin({ serverInclude: "auto", extraEntries: { "a/B.vue": "a/B.vue" } }),
+    ];
+
+    // Only the two table literals vary; the import and both exports are constant,
+    // so behaviour is settled by manifest-runtime's own test, not per-shape here.
+    const wiring = shapes.map((plugin) => {
+      const code = loadManifest(plugin, { ssr: true });
+      return code
+        .split("\n")
+        .filter((line) => line.startsWith("import ") || line.startsWith("export "))
+        .join("\n");
+    });
+
+    expect(new Set(wiring).size).toBe(1);
   });
 
   it("'auto' filters bare package specifiers out of the glob and debug-logs them once", () => {
@@ -109,8 +130,11 @@ describe("generated manifest module: extraEntries", () => {
     registerOnigiriTarget("ui-lib/Button.vue");
     const code = loadManifest(onigiriManifestPlugin(), { ssr: true }, { debug: vi.fn() });
 
+    // No glob to emit, but importFn is still wired, so the native-import and
+    // no-loader fallbacks (owned by manifest-runtime) stay reachable.
     expect(code).not.toContain("import.meta.glob");
-    expect(code).toContain("No loader registered");
+    expect(code).toContain("const __glob = {}");
+    expect(code).toContain("export const importFn = __createImportFn(__glob, __extra)");
   });
 
   it("does not log bare specifiers already covered by extraEntries", () => {
