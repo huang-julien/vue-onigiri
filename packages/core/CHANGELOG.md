@@ -1,5 +1,177 @@
 # Changelog
 
+## v0.4.1
+
+[compare changes](https://github.com/huang-julien/vue-cryo/compare/v0.4.0...v0.4.1)
+
+### 🚀 Enhancements
+
+- ⚠️ Add payload versioning (60daea9)
+- Handle teleport (14db79b)
+- **compiler:** Resolve v-load-client imports through the bundler resolver (4a2f64a)
+
+### 🔥 Performance
+
+- Build-time `__DEV__` check for unserializable prop warning (09ae1c0)
+- Mark pure (8564118)
+
+### 🩹 Fixes
+
+- Improve chunk loading, payload inlining and prop transfer (6171fcd)
+- **runtime:** Fix loader staleness from payload swap (57af960)
+- Resolve directive from app or instance (e2b04ce)
+- Correctly serialize v-model values (4f7a310)
+- Paths (4de25e8)
+- Count root node for staticVnode (f6fa415)
+- **runtime:** Resolve local component first (8edf06b)
+- Type cleanup (f5c371f)
+
+### 💅 Refactors
+
+- **runtime:** Remove inheritAppContext and slot reconstruction (8fa31fb)
+
+### 🏡 Chore
+
+- Deps cleanup (407a216)
+- Cleanup (f674264)
+
+### ✅ Tests
+
+- Add hydration test (0fb7cce)
+- Add security tests (75a55ad)
+
+#### ⚠️ Breaking Changes
+
+- ⚠️ Add payload versioning (60daea9)
+
+## v0.4.0
+
+[compare changes](https://github.com/huang-julien/vue-cryo/compare/v0.3.2...v0.4.0)
+
+### 🩹 Fixes
+
+- **compiler:** Correct codegen for comments, v-for/slot scoping, dynamic args (8f32335)
+- **compiler:** Bridge literal-const setup bindings in the inline render (6439ff4)
+- **runtime:** Fix injection (69c4a5b)
+- Correctly handle different v-for shapes (03a5149)
+- Class/style merge (773730f)
+- Expand v-model (8ddbd27)
+- Use toDisplayString to render interpolation (ad9a0c5)
+- Add fallback children for suspense (d881046)
+- v-on modifiers (324cbc4)
+
+### 🏡 Chore
+
+- Remove vite-plus (a3c201e)
+
+### ✅ Tests
+
+- Cover global component resolution through serialize (4014572)
+- Update snapshots (fb30e56)
+- Split compiler tests (ba5ad16)
+
+## v0.3.2
+
+[compare changes](https://github.com/huang-julien/vue-cryo/compare/v0.3.1...v0.3.2)
+
+### 💅 Refactors
+
+- ⚠️ Remove ABSOLUTE_CHUNK_RE in manifest (7a62def)
+
+#### ⚠️ Breaking Changes
+
+- ⚠️ Remove ABSOLUTE_CHUNK_RE in manifest (7a62def)
+
+## v0.3.1
+
+[compare changes](https://github.com/huang-julien/vue-cryo/compare/v0.3.0...v0.3.1)
+
+### 🚀 Enhancements
+
+- Improve chunks (7629cee)
+
+### 🩹 Fixes
+
+- **compiler:** Fix control flow and shorthand expressions (1227bbf)
+- Handle templateless SFC and async components in serializeApp (e9ea91c)
+- Production builds (64db296)
+- **compiler:** Export resolve and TDZ (62d1067)
+
+### ✅ Tests
+
+- Update snapshots, add async component and render setup tests (483232b)
+
+## v0.3.0
+
+[compare changes](https://github.com/huang-julien/vue-cryo/compare/v0.2.1...v0.3.0)
+
+### 🚀 Enhancements
+
+- Implement compiler with vite plugin (6704adb)
+- Handle directives (0f2d489)
+- Correctly handle slots (d9065f8)
+- Use manifest (4f9477d)
+- Migrate to vp (8a345aa)
+
+### 🩹 Fixes
+
+- Handle slots correctly (bf21c1b)
+- Handle dev-prod differences like in vue (39e7eea)
+- Handle scope ID (201119a)
+- Use vue's `__DEV__` (37146cd)
+- Types and augmentations (5bc49da)
+- Move slot from deserialization to serialization time (faec7c8)
+- Remake runtime + restructure compiler (4e90ca8)
+- Types (1d9ef57)
+- Incomplete multi-character sanitization (dc4c7eb)
+
+### 💅 Refactors
+
+- Refacto chunks (fb84043)
+- Prefer onigiri render fn (9ada6d7)
+- Remove chunk plugin (dca80e1)
+- Restructure repo (9d29ccb)
+
+### 🏡 Chore
+
+- Lint and migrate to stylistic (48bfcd3)
+- Exclude playground from tsconfig (80266c8)
+- Update deps (e13c58d)
+- **deps:** Update majors (4634a74)
+
+### ✅ Tests
+
+- Cover more cases (42a7d59)
+
+## v0.2.1
+
+[compare changes](https://github.com/huang-julien/vue-cryo/compare/v0.2.0...v0.2.1)
+
+### 🚀 Enhancements
+
+- Test adding compiler (8e03378)
+
+### 🔥 Performance
+
+- Return subtree if available (d8ce5b0)
+
+### 🩹 Fixes
+
+- **vite:** Fix export info transformation client side and use let instead of const (a8b18ee)
+- Fix component child serialization (df63d65)
+- Add virtual:vue-onigiri for component import (040bb90)
+- **runtime:** Add missing provide ctx + fix component rendering component (355388d)
+- Fix client side component children serialization (3c94b4a)
+- Correctly extract slots contents (8acf649)
+- **runtime:** Fix ref (6fbdaed)
+- **runtime:** Send parentInstance to slots (8abdf3f)
+- Chunks (c2a7ac2)
+
+### 🏡 Chore
+
+- Add estree types (f3b505f)
+- Lint (a7ffbd2)
+
 ## v0.2.0
 
 [compare changes](https://undefined/undefined/compare/v0.1.1...v0.2.0)
