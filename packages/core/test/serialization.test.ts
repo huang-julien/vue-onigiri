@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import ElementsOnly from "./fixtures/components/ElementsOnly.vue";
 import {
+  createApp,
   createStaticVNode,
+  defineAsyncComponent,
   defineComponent,
   h,
   inject,
@@ -12,10 +14,11 @@ import {
   provide,
   Suspense,
   Teleport,
+  useSSRContext,
 } from "vue";
 import { renderOnigiri } from "../src/runtime/deserialize";
 import LoadComponent from "./fixtures/components/LoadComponent.vue";
-import { serializeComponent } from "../src/runtime/serialize";
+import { serializeApp, serializeComponent } from "../src/runtime/serialize";
 import AsyncComponent from "./fixtures/components/AsyncComponent.vue";
 import WithAsyncComponent from "./fixtures/components/WithAsyncComponent.vue";
 import SlotToCounter from "./fixtures/components/SlotToCounter.vue";
@@ -620,5 +623,104 @@ describe("fallback walk (non-onigiri components)", () => {
     const ast = await serializeComponent(Root);
     expect(JSON.stringify(ast)).toContain("provided");
     expect(JSON.stringify(ast)).not.toContain("missing");
+  });
+
+  // Shape of an onigiri-compiled SFC inside an SSR bundle: `__onigiriRender`
+  // is the only render path, so `renderComponentRoot` on it yields a Comment.
+  const makeOnigiriChild = () => ({
+    __name: "OnigiriChild",
+    setup: () => ({ injected: inject("test", "missing") }),
+    __onigiriRender: (_ctx: any) => [
+      VServerComponentType.Element,
+      "article",
+      { id: "child" },
+      [[VServerComponentType.Text, `Child body: ${_ctx.injected}`]],
+    ],
+  });
+
+  it("serializes an onigiri-compiled component used as a plain component's root", async () => {
+    const OnigiriChild = makeOnigiriChild();
+    const Wrapper = defineComponent({
+      setup: () => () => h(OnigiriChild),
+    });
+
+    const { ast } = await serializeComponent(Wrapper);
+    const json = JSON.stringify(ast);
+    expect(json).toContain("Child body");
+    expect(json).toContain('"article"');
+    expect(json).not.toContain(`[${VServerComponentType.Comment},""]`);
+  });
+
+  it("serializes an async component used as a plain component's root", async () => {
+    const LazyChild = defineAsyncComponent(() => Promise.resolve(makeOnigiriChild()));
+    const Wrapper = defineComponent({
+      setup: () => () => h(LazyChild),
+    });
+
+    const { ast } = await serializeComponent(Wrapper);
+    const json = JSON.stringify(ast);
+    expect(json).toContain("Child body");
+    expect(json).toContain('"article"');
+    expect(json).not.toContain(`[${VServerComponentType.Comment},""]`);
+  });
+
+  // The providers below await once so that the child's `inject` resolves
+  // through the instance chain: `serializeApp` renders inside
+  // `app.runWithContext`, and Vue's `inject` reads app-level provides
+  // instead of `instance.parent.provides` while that context is active.
+  it("keeps provide() from the plain wrapper visible to its onigiri-compiled root", async () => {
+    const OnigiriChild = makeOnigiriChild();
+    const Wrapper = defineComponent({
+      async setup() {
+        provide("test", "from wrapper");
+        await Promise.resolve();
+        return () => h(OnigiriChild);
+      },
+    });
+    const Root = defineComponent({
+      setup: () => () => h("div", null, [h(Wrapper)]),
+    });
+
+    const { ast } = await serializeComponent(Root);
+    expect(JSON.stringify(ast)).toContain("Child body: from wrapper");
+  });
+
+  it("keeps provide() from a plain wrapper visible to an onigiri root behind Suspense", async () => {
+    const OnigiriChild = makeOnigiriChild();
+    const Provider = defineComponent({
+      async setup() {
+        provide("test", "from provider");
+        await Promise.resolve();
+        return () => h(OnigiriChild);
+      },
+    });
+    const Wrapper = defineComponent({
+      setup: () => () => h(Suspense, null, { default: () => h(Provider) }),
+    });
+
+    const { ast } = await serializeComponent(Wrapper);
+    expect(JSON.stringify(ast)).toContain("Child body: from provider");
+  });
+});
+
+describe("app-level context", () => {
+  it("exposes app-level provides and the SSR context to a nested component", async () => {
+    const context: Record<string, any> = {};
+    const Deep = defineComponent({
+      setup() {
+        const ssr = useSSRContext();
+        if (ssr) ssr.touched = "yes";
+        return () => h("i", null, String(inject("app-key", "missing")));
+      },
+    });
+    const Middle = defineComponent({ setup: () => () => h(Deep) });
+    const Root = defineComponent({ setup: () => () => h("div", null, [h(Middle)]) });
+
+    const app = createApp(Root);
+    app.provide("app-key", "from app");
+    const { ast } = await serializeApp(app, undefined, context);
+
+    expect(JSON.stringify(ast)).toContain("from app");
+    expect(context.touched).toBe("yes");
   });
 });

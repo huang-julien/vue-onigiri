@@ -579,20 +579,7 @@ export async function serializeVNode(
           : runOnigiriRender(standalone, instance);
       }
 
-      return Promise.resolve(renderComponent(vnode, parentInstance)).then((child) => {
-        // @ts-expect-error
-        if (child._onigiriLoadClient) {
-          const componentName =
-            (vnode.type as any)?.__name ?? (vnode.type as any)?.name ?? "anonymous";
-          throw new Error(
-            `[vue-onigiri] Component "${componentName}" uses v-load-client outside an onigiri-compiled template. ` +
-              `v-load-client only works on components rendered through the onigiri compiler — Vue's vnode-tree fallback ` +
-              `has no compile-time path to point the client at. Render this component from a .vue file processed by onigiriCompilerPlugin.`,
-          );
-        }
-
-        return [VServerComponentType.Fragment, serializeChildren(child, parentInstance)];
-      });
+      return serializeComponentSubtree(vnode, parentInstance);
     } else if (vnode.shapeFlag & ShapeFlags.SUSPENSE) {
       // ssFallback always exists; it is a placeholder Comment when no fallback slot was authored.
       const fallback = (vnode as any).ssFallback as VNode | undefined;
@@ -680,25 +667,32 @@ function serializeChildren(
   }
 }
 
-function renderComponent(
-  _vnode: VNode,
+function serializeComponentSubtree(
+  vnode: VNode,
   parentInstance?: ComponentInternalInstance | null,
-): Promise<VNodeNormalizedChildren | VNode> | VNodeNormalizedChildren | VNode {
-  const instance = createComponentInstance(_vnode, parentInstance ?? null, null);
+): MaybePromise<VServerComponentBuffered | undefined> {
+  const instance = createComponentInstance(vnode, parentInstance ?? null, null);
 
-  const renderRoot = ():
-    | Promise<VNodeNormalizedChildren | VNode>
-    | VNodeNormalizedChildren
-    | VNode => {
+  const renderRoot = (): MaybePromise<VServerComponentBuffered | undefined> => {
     const child = renderComponentRoot(instance);
     const { dirs, props } = child;
     if (dirs) {
       child.props = applySSRDirectives(child, props, dirs);
     }
-    if (child.shapeFlag & ShapeFlags.COMPONENT) {
-      return renderComponent(child, instance);
+    if (child._onigiriLoadClient) {
+      const componentName = (vnode.type as any)?.__name ?? (vnode.type as any)?.name ?? "anonymous";
+      throw new Error(
+        `[vue-onigiri] Component "${componentName}" uses v-load-client outside an onigiri-compiled template. ` +
+          `v-load-client only works on components rendered through the onigiri compiler — Vue's vnode-tree fallback ` +
+          `has no compile-time path to point the client at. Render this component from a .vue file processed by onigiriCompilerPlugin.`,
+      );
     }
-    return isVNode(child.children) ? child.children : child;
+    // serializeVNode is the only path that runs `__onigiriRender` and awaits `__asyncLoader`
+    if (child.shapeFlag & ShapeFlags.COMPONENT) {
+      return serializeVNode(child, instance);
+    }
+    const children = isVNode(child.children) ? child.children : child;
+    return [VServerComponentType.Fragment, serializeChildren(children, instance)];
   };
 
   const pending = runSetup(instance);
