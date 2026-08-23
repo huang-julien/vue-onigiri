@@ -234,74 +234,6 @@ onigiriManifestPlugin({
 - Under `stub: true` the entries are dropped along with the glob, for the same reason stub exists: those bundlers can't compile `.vue` imports.
 - With `"auto"` includes, scanned package targets that no entry covers are excluded from the glob and reported via a debug-level plugin log naming the specifier.
 
-## Nuxt
-
-Nuxt integrates onigiri directly: wire is handled inside Nuxt core, which feeds its component registry into the compiler's `additionalImports` so auto-imported components work with `v-load-client` without further setup. No separate module to install.
-
-## API Reference
-
-### `serializeApp(app, slots?, ssrContext?)`
-
-Serialize an entire Vue app instance.
-
-```js
-import { serializeApp } from "vue-onigiri/runtime/serialize";
-
-const data = await serializeApp(app, undefined, { url: "/page" });
-```
-
-### `serializeComponent(component, props?, slots?, ssrContext?)`
-
-Serialize a single component without mounting an app.
-
-```js
-import { serializeComponent } from "vue-onigiri/runtime/serialize";
-
-const data = await serializeComponent(MyComponent, { title: "Hello" });
-```
-
-### `renderOnigiri(data)`
-
-Deserialize a payload back into a VNode tree.
-
-```js
-import { renderOnigiri } from "vue-onigiri/runtime/deserialize";
-
-const vnode = renderOnigiri(data);
-```
-
-### Chunk loading (`importFn`)
-
-Each `v-load-client` marker in the AST is resolved through an `importFn(src, exportName?)`. The loader picks it in this order:
-
-1. **Per render** - `renderOnigiri(ast, { importFn })`. Forwarded as a prop to every `vue-onigiri:component-loader` the AST contains, so nested `v-load-client` targets inherit it.
-2. **Per app** - `app.use(onigiriPlugin, { importFn })`. Injected via Vue's provide/inject; ideal for meta-frameworks that configure loading once.
-3. **Manifest default** - the module `vue-onigiri/runtime/manifest-default`. On Vite, `onigiriManifestPlugin` redirects it to the generated manifest (`import.meta.glob` map + absolute-URL `import()`). Other bundlers can alias this specifier to their own module exporting `{ manifest, importFn }`.
-
-Without any of the three, the loader throws with setup guidance - the runtime itself has no Vite-only imports and works under any bundler (or none).
-
-```js
-import { renderOnigiri } from "vue-onigiri/runtime/deserialize";
-
-renderOnigiri(ast, {
-  importFn: async (src, exportName = "default") => {
-    const mod = await myCustomLoader(src);
-    return mod[exportName] ?? mod.default ?? mod;
-  },
-});
-```
-
-```js
-import { onigiriPlugin } from "vue-onigiri/runtime/plugin";
-
-app.use(onigiriPlugin, {
-  importFn: async (src, exportName = "default") => {
-    const mod = await myCustomLoader(src);
-    return mod[exportName] ?? mod.default ?? mod;
-  },
-});
-```
-
 ## How It Works
 
 1. **Compile time** - `onigiriCompilerPlugin` generates a per-SFC `__onigiriRender` function. For `<X v-load-client />`, the chunk path is resolved from the SFC's static imports (or `additionalImports`) and embedded as a literal string. Unresolvable targets fail compilation with an explicit error.
@@ -315,12 +247,9 @@ Client: AST → deserialize → VNode tree (lazy chunks resolved via importFn)
 
 ## Limitations
 
-- Proof of concept - API is unstable, not production-ready.
-- `v-load-client` requires compile-time path resolution: the target component must be statically imported in the SFC (any resolvable form: relative, alias, package), or registered through `additionalImports` (Nuxt handles this automatically for auto-imported components).
-- `<component :is="x" v-load-client />` with a runtime `is` value isn't supported - the compiler can't resolve the path at build time.
-- Components used outside an onigiri-compiled SFC (e.g. via Vue's vnode fallback path) can't carry `v-load-client`.
+- `v-load-client` requires compile-time path resolution: the target component must be statically imported in the SFC, or registered through `additionalImports`.
+- `<component :is="x" v-load-client />` with a runtime `is` value isn't supported. the compiler can't resolve the path at build time. You need to use the `extraEntries` at compile time.
 - Scoped slots can't be passed _into_ `v-load-client` components (the slot scope only exists on the client at runtime and can't be embedded in the frozen AST).
-- Payload size grows with tree size; deeply server-rendered pages produce larger responses than equivalent SSR HTML.
 
 ## Development
 
