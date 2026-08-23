@@ -23,14 +23,6 @@ function wrapSlotResult(result: any): any {
  * 2. Slot is a function that returns pre-serialized content - call and return
  * 3. Slot is pre-serialized content (array) - return as-is
  *
- * @param ctx - Component instance proxy. `ctx._` carries the parent
- *   `ComponentInternalInstance` so nested async children inherit Nuxt's
- *   appContext (otherwise `Cannot read properties of undefined (reading
- *   'modules')` fires during setup).
- * @param slots - Object containing slot functions or pre-serialized content
- * @param name - Slot name (e.g., "default", "header")
- * @param props - Props to pass to scoped slots
- * @param fallback - Fallback content generator if slot is not provided
  */
 export function renderSlot(
   ctx: any,
@@ -58,9 +50,10 @@ export function renderSlot(
     }
 
     if (Array.isArray(content)) {
-      // Pre-serialized content: either VServerComponentBuffered tuples
-      // (first is a VServerComponentType number), arrays of such tuples,
-      // or Promises returned by nested __serializeComponentInContext calls.
+      // Pre-serialized content either:
+      // - VServerComponentBuffered tuples
+      // - arrays of such tuples
+      // - Promises returned by nested __serializeComponentInContext calls
       // unrollServerComponentBufferPromises will flatten everything later.
       const first = content[0];
       const isBuffered =

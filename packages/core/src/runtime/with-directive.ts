@@ -69,9 +69,9 @@ export function withDirective(
   }
 
   // Compatibility path for stock Vue directives (`{ mounted, updated, … }`).
-  // Vue's official SSR contribution hook is `getSSRProps` — same one Vue's
-  // own `vShow` uses — so honor it here when no onigiri-specific transform
-  // is provided. The returned props are merged onto the element's attrs.
+  // Vue's official SSR contribution hook is `getSSRProps`
+  //  Vue's own `vShow` uses. honor it here when no onigiri-specific transform is provided.
+  // The returned props are merged onto the element's attrs.
   if (dir?.getSSRProps && node[0] === VServerComponentType.Element) {
     // `getSSRProps` expects Vue's `DirectiveBinding` (with `instance`,
     // `oldValue`, `dir` fields). At serialize time only value/arg/modifiers
@@ -136,6 +136,10 @@ function findTagEnd(html: string, from: number): number {
   return -1;
 }
 
+/**
+ * Count the number of root nodes in an HTML string.
+ * Use for StaticVNode to determine how many nodes will be hydrated on the client.
+ */
 function countHtmlRootNodes(html: string): number {
   if (!html) return 0;
 
