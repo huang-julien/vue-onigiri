@@ -1,12 +1,16 @@
 import { existsSync } from "node:fs";
-import type { Plugin, ResolvedConfig, Rollup } from "vite";
+import type { Plugin, ResolvedConfig } from "vite";
 import type { OnigiriCompileOptions } from "./analyze-sfc";
 import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "./constants";
-import { loadVirtualOnigiriModule, normaliseAdditionalImports } from "./load-virtual";
-import { type OnigiriScanOptions, scanClientTargets } from "../scan";
+import { loadVirtualOnigiriModule } from "./load-virtual";
 import { injectIntoSetupAsync } from "./inject-setup";
 import { attachAsProperty } from "./attach-property";
-import type { AdditionalImport } from "../../template-compiler/codegen/context";
+import {
+  type AdditionalImportInput,
+  type AdditionalImportsOption,
+  makeResolveImport,
+  resolveAdditionalImports,
+} from "./options";
 import {
   type SourceCaptureApi,
   findSourceCaptureApi,
@@ -14,6 +18,8 @@ import {
 } from "./source-capture";
 import { registerOnigiriTarget } from "../shared";
 import { toRootRelative } from "./paths";
+
+export type { AdditionalImportInput };
 
 /**
  * Detect whether plugin-vue's output already inlines a render function
@@ -41,14 +47,6 @@ function hasInlineTemplate(code: string): boolean {
   );
 }
 
-/** Bundler resolver bound to a hook's plugin context, which differs per hook. */
-function makeResolveImport(ctx: Rollup.PluginContext) {
-  return async (source: string, importer?: string) =>
-    (await ctx.resolve(source, importer, { skipSelf: true }))?.id;
-}
-
-export type AdditionalImportInput = string | AdditionalImport;
-
 export interface OnigiriCompilerOptions {
   /**
    * Emits a source map for the generated render function.
@@ -67,10 +65,7 @@ export interface OnigiriCompilerOptions {
    * `v-load-client` can resolve them (Nuxt auto-imports, globals). A getter
    * is re-evaluated on every transform.
    */
-  additionalImports?:
-    | Record<string, AdditionalImportInput>
-    | Map<string, AdditionalImportInput>
-    | (() => Record<string, AdditionalImportInput> | Map<string, AdditionalImportInput>);
+  additionalImports?: AdditionalImportsOption;
   /**
    * Bakes a public chunk URL into the AST in place of the root-relative
    * source path of a `v-load-client` target.
@@ -78,13 +73,6 @@ export interface OnigiriCompilerOptions {
    * @remarks Returning `undefined` keeps the source path for runtime resolution.
    */
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
-  /**
-   * Scans SFC templates for `v-load-client` targets at `buildStart`, so the
-   * manifest's `"auto"` includes are complete before any environment builds.
-   *
-   * @default true
-   */
-  scan?: boolean | OnigiriScanOptions;
 }
 
 /**
@@ -93,36 +81,16 @@ export interface OnigiriCompilerOptions {
  * the render into `setup()` so it captures the setup-script closure.
  */
 export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plugin {
-  const {
-    sourceMap = true,
-    isCustomElement,
-    additionalImports,
-    resolveChunkUrl,
-    scan = true,
-  } = options;
+  const { sourceMap = true, isCustomElement, additionalImports, resolveChunkUrl } = options;
   let config: ResolvedConfig;
   let captureApi: SourceCaptureApi | undefined;
-  // Memoized so multi-environment builds (client + ssr) scan only once.
-  let scanPromise: Promise<void> | undefined;
 
-  const resolveAdditionalImports = (): Map<string, AdditionalImport> => {
-    const raw = typeof additionalImports === "function" ? additionalImports() : additionalImports;
-    if (!raw) return new Map();
-    const entries = raw instanceof Map ? [...raw.entries()] : Object.entries(raw);
-    const out = new Map<string, AdditionalImport>();
-    for (const [tag, value] of entries) {
-      out.set(tag, typeof value === "string" ? { path: value } : value);
-    }
-    return out;
-  };
-
-  const withCapturedSources = <T>(environment: string | undefined, fn: () => T): T =>
-    captureApi
-      ? runWithCapturedSources(
-          (filePath) => captureApi!.getCapturedSource(filePath, environment),
-          fn,
-        )
+  const withCapturedSources = <T>(environment: string | undefined, fn: () => T): T => {
+    const api = captureApi;
+    return api
+      ? runWithCapturedSources((filePath) => api.getCapturedSource(filePath, environment), fn)
       : fn();
+  };
 
   return {
     name: "vite:vue-onigiri-compiler",
@@ -144,21 +112,6 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
     configResolved(resolvedConfig) {
       config = resolvedConfig;
       captureApi = findSourceCaptureApi(resolvedConfig.plugins);
-    },
-
-    async buildStart() {
-      if (scan === false) return;
-      scanPromise ??= scanClientTargets({
-        ...(scan === true ? {} : scan),
-        root: config.root,
-        additionalImports:
-          normaliseAdditionalImports(resolveAdditionalImports(), config.root) ?? new Map(),
-        isCustomElement,
-        resolveImport: makeResolveImport(this),
-        registerTarget: registerOnigiriTarget,
-        warn: (msg) => this.warn(msg),
-      });
-      await scanPromise;
     },
 
     resolveId: {
@@ -209,7 +162,7 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
             config,
             sourceMap,
             isCustomElement,
-            additionalImports: resolveAdditionalImports(),
+            additionalImports: resolveAdditionalImports(additionalImports),
             resolveChunkUrl,
             registerTarget: registerOnigiriTarget,
             resolveImport: makeResolveImport(this),
@@ -232,7 +185,7 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
           config,
           sourceMap,
           isCustomElement,
-          additionalImports: resolveAdditionalImports(),
+          additionalImports: resolveAdditionalImports(additionalImports),
           resolveChunkUrl,
           registerTarget: registerOnigiriTarget,
           resolveImport: makeResolveImport(this),

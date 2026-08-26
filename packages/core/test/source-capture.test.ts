@@ -14,6 +14,7 @@ import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "../src/vite/compiler/constants";
 import { injectIntoSetupAsync } from "../src/vite/compiler/inject-setup";
 import { loadVirtualOnigiriModule } from "../src/vite/compiler/load-virtual";
 import { onigiriCompilerPlugin } from "../src/vite/compiler";
+import { onigiriPlugins } from "../src/vite/plugins";
 
 const FAKE_PATH = "/x/Comp.vue";
 const FAKE_CONFIG = { root: "/x", isProduction: false } as ResolvedConfig;
@@ -71,7 +72,7 @@ describe("source capture feeding the compiler", () => {
     const { plugin: capturePlugin, capture } = makeCapture();
     capture(REWRITTEN_SFC, FAKE_PATH, "ssr");
 
-    const compiler = onigiriCompilerPlugin({ scan: false }) as Plugin;
+    const compiler = onigiriCompilerPlugin() as Plugin;
     (compiler.configResolved as (c: ResolvedConfig) => void).call(compiler, {
       ...FAKE_CONFIG,
       plugins: [capturePlugin],
@@ -168,5 +169,23 @@ describe("source capture feeding the compiler", () => {
     expect(first.api.getCapturedSource(FAKE_PATH)).toBe(REWRITTEN_SFC);
     expect(second.api.getCapturedSource(FAKE_PATH)).toBeUndefined();
     expect(findSourceCaptureApi([second.plugin as Plugin])).toBe(second.api);
+  });
+});
+
+describe("onigiriPlugins ordering", () => {
+  it("returns capture, scan, compiler, manifest in that order", () => {
+    const names = onigiriPlugins().map((plugin) => plugin.name);
+    expect(names).toEqual([
+      "vite:vue-onigiri-source-capture",
+      "vite:vue-onigiri-scan",
+      "vite:vue-onigiri-compiler",
+      "vite:vue-onigiri-manifest",
+    ]);
+  });
+
+  it("drops the scan plugin when scan is disabled", () => {
+    const names = onigiriPlugins({ scan: false }).map((plugin) => plugin.name);
+    expect(names).not.toContain("vite:vue-onigiri-scan");
+    expect(names[0]).toBe("vite:vue-onigiri-source-capture");
   });
 });

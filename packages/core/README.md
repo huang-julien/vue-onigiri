@@ -24,10 +24,10 @@ npm install vue-onigiri
 // vite.config.js
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
-import { onigiriCompilerPlugin, onigiriManifestPlugin } from "vue-onigiri";
+import { onigiriPlugins } from "vue-onigiri";
 
 export default defineConfig({
-  plugins: [vue(), onigiriCompilerPlugin(), onigiriManifestPlugin()],
+  plugins: [vue(), onigiriPlugins()],
 });
 ```
 
@@ -78,6 +78,59 @@ Wrap the mount point in `<Suspense>` if your tree contains `v-load-client` compo
 
 ## Vite Plugins
 
+### `onigiriPlugins(options?)`
+
+The recommended entry point: returns every plugin below in working order (source capture (pre), scan, compiler (post), manifest). Its options are the compiler and manifest options combined:
+
+```ts
+interface OnigiriPluginsOptions extends OnigiriCompilerOptions, OnigiriManifestPluginOptions {
+  /**
+   * Scans SFC templates for `v-load-client` targets at `buildStart`, so the
+   * manifest's `"auto"` includes are complete before any environment builds.
+   *
+   * @default true
+   */
+  scan?: boolean | OnigiriScanOptions;
+}
+```
+
+The individual plugins stay exported for hosts that need custom placement:
+
+- `onigiriSourceCapturePlugin()`: `enforce: 'pre'` tap recording each bare `.vue` module's pipeline source, so the compiler sees host pre-transforms instead of the pristine file on disk. Register it after host pre-transforms (order within `pre` is array order).
+- `onigiriScanPlugin(options?)`: `buildStart` pre-pass scanning SFC templates for `v-load-client` targets, so the manifest's `"auto"` includes are complete before any environment builds.
+- `onigiriCompilerPlugin(options?)`: the codegen, compiling the per-SFC `__onigiriRender` and wiring it into each SFC module.
+- `onigiriManifestPlugin(options?)`: emits the `virtual:onigiri/manifest` module the runtime loader imports.
+
+### `onigiriScanPlugin(options?)`
+
+```ts
+interface OnigiriScanPluginOptions extends OnigiriScanOptions {
+  /**
+   * Decides whether a tag is a native custom element and should be emitted
+   * as plain HTML instead of being resolved as a component, like Vue's
+   * `isCustomElement`.
+   */
+  isCustomElement?: (tag: string) => boolean;
+  /**
+   * Registers components the SFC doesn't import statically, so
+   * `v-load-client` can resolve them (Nuxt auto-imports, globals). A getter
+   * is re-evaluated on every transform.
+   */
+  additionalImports?: AdditionalImportsOption;
+}
+
+interface OnigiriScanOptions {
+  /**
+   * Limits the scan to these directories, absolute or relative to the Vite root.
+   *
+   * @default ["."]
+   */
+  include?: string[];
+  /** Skips these directory names during the scan, on top of the built-in defaults. */
+  exclude?: string[];
+}
+```
+
 ### `onigiriCompilerPlugin(options?)`
 
 Generates the per-SFC `__onigiriRender` function from each `<template>`. This is the only plugin doing real codegen work.
@@ -91,43 +144,33 @@ interface OnigiriCompilerOptions {
    */
   sourceMap?: boolean;
   /**
-   * Just like Vue
+   * Decides whether a tag is a native custom element and should be emitted
+   * as plain HTML instead of being resolved as a component, like Vue's
+   * `isCustomElement`.
    */
   isCustomElement?: (tag: string) => boolean;
   /**
-   * Registers components the SFC doesn't import statically, so `v-load-client` can resolve them (Nuxt auto-imports, globals). 
-   * A getter is re-evaluated on every transform.
+   * Registers components the SFC doesn't import statically, so
+   * `v-load-client` can resolve them (Nuxt auto-imports, globals). A getter
+   * is re-evaluated on every transform.
    */
-  additionalImports?:
-    | Record<string, AdditionalImportInput>
-    | Map<string, AdditionalImportInput>
-    | (() => Record<string, AdditionalImportInput> | Map<string, AdditionalImportInput>);
+  additionalImports?: AdditionalImportsOption;
   /**
-   * Bakes a public chunk URL into the AST in place of the root-relative source path of a `v-load-client` target.
+   * Bakes a public chunk URL into the AST in place of the root-relative
+   * source path of a `v-load-client` target.
    *
    * @remarks Returning `undefined` keeps the source path for runtime resolution.
    */
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
-  /**
-   * Scans SFC templates for `v-load-client` targets at `buildStart`, so the manifest's `"auto"` includes are complete before any environment builds.
-   *
-   * @default true
-   */
-  scan?: boolean | OnigiriScanOptions;
 }
 
 type AdditionalImportInput = string | { path: string; export?: string };
 
-interface OnigiriScanOptions {
-  /**
-   * Limits the scan to these directories, absolute or relative to the Vite root.
-   *
-   * @default ["."]
-   */
-  include?: string[];
-  /** Skips these directory names during the scan, on top of the built-in defaults. */
-  exclude?: string[];
-}
+/** User-facing `additionalImports` shapes accepted by the compiler and scan plugins. */
+type AdditionalImportsOption =
+  | Record<string, AdditionalImportInput>
+  | Map<string, AdditionalImportInput>
+  | (() => Record<string, AdditionalImportInput> | Map<string, AdditionalImportInput>);
 ```
 
 ### `onigiriManifestPlugin(options?)`

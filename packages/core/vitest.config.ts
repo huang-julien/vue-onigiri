@@ -2,12 +2,14 @@ import { defineProject } from "vitest/config";
 import vue from "@vitejs/plugin-vue";
 import { fileURLToPath } from "node:url";
 import { onigiriCompilerPlugin } from "./src/vite/compiler";
+import { onigiriScanPlugin } from "./src/vite/scan-plugin";
 import { onigiriManifestPlugin } from "./src/vite/manifest";
 
 const srcUrl = (rel: string) => fileURLToPath(new URL(`src/${rel}`, import.meta.url));
 
 export default defineProject({
   plugins: [
+    onigiriScanPlugin(),
     onigiriCompilerPlugin(),
     vue(),
     onigiriManifestPlugin({

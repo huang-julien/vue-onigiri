@@ -162,10 +162,6 @@ export const importFn = __createImportFn(__glob, __extra)
   };
 }
 
-export function onigiriPlugins(options: OnigiriManifestPluginOptions = {}): Plugin[] {
-  return [onigiriManifestPlugin(options)];
-}
-
 function candidateKeys(spec: string): [string, string] {
   return [spec, spec.startsWith("/") ? spec.slice(1) : "/" + spec];
 }

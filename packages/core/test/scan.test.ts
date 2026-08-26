@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { scanClientTargets } from "../src/vite/scan";
-import { onigiriCompilerPlugin } from "../src/vite/compiler";
+import { onigiriScanPlugin } from "../src/vite/scan-plugin";
 import { onigiriManifestPlugin } from "../src/vite/manifest";
 import { _resetOnigiriTargets, getOnigiriTargets } from "../src/vite/shared";
 
@@ -67,14 +67,14 @@ describe("scanClientTargets", () => {
   });
 });
 
-describe("compiler plugin buildStart scan + manifest 'auto'", () => {
+describe("onigiriScanPlugin buildStart scan + manifest 'auto'", () => {
   afterEach(() => {
     _resetOnigiriTargets();
   });
 
   it("populates targets before load so clientInclude 'auto' emits a glob", async () => {
-    const plugin = onigiriCompilerPlugin({
-      scan: { include: ["scan"] },
+    const plugin = onigiriScanPlugin({
+      include: ["scan"],
       additionalImports: { AutoWidget: "/widgets/AutoWidget.vue" },
     }) as any;
     plugin.configResolved({ root: FIXTURES, isProduction: false });
@@ -85,18 +85,11 @@ describe("compiler plugin buildStart scan + manifest 'auto'", () => {
     await plugin.buildStart.call(ctx);
 
     expect(getOnigiriTargets()).toContain("/components/Counter.vue");
+    expect(getOnigiriTargets()).toContain("/widgets/AutoWidget.vue");
 
     const manifest = onigiriManifestPlugin({ clientInclude: "auto" }) as any;
     const clientCode = manifest.load("\0virtual:onigiri/manifest", { ssr: false });
     expect(clientCode).toContain("import.meta.glob");
     expect(clientCode).toContain("/components/Counter.vue");
-  });
-
-  it("scan: false leaves the target set untouched", async () => {
-    const plugin = onigiriCompilerPlugin({ scan: false }) as any;
-    plugin.configResolved({ root: FIXTURES, isProduction: false });
-    await plugin.buildStart.call({ resolve: async () => null, warn: vi.fn() });
-
-    expect(getOnigiriTargets()).toHaveLength(0);
   });
 });

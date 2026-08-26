@@ -238,7 +238,7 @@ describe("load of a virtual:onigiri module", () => {
 
   it('loads an SFC whose path contains "devtools"', async () => {
     const filePath = path.resolve(ROOT, "test/fixtures/devtools/Panel.vue");
-    const plugin = onigiriCompilerPlugin({ scan: false }) as Plugin;
+    const plugin = onigiriCompilerPlugin() as Plugin;
     (plugin.configResolved as (c: ResolvedConfig) => void).call(plugin, {
       root: ROOT,
       isProduction: false,

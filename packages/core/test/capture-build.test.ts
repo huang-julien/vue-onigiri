@@ -40,12 +40,7 @@ describe("source capture in a real Vite build", () => {
         root: FIXTURE_ROOT,
         configFile: false,
         logLevel: "silent",
-        plugins: [
-          toyClampPlugin(),
-          onigiriSourceCapturePlugin(),
-          onigiriCompilerPlugin({ scan: false }),
-          vue(),
-        ],
+        plugins: [toyClampPlugin(), onigiriSourceCapturePlugin(), onigiriCompilerPlugin(), vue()],
         resolve: { alias: RUNTIME_ALIASES },
         build: { ssr: "Comp.vue", write: false, minify: false },
       })) as Rollup.RollupOutput;
