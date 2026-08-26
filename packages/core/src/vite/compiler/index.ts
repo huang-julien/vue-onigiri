@@ -7,6 +7,11 @@ import { type OnigiriScanOptions, scanClientTargets } from "../scan";
 import { injectIntoSetupAsync } from "./inject-setup";
 import { attachAsProperty } from "./attach-property";
 import type { AdditionalImport } from "../../template-compiler/codegen/context";
+import {
+  type SourceCaptureApi,
+  findSourceCaptureApi,
+  runWithCapturedSources,
+} from "./source-capture";
 import { registerOnigiriTarget } from "../shared";
 import { toRootRelative } from "./paths";
 
@@ -96,6 +101,7 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
     scan = true,
   } = options;
   let config: ResolvedConfig;
+  let captureApi: SourceCaptureApi | undefined;
   // Memoized so multi-environment builds (client + ssr) scan only once.
   let scanPromise: Promise<void> | undefined;
 
@@ -109,6 +115,14 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
     }
     return out;
   };
+
+  const withCapturedSources = <T>(environment: string | undefined, fn: () => T): T =>
+    captureApi
+      ? runWithCapturedSources(
+          (filePath) => captureApi!.getCapturedSource(filePath, environment),
+          fn,
+        )
+      : fn();
 
   return {
     name: "vite:vue-onigiri-compiler",
@@ -129,6 +143,7 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
     },
     configResolved(resolvedConfig) {
       config = resolvedConfig;
+      captureApi = findSourceCaptureApi(resolvedConfig.plugins);
     },
 
     async buildStart() {
@@ -187,18 +202,20 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
     },
 
     async load(id) {
-      return loadVirtualOnigiriModule(
-        id,
-        {
-          config,
-          sourceMap,
-          isCustomElement,
-          additionalImports: resolveAdditionalImports(),
-          resolveChunkUrl,
-          registerTarget: registerOnigiriTarget,
-          resolveImport: makeResolveImport(this),
-        },
-        (msg) => this.error(msg),
+      return withCapturedSources(this.environment?.name, () =>
+        loadVirtualOnigiriModule(
+          id,
+          {
+            config,
+            sourceMap,
+            isCustomElement,
+            additionalImports: resolveAdditionalImports(),
+            resolveChunkUrl,
+            registerTarget: registerOnigiriTarget,
+            resolveImport: makeResolveImport(this),
+          },
+          (msg) => this.error(msg),
+        ),
       );
     },
 
@@ -236,7 +253,9 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
 
           let workCode = code;
           if (hasInlineTemplate(code)) {
-            const injected = await injectIntoSetupAsync(code, filePath, injectOptions());
+            const injected = await withCapturedSources(this.environment?.name, () =>
+              injectIntoSetupAsync(code, filePath, injectOptions()),
+            );
             if (injected) workCode = injected.code;
           }
           return attachAsProperty(workCode, onigiriImport, sourceMap, descriptorChunk);
@@ -246,7 +265,9 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
         // render can't reach, so inject ours inside setup to share the closure.
         if (query.includes("type=script")) {
           if (hasInlineTemplate(code)) {
-            return injectIntoSetupAsync(code, filePath, injectOptions());
+            return withCapturedSources(this.environment?.name, () =>
+              injectIntoSetupAsync(code, filePath, injectOptions()),
+            );
           }
           return null;
         }

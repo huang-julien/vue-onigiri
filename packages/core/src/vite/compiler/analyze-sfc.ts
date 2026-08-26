@@ -10,6 +10,7 @@ import type { ResolvedConfig } from "vite";
 import type { AdditionalImport } from "../../template-compiler/codegen/context";
 import { type ScriptImports, buildImportMap } from "./imports";
 import { generateScopeId } from "./scope-id";
+import { getCapturedSource } from "./source-capture";
 
 /** Inputs shared by the two SFC compilation entry points (`load-virtual`, `inject-setup`). */
 export interface OnigiriCompileOptions {
@@ -36,12 +37,8 @@ export interface SfcAnalysis {
   importMap: Map<string, string>;
 }
 
-/**
- * Read an SFC from disk and parse it. Parse errors are returned as data so
- * each caller decides whether to report them or carry on.
- */
 export async function parseSfcFile(filePath: string, sourceMap: boolean): Promise<ParsedSfc> {
-  const source = await readFile(filePath, "utf8");
+  const source = getCapturedSource(filePath) ?? (await readFile(filePath, "utf8"));
   const { descriptor, errors } = parse(source, { filename: filePath, sourceMap });
   return { source, descriptor, errors };
 }
