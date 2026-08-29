@@ -55,3 +55,11 @@ flowchart TB
 This lead to different perf issue and maintainability issues.
 
 Vue onigiri aims to fix theses issues by moving Static HTML to AST. Every VNode that can be described is serialized into AST and deserialized back into VNode.
+
+## License
+
+MIT - see `LICENSE`.
+
+## Credits
+
+- [@antfu](https://github.com/antfu) for naming this package 💖

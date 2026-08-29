@@ -135,7 +135,8 @@ interface OnigiriScanOptions {
 
 Generates the per-SFC `__onigiriRender` function from each `<template>`. This is the only plugin doing real codegen work.
 
-`isProduction` and `componentIdGenerator` must match what `@vitejs/plugin-vue` uses (its own options or the resolved config), otherwise scope ids diverge and scoped styles break.
+:warning: `isProduction` and `componentIdGenerator` must match what `@vitejs/plugin-vue` uses, otherwise scope ids diverge and scoped styles break.
+Beware that plugin-vue currently ignores its own `isProduction` option under Vite (`configResolved` overwrites it with the resolved config's value), so when scope ids must not depend on `NODE_ENV`, set the same `componentIdGenerator` on both plugins instead.
 
 ```ts
 interface OnigiriCompilerOptions {
