@@ -18,11 +18,5 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "exclude": [
-    "dist",
-    "node_modules",
-    "test/fixtures",
-    "test/compiler",
-    "test/compiler-fixtures"
-  ]
+  "exclude": ["dist", "node_modules", "test/fixtures", "test/compiler", "test/compiler-fixtures"]
 }
