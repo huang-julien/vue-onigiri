@@ -18,8 +18,10 @@ import {
 } from "./source-capture";
 import { registerOnigiriTarget } from "../shared";
 import { toRootRelative } from "./paths";
+import type { ComponentIdGenerator } from "./scope-id";
 
 export type { AdditionalImportInput };
+export type { ComponentIdGenerator };
 
 /**
  * Detect whether plugin-vue's output already inlines a render function
@@ -55,6 +57,21 @@ export interface OnigiriCompilerOptions {
    */
   sourceMap?: boolean;
   /**
+   * Pins the mode used for scope-id derivation, like plugin-vue's
+   * `isProduction`. Must match the value plugin-vue uses, otherwise scope
+   * ids diverge and scoped styles break.
+   *
+   * @default the resolved Vite config's `isProduction`
+   */
+  isProduction?: boolean;
+  /**
+   * Customizes the scope-id hash, like plugin-vue's
+   * `features.componentIdGenerator`. Must match the value plugin-vue uses.
+   *
+   * @default 'filepath' in development, 'filepath-source' in production
+   */
+  componentIdGenerator?: ComponentIdGenerator;
+  /**
    * Decides whether a tag is a native custom element and should be emitted
    * as plain HTML instead of being resolved as a component, like Vue's
    * `isCustomElement`.
@@ -81,7 +98,14 @@ export interface OnigiriCompilerOptions {
  * the render into `setup()` so it captures the setup-script closure.
  */
 export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plugin {
-  const { sourceMap = true, isCustomElement, additionalImports, resolveChunkUrl } = options;
+  const {
+    sourceMap = true,
+    isProduction,
+    componentIdGenerator,
+    isCustomElement,
+    additionalImports,
+    resolveChunkUrl,
+  } = options;
   let config: ResolvedConfig;
   let captureApi: SourceCaptureApi | undefined;
 
@@ -161,6 +185,8 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
           {
             config,
             sourceMap,
+            isProduction,
+            componentIdGenerator,
             isCustomElement,
             additionalImports: resolveAdditionalImports(additionalImports),
             resolveChunkUrl,
@@ -184,6 +210,8 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
         const injectOptions = (): OnigiriCompileOptions => ({
           config,
           sourceMap,
+          isProduction,
+          componentIdGenerator,
           isCustomElement,
           additionalImports: resolveAdditionalImports(additionalImports),
           resolveChunkUrl,

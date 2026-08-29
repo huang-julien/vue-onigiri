@@ -1,6 +1,16 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 
+export type ComponentIdGenerator =
+  | "filepath"
+  | "filepath-source"
+  | ((
+      filepath: string,
+      source: string,
+      isProduction: boolean | undefined,
+      getHash: (text: string) => string,
+    ) => string);
+
 function getHash(text: string): string {
   return createHash("sha256").update(text).digest("hex").slice(0, 8);
 }
@@ -18,8 +28,18 @@ export function generateScopeId(
   source: string,
   root: string,
   isProduction: boolean,
+  componentIdGenerator?: ComponentIdGenerator,
 ): string {
   const relativePath = normalizePath(path.relative(root, filePath));
-  const hashInput = isProduction ? relativePath + source : relativePath;
-  return `data-v-${getHash(hashInput)}`;
+  let hash: string;
+  if (componentIdGenerator === "filepath") {
+    hash = getHash(relativePath);
+  } else if (componentIdGenerator === "filepath-source") {
+    hash = getHash(relativePath + source);
+  } else if (typeof componentIdGenerator === "function") {
+    hash = componentIdGenerator(relativePath, source, isProduction, getHash);
+  } else {
+    hash = getHash(isProduction ? relativePath + source : relativePath);
+  }
+  return `data-v-${hash}`;
 }

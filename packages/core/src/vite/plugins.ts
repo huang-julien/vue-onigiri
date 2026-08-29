@@ -24,6 +24,8 @@ export interface OnigiriPluginsOptions
 export function onigiriPlugins(options: OnigiriPluginsOptions = {}): Plugin[] {
   const {
     sourceMap,
+    isProduction,
+    componentIdGenerator,
     isCustomElement,
     additionalImports,
     resolveChunkUrl,
@@ -41,7 +43,14 @@ export function onigiriPlugins(options: OnigiriPluginsOptions = {}): Plugin[] {
     );
   }
   plugins.push(
-    onigiriCompilerPlugin({ sourceMap, isCustomElement, additionalImports, resolveChunkUrl }),
+    onigiriCompilerPlugin({
+      sourceMap,
+      isProduction,
+      componentIdGenerator,
+      isCustomElement,
+      additionalImports,
+      resolveChunkUrl,
+    }),
     onigiriManifestPlugin({ serverInclude, clientInclude, extraEntries, stub }),
   );
   return plugins;

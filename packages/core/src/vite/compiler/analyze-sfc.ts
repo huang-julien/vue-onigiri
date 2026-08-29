@@ -9,13 +9,16 @@ import {
 import type { ResolvedConfig } from "vite";
 import type { AdditionalImport } from "../../template-compiler/codegen/context";
 import { type ScriptImports, buildImportMap } from "./imports";
-import { generateScopeId } from "./scope-id";
+import { type ComponentIdGenerator, generateScopeId } from "./scope-id";
 import { getCapturedSource } from "./source-capture";
 
 /** Inputs shared by the two SFC compilation entry points (`load-virtual`, `inject-setup`). */
 export interface OnigiriCompileOptions {
   config: ResolvedConfig;
   sourceMap: boolean;
+  /** Overrides `config.isProduction` for the scope-id derivation. */
+  isProduction?: boolean;
+  componentIdGenerator?: ComponentIdGenerator;
   isCustomElement?: (tag: string) => boolean;
   additionalImports?: Map<string, AdditionalImport>;
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
@@ -70,7 +73,13 @@ export async function analyzeSfc(
 
   const hasScoped = descriptor.styles.some((style) => style.scoped);
   const scopeId = hasScoped
-    ? generateScopeId(filePath, source, config.root, config.isProduction)
+    ? generateScopeId(
+        filePath,
+        source,
+        config.root,
+        opts.isProduction ?? config.isProduction,
+        opts.componentIdGenerator,
+      )
     : null;
 
   const importMap = await buildImportMap(

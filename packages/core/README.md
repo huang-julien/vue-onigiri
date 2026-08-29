@@ -96,7 +96,7 @@ interface OnigiriPluginsOptions extends OnigiriCompilerOptions, OnigiriManifestP
 
 The individual plugins stay exported for hosts that need custom placement:
 
-- `onigiriSourceCapturePlugin()`: `enforce: 'pre'` tap recording each bare `.vue` module's pipeline source, so the compiler sees host pre-transforms instead of the pristine file on disk. Register it after host pre-transforms (order within `pre` is array order).
+- `onigiriSourceCapturePlugin()`: `enforce: 'pre'` tap recording each bare `.vue` module's pipeline source, so the compiler sees host pre-transforms instead of the pristine file on disk. Register it after host pre-transforms (order within `pre` is array order): a plugin rewriting `.vue` source after the capture tap makes the captured source diverge from what plugin-vue receives, which breaks production scope ids (the prod hash includes the source).
 - `onigiriScanPlugin(options?)`: `buildStart` pre-pass scanning SFC templates for `v-load-client` targets, so the manifest's `"auto"` includes are complete before any environment builds.
 - `onigiriCompilerPlugin(options?)`: the codegen, compiling the per-SFC `__onigiriRender` and wiring it into each SFC module.
 - `onigiriManifestPlugin(options?)`: emits the `virtual:onigiri/manifest` module the runtime loader imports.
@@ -135,6 +135,8 @@ interface OnigiriScanOptions {
 
 Generates the per-SFC `__onigiriRender` function from each `<template>`. This is the only plugin doing real codegen work.
 
+`isProduction` and `componentIdGenerator` must match what `@vitejs/plugin-vue` uses (its own options or the resolved config), otherwise scope ids diverge and scoped styles break.
+
 ```ts
 interface OnigiriCompilerOptions {
   /**
@@ -143,6 +145,21 @@ interface OnigiriCompilerOptions {
    * @default true
    */
   sourceMap?: boolean;
+  /**
+   * Pins the mode used for scope-id derivation, like plugin-vue's
+   * `isProduction`. Must match the value plugin-vue uses, otherwise scope
+   * ids diverge and scoped styles break.
+   *
+   * @default the resolved Vite config's `isProduction`
+   */
+  isProduction?: boolean;
+  /**
+   * Customizes the scope-id hash, like plugin-vue's
+   * `features.componentIdGenerator`. Must match the value plugin-vue uses.
+   *
+   * @default 'filepath' in development, 'filepath-source' in production
+   */
+  componentIdGenerator?: ComponentIdGenerator;
   /**
    * Decides whether a tag is a native custom element and should be emitted
    * as plain HTML instead of being resolved as a component, like Vue's
@@ -163,6 +180,23 @@ interface OnigiriCompilerOptions {
    */
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
 }
+
+/**
+ * Scope-id hash strategy, mirroring plugin-vue's `features.componentIdGenerator`.
+ * - `'filepath'`: hash the file path (relative to the project root)
+ * - `'filepath-source'`: hash the file path and the source code
+ * - `function`: receives the root-relative path, source, production flag,
+ *   and the default hash function; returns the hash
+ */
+type ComponentIdGenerator =
+  | "filepath"
+  | "filepath-source"
+  | ((
+      filepath: string,
+      source: string,
+      isProduction: boolean | undefined,
+      getHash: (text: string) => string,
+    ) => string);
 
 type AdditionalImportInput = string | { path: string; export?: string };
 
