@@ -105,4 +105,17 @@ describe("onigiriManifestPlugin manifest-default redirect", () => {
       resolveId("./manifest-default.ts", "/app/src/components/loader-panel.vue"),
     ).toBeUndefined();
   });
+
+  it("redirects when the dev importer carries a version query", () => {
+    // optimizeDeps.exclude serves loader.js as `…/loader.js?v=<hash>`; the
+    // redirect must still fire or the browser keeps the throwing stub.
+    const importer = "/x/node_modules/vue-onigiri/dist/runtime/loader.js?v=abc123";
+    expect(resolveId("./manifest-default.js", importer)).toBe(RESOLVED);
+    expect(resolveId("./manifest-default.js", importer.split("?")[0])).toBe(RESOLVED);
+    expect(resolveId("./manifest-default.js", "/x/runtime/loader.js#frag")).toBe(RESOLVED);
+  });
+
+  it("still ignores non-loader importers carrying a query", () => {
+    expect(resolveId("./manifest-default.js", "/app/src/main.ts?v=abc123")).toBeUndefined();
+  });
 });

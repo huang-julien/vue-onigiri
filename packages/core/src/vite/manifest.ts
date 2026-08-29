@@ -120,11 +120,12 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
       handler(id, importer) {
         if (id === MANIFEST_VIRTUAL_ID) return MANIFEST_RESOLVED_ID;
 
+        const bareImporterPath = importer?.replace(/[?#].*$/, "");
         if (
           id === "vue-onigiri/runtime/manifest-default" ||
           (/(^|[\\/])manifest-default(\.\w+)?$/.test(id) &&
-            !!importer &&
-            /[\\/]runtime[\\/]loader\.\w+$/.test(importer))
+            !!bareImporterPath &&
+            /[\\/]runtime[\\/]loader\.\w+$/.test(bareImporterPath))
         ) {
           return MANIFEST_RESOLVED_ID;
         }
