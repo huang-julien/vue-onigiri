@@ -1,5 +1,147 @@
 # Changelog
 
+## v0.6.0
+
+[compare changes](https://undefined/undefined/compare/v0.2.0...v0.6.0)
+
+### 🚀 Enhancements
+
+- Test adding compiler (8e03378)
+- Fixes (068fb0a)
+- **playground:** Update playground (550715a)
+- Implement compiler with vite plugin (6704adb)
+- Handle directives (0f2d489)
+- Correctly handle slots (d9065f8)
+- Use manifest (4f9477d)
+- Migrate to vp (8a345aa)
+- Improve chunks (7629cee)
+- **compiler:** Resolve v-load-client imports through the bundler resolver (4a2f64a)
+- ⚠️  Add versioningh (60daea9)
+- Handle teleeport (14db79b)
+- Add component detection for manifest (7cec408)
+- Add extraEntries to extend manifest (b01fcfa)
+- **vite:** Allow auto in manifest include array (fb85b53)
+- Compile the onigiri render from the pipeline source (b58d614)
+
+### 🔥 Performance
+
+- Return subtree if available (d8ce5b0)
+- Mark pure (8564118)
+- Build-time __DEV__ check for unserializable prop warning (09ae1c0)
+
+### 🩹 Fixes
+
+- **vite:** Fix export info transformation client side and use let instead of const (a8b18ee)
+- Fix component child serialization (df63d65)
+- Add virtual:vue-onigiri for component import (040bb90)
+- **runtime:** Add missing provide ctx + fix component rendering component (355388d)
+- Correctly extract slots contents (8acf649)
+- **runtime:** Send parentInstance to slots (8abdf3f)
+- Chunks (c2a7ac2)
+- Handle slots correctly (bf21c1b)
+- Seems to work (8af2402)
+- Handle dev-prod differences like in vue (39e7eea)
+- Handle scope ID (201119a)
+- Use vue's __DEV__ (37146cd)
+- Types (c5dba5a)
+- Types and augmentations (5bc49da)
+- Move slot from desierialization to serialization time (faec7c8)
+- Remake runtime + restructure compiler (4e90ca8)
+- Tyopes (1d9ef57)
+- **compiler:** Fix control flow and shorthands expressions (1227bbf)
+- Production builds (64db296)
+- **compiler:** Export resolve and TDZ (62d1067)
+- **compiler:** Correct codegen for comments, v-for/slot scoping, dynamic args (8f32335)
+- **compiler:** Bridge literal-const setup bindings in the inline render (6439ff4)
+- **runtoime:** Fix injection (69c4a5b)
+- Correctly handle diffent v-for shape (03a5149)
+- Class stle merge (773730f)
+- Expand v-model (8ddbd27)
+- Use toDisplayString to render interpolation (ad9a0c5)
+- Add fallback children for suspense (d881046)
+- V-on modifuier (324cbc4)
+- Type cleanup (f5c371f)
+- Improve chunk loading, payload inlining and prop transfer (6171fcd)
+- **runtime:** Fix loader staleness from payload swap (57af960)
+- Resolve directive from app or instance (e2b04ce)
+- Correctly serialize vmodel values for (4f7a310)
+- Paths (4de25e8)
+- Count root node for staticVnode (f6fa415)
+- **runtime:** Resolve local component first (8edf06b)
+- **runtime:** Degrade gracefully when a chunk fails to load (414461f)
+- **vite:** Derive import map from compileScript bindings instead of regex parsing (d6cceaa)
+- **compiler:** Escape template-derived strings in generated code and derive script imports from bindings (71779f7)
+- **vite:** Reject cross-origin in the manifest import fallback (403c91b)
+- Correctly serialize subtree (af8d61a)
+- **manifest:** Mathc bare importer path (18f659d)
+
+### 💅 Refactors
+
+- Refacto chunks (fb84043)
+- Remove chukn plugin (dca80e1)
+- Restructure repo (9d29ccb)
+- ⚠️  Remove ABSOLUTE_CHUNK_RE in manifest (7a62def)
+- **vite:** Move manifest runtime into a real module (d88df41)
+- **runtime:** Extract runSetup and onigiriRenderOf helpers (5003fd5)
+- ⚠️  Split the compiler into single-responsibility plugins (ac64d76)
+
+### 🏡 Chore
+
+- Fix playground (f505d6f)
+- Upsdate playground (a6b420c)
+- Update playground (0172ca3)
+- Add estree types (f3b505f)
+- Lint (a7ffbd2)
+- **deps-dev:** Bump happy-dom from 17.4.6 to 20.0.0 (2feb8d4)
+- Lint and migrate to stylistic (48bfcd3)
+- Exclude playground from tsconfig (80266c8)
+- Update deps (e13c58d)
+- 0.3.0 (6df6515)
+- 0.3.1 (73bdbfb)
+- 0.3.2 (4dec1ea)
+- Remove vite-plus (a3c201e)
+- 0.4.0 (97541de)
+- Deps cleanup (407a216)
+- Cleanup (f674264)
+- 0.4.1 (7e5c0bb)
+- Cleanup (b4ffebc)
+- Use compileOnigiriInline in compileOnigiri (006e563)
+- **vite:** Share sfc analysis and compile options between load-virtual and inject-setup (3a16269)
+- **compiler:** Extract genNodeList and genFragment child-list helpers (b5e1bfd)
+- Migrate to oxfmt + oxlint (b309f7b)
+- Update CHANGELOG (c189195)
+- Update README with motivation (15d5f87)
+- Update comments (3e1858a)
+- Cleanup (e52c923)
+- Move README in repo root (c53c559)
+- 0.5.0 (7ebd893)
+- 0.5.1 (c83be03)
+- Split README (28ad6eb)
+- Exclude all fixtures from tsconfig (168f246)
+- Lint (d95aae3)
+- Remove all fixtures from tsconfig (7e8bf72)
+- Lint (75b5fdd)
+- Fix release script (d56038a)
+
+### ✅ Tests
+
+- Cover more cases (42a7d59)
+- Cover global component resolution through serialize (4014572)
+- Update snapshots (fb30e56)
+- Add hydrtation test (0fb7cce)
+- Add security tests (75a55ad)
+- Add snapshots (bd12d3d)
+
+#### ⚠️ Breaking Changes
+
+- ⚠️  Add versioningh (60daea9)
+- ⚠️  Remove ABSOLUTE_CHUNK_RE in manifest (7a62def)
+- ⚠️  Split the compiler into single-responsibility plugins (ac64d76)
+
+### ❤️ Contributors
+
+- Julien Huang ([@huang-julien](https://github.com/huang-julien))
+
 ## v0.4.1
 
 [compare changes](https://github.com/huang-julien/vue-cryo/compare/v0.4.0...v0.4.1)
