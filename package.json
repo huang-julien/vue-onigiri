@@ -12,7 +12,7 @@
     "lint:fix": "pnpm --filter vue-onigiri exec automd && oxlint --fix && oxfmt",
     "test": "pnpm --filter vue-onigiri test",
     "test:types": "pnpm -r test:types",
-    "release": "pnpm test && changelogen --release --cwd packages/core && pnpm --filter vue-onigiri publish && git push --follow-tags"
+    "release": "cd ./packages/core && pnpm test && changelogen --release --cwd packages/core && pnpm --filter vue-onigiri publish && git push --follow-tags"
   },
   "devDependencies": {
     "changelogen": "^0.6.2",
