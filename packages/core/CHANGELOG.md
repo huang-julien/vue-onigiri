@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.6.1
+
+[compare changes](https://undefined/undefined/compare/v0.6.0...v0.6.1)
+
+### 🩹 Fixes
+
+- Add isProduction option (1b3f93a)
+
+### ❤️ Contributors
+
+- Julien Huang ([@huang-julien](https://github.com/huang-julien))
+
 ## v0.6.0
 
 [compare changes](https://undefined/undefined/compare/v0.2.0...v0.6.0)
