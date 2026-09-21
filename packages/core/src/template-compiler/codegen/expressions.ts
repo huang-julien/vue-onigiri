@@ -6,36 +6,13 @@ import {
   NodeTypes,
   walkIdentifiers,
 } from "@vue/compiler-dom";
+import { isGloballyAllowed } from "@vue/shared";
 import { parse, parseExpression } from "@babel/parser";
 import MagicString from "magic-string";
 import type { CodegenContext } from "./context";
 
-const JS_KEYWORDS = new Set([
-  "true",
-  "false",
-  "null",
-  "undefined",
-  "NaN",
-  "Infinity",
-  "this",
-  "arguments",
-  "window",
-  "document",
-  "console",
-  "Array",
-  "Object",
-  "String",
-  "Number",
-  "Boolean",
-  "Date",
-  "Math",
-  "JSON",
-  "RegExp",
-  "parseInt",
-  "parseFloat",
-  "isNaN",
-  "isFinite",
-]);
+// Namespaces Vue's `transformExpression` emits for analyzed bindings (`$setup.foo`).
+const VUE_BINDING_NAMESPACES = new Set(["$setup", "$props", "$data", "$options"]);
 
 // Identifiers we control or inject; never prefixed.
 const ONIGIRI_RESERVED = ["_ctx", "__instance", "$event"];
@@ -181,10 +158,6 @@ export function prefixIdentifiers(
 ): string {
   if (!content.trim()) return content;
 
-  // Collapse Vue's `$setup.` / `$props.` / `$data.` / `$options.` prefixes;
-  // the `_ctx` proxy resolves all namespaces uniformly.
-  content = content.replace(/\$(?:setup|props|data|options)\./g, "");
-
   let ast: any;
   try {
     // A single expression covers the overwhelming majority of template content.
@@ -217,9 +190,22 @@ export function prefixIdentifiers(
     ast,
     (node, parent, _parentStack, isReference, isLocal) => {
       if (!isReference || isLocal) return;
-      if (JS_KEYWORDS.has(node.name)) return;
+      if (isGloballyAllowed(node.name)) return;
       const start = (node as any).start as number | undefined;
       if (start == null) return;
+
+      // Bare `$setup.foo` is Vue-generated and collapses to `_ctx.foo`.
+      // A user-written `$props.foo` arrives as `_ctx.$props.foo`, not a reference.
+      const member = parent as any;
+      if (
+        VUE_BINDING_NAMESPACES.has(node.name) &&
+        member?.type === "MemberExpression" &&
+        member.object === node &&
+        !member.computed
+      ) {
+        s.overwrite(start, member.property.start, "_ctx.");
+        return;
+      }
 
       // Shorthand object props need expansion: `{ foo }` -> `{ foo: _ctx.foo }`.
       if (parent && (parent as any).type === "ObjectProperty" && (parent as any).shorthand) {

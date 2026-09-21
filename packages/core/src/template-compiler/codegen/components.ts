@@ -9,7 +9,7 @@ import { genImport, genString } from "knitwork";
 import { VServerComponentType } from "../../runtime/shared";
 import type { CodegenContext } from "./context";
 import { withoutRenderlessChildren, genFragment, genNodeList } from "./vnode";
-import { genExpressionAsValue, prefixIdentifiers } from "./expressions";
+import { genExpressionAsValue } from "./expressions";
 import { genProps } from "./props";
 import { findSlotDirective, genSlotsObject, slotDirectiveName } from "./slots";
 import { tagCasings } from "./tag-casings";
@@ -207,29 +207,28 @@ function genDynamicComponent(node: ElementNode, context: CodegenContext): void {
         (p.arg as SimpleExpressionNode).content === "is"),
   );
 
-  let targetExpr = "null";
+  context.push("__serializeComponentInContext(");
   if (isAttr?.type === NodeTypes.ATTRIBUTE && isAttr.value) {
-    const tagName = isAttr.value.content;
-    targetExpr = getComponentRef(tagName, context);
+    context.push(getComponentRef(isAttr.value.content, context));
   } else if (isAttr?.type === NodeTypes.DIRECTIVE && isAttr.exp) {
     context.imports.add(
       genImport("vue-onigiri/runtime/resolve-component", [
         { name: "resolveDynamicComponentInInstance", as: "__onigiri_resolveDynamicComponent" },
       ]),
     );
-    const exp = isAttr.exp as SimpleExpressionNode;
-    const rawExpr = exp.content ?? exp.loc?.source ?? "";
-    const expContent = prefixIdentifiers(rawExpr, context.bindingMetadata, context.localVars);
-    targetExpr = `__onigiri_resolveDynamicComponent(__instance, ${expContent})`;
+    context.push("__onigiri_resolveDynamicComponent(__instance, ");
+    genExpressionAsValue(isAttr.exp, context);
+    context.push(")");
+  } else {
+    context.push("null");
   }
+  context.push(", ");
 
   context.imports.add(
     genImport("vue-onigiri/runtime/serialize", [
       { name: "serializeComponentInContext", as: "__serializeComponentInContext" },
     ]),
   );
-
-  context.push(`__serializeComponentInContext(${targetExpr}, `);
 
   const propsWithoutIs = props.filter(
     (p) =>

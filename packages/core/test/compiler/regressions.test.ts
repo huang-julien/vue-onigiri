@@ -253,5 +253,42 @@ describe("onigiri compiler", () => {
       expect(result.code).toContain("[_toHandlerKey(_ctx.eventName)]: _ctx.handler");
       expect(result.code).toContain('import { toHandlerKey as _toHandlerKey } from "vue"');
     });
+
+    it("leaves Vue's allowed globals unprefixed", () => {
+      const result = compileOnigiri(
+        `<p>{{ new Map().size }} {{ Intl.DateTimeFormat().format(d) }} {{ BigInt(n) }} {{ encodeURIComponent(x) }}</p>`,
+      );
+      expectParses(result.code);
+      expect(result.code).toContain("new Map().size");
+      expect(result.code).toContain("Intl.DateTimeFormat().format(_ctx.d)");
+      expect(result.code).toContain("BigInt(_ctx.n)");
+      expect(result.code).toContain("encodeURIComponent(_ctx.x)");
+    });
+
+    it("keeps user-written instance namespaces and string literals intact", () => {
+      const result = compileOnigiri(`<p>{{ $options.name }} {{ 'a $props.b c' }}</p>`);
+      expectParses(result.code);
+      expect(result.code).toContain("_ctx.$options.name");
+      expect(result.code).toContain("'a $props.b c'");
+    });
+
+    it("collapses Vue-generated binding namespaces onto _ctx", () => {
+      const result = compileOnigiri(`<p :title="title">{{ count + 1 }} {{ 'x $setup.y' }}</p>`, {
+        bindingMetadata: { count: "setup-ref", title: "props" } as any,
+      });
+      expectParses(result.code);
+      expect(result.code).toContain('"title": _ctx.title');
+      expect(result.code).toContain("_ctx.count + 1");
+      expect(result.code).toContain("'x $setup.y'");
+      expect(result.code).not.toMatch(/$setup.count|$props.title/);
+    });
+
+    it("keeps user-written namespaces in a dynamic component target", () => {
+      const result = compileOnigiri(`<component :is="$options.components.Panel" />`);
+      expectParses(result.code);
+      expect(result.code).toContain(
+        "__onigiri_resolveDynamicComponent(__instance, _ctx.$options.components.Panel)",
+      );
+    });
   });
 });
