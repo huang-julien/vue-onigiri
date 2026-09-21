@@ -7,7 +7,7 @@ import {
 } from "@vue/compiler-dom";
 import { genImport, genString } from "knitwork";
 import type { CodegenContext } from "./context";
-import { withoutRenderlessChildren, genNode, genNodeList } from "./vnode";
+import { withoutRenderlessChildren, genNodeList } from "./vnode";
 import { collectBindingNames, genExpressionAsValue } from "./expressions";
 import { genProps } from "./props";
 
@@ -113,11 +113,7 @@ export function genSlotsObject(
             `the client and cannot be embedded in pre-rendered AST.`,
         );
       }
-      if (slot.children.length === 1) {
-        genNode(slot.children[0], context);
-      } else {
-        genNodeList(slot.children, context);
-      }
+      genNodeList(slot.children, context);
     }
   }
 

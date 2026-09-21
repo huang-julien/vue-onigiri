@@ -5,7 +5,7 @@ export function renderOnigiri(_ctx, __instance) {
     "/client_component_slots/Widget.vue",
     "default",
     {
-      footer: [0, "span", undefined, [[2, "footer"]]],
+      footer: [[0, "span", undefined, [[2, "footer"]]]],
       default: [
         [0, "p", undefined, [[2, "body"]]],
         [0, "em", undefined, [[2, "more body"]]],

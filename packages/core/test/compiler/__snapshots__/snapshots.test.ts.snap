@@ -58,13 +58,13 @@ const _component_MyComponent = __onigiri_resolveComponent(__instance, "MyCompone
 
 exports[`onigiri compiler > snapshots > components > component with default slot 1`] = `
 "export function renderOnigiri(_ctx, __instance) {
-return [1, undefined, "/components/MyComponent.vue", "default", { "default": [2, "Default slot content"] }];
+return [1, undefined, "/components/MyComponent.vue", "default", { "default": [[2, "Default slot content"]] }];
 }"
 `;
 
 exports[`onigiri compiler > snapshots > components > component with named slots 1`] = `
 "export function renderOnigiri(_ctx, __instance) {
-return [1, undefined, "/components/MyComponent.vue", "default", { "header": [2, "Header content"], "default": [2, "Main content"], "footer": [2, "Footer content"] }];
+return [1, undefined, "/components/MyComponent.vue", "default", { "header": [[2, "Header content"]], "default": [[2, "Main content"]], "footer": [[2, "Footer content"]] }];
 }"
 `;
 
@@ -76,7 +76,7 @@ return [1, {"title": _ctx.title, "count": 42}, "/components/MyComponent.vue", "d
 
 exports[`onigiri compiler > snapshots > components > kebab-case component with v-load-client 1`] = `
 "export function renderOnigiri(_ctx, __instance) {
-return [1, {"prop": _ctx.value}, "/components/MyComponent.vue", "default", { "default": [2, "Content"] }];
+return [1, {"prop": _ctx.value}, "/components/MyComponent.vue", "default", { "default": [[2, "Content"]] }];
 }"
 `;
 

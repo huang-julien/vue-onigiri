@@ -290,5 +290,21 @@ describe("onigiri compiler", () => {
         "__onigiri_resolveDynamicComponent(__instance, _ctx.$options.components.Panel)",
       );
     });
+
+    it("client slot content is always an array, even for a single v-for child", () => {
+      const importMap = new Map([["Counter", "/Counter.vue"]]);
+      const loop = compileOnigiri(
+        `<Counter v-load-client><span v-for="i in 3">{{ i }}</span></Counter>`,
+        { importMap },
+      );
+      expectParses(loop.code);
+      expect(loop.code).toContain('{ "default": [...(_renderList(3, ');
+
+      const single = compileOnigiri(`<Counter v-load-client><span>a</span></Counter>`, {
+        importMap,
+      });
+      expectParses(single.code);
+      expect(single.code).toContain('{ "default": [[0, "span", undefined, [[2, "a"]]]] }');
+    });
   });
 });

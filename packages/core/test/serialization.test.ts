@@ -349,18 +349,20 @@ describe("slots", () => {
               "default",
               {
                 "default": [
-                  0,
-                  "div",
-                  undefined,
                   [
+                    0,
+                    "div",
+                    undefined,
                     [
-                      0,
-                      "p",
-                      undefined,
                       [
+                        0,
+                        "p",
+                        undefined,
                         [
-                          2,
-                          "Slot content (static)",
+                          [
+                            2,
+                            "Slot content (static)",
+                          ],
                         ],
                       ],
                     ],
