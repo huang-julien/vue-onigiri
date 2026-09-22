@@ -1,10 +1,8 @@
 import { genString } from "knitwork";
 import { compileOnigiriInline } from "../../template-compiler";
-import type { AdditionalImport } from "../../template-compiler/codegen/context";
 import { type OnigiriCompileOptions, analyzeSfc, parseSfcFile } from "./analyze-sfc";
 import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "./constants";
 import { genScriptImports } from "./imports";
-import { toRootRelative } from "./paths";
 
 /**
  * Build the per-SFC standalone `__onigiriRender` module loaded as
@@ -18,8 +16,7 @@ export async function loadVirtualOnigiriModule(
 ): Promise<{ code: string; map: null } | null> {
   if (!id.startsWith(ONIGIRI_PREFIX) || !id.endsWith(ONIGIRI_SUFFIX)) return null;
 
-  const { config, sourceMap, isCustomElement, additionalImports, resolveChunkUrl, registerTarget } =
-    opts;
+  const { sourceMap, isCustomElement, additionalImports, resolveChunkUrl, registerTarget } = opts;
   const encoded = id.slice(ONIGIRI_PREFIX.length, -ONIGIRI_SUFFIX.length);
   const filePath = decodeURIComponent(encoded);
 
@@ -55,7 +52,7 @@ export async function loadVirtualOnigiriModule(
     bindingMetadata,
     scopeId,
     importMap,
-    additionalImports: normaliseAdditionalImports(additionalImports, config.root),
+    additionalImports: additionalImports,
     isCustomElement,
     resolveChunkUrl,
     registerTarget,
@@ -77,21 +74,4 @@ ${componentDeclarations}
 }`,
     map: null,
   };
-}
-
-/**
- * Normalise externally-supplied additionalImports paths to root-relative
- * form, matching the manifest glob keys and the resolveId root join.
- * Paths outside `config.root` stay absolute.
- */
-export function normaliseAdditionalImports(
-  raw: Map<string, AdditionalImport> | undefined,
-  root: string,
-): Map<string, AdditionalImport> | undefined {
-  if (!raw) return raw;
-  const out = new Map<string, AdditionalImport>();
-  for (const [tag, entry] of raw) {
-    out.set(tag, { path: toRootRelative(entry.path, root), export: entry.export });
-  }
-  return out;
 }

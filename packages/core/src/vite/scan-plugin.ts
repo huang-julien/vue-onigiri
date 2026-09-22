@@ -4,7 +4,6 @@ import {
   makeResolveImport,
   resolveAdditionalImports,
 } from "./compiler/options";
-import { normaliseAdditionalImports } from "./compiler/load-virtual";
 import { type OnigiriScanOptions, scanClientTargets } from "./scan";
 import { registerOnigiriTarget } from "./shared";
 
@@ -44,9 +43,7 @@ export function onigiriScanPlugin(options: OnigiriScanPluginOptions = {}): Plugi
         include,
         exclude,
         root: config.root,
-        additionalImports:
-          normaliseAdditionalImports(resolveAdditionalImports(additionalImports), config.root) ??
-          new Map(),
+        additionalImports: resolveAdditionalImports(additionalImports, config.root),
         isCustomElement,
         resolveImport: makeResolveImport(this),
         registerTarget: registerOnigiriTarget,

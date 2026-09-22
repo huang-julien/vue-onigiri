@@ -8,6 +8,7 @@ import { compileOnigiriInline } from "../src/template-compiler";
 import { injectIntoSetupAsync } from "../src/vite/compiler/inject-setup";
 import { onigiriCompilerPlugin } from "../src/vite/compiler";
 import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "../src/vite/compiler/constants";
+import { _resetOnigiriTargets, getOnigiriTargets } from "../src/vite/shared";
 import MagicString from "magic-string";
 
 const { virtualFiles } = vi.hoisted(() => ({ virtualFiles: new Set<string>() }));
@@ -256,6 +257,51 @@ describe("load of a virtual:onigiri module", () => {
     );
 
     expect(result?.code).toContain("__onigiriRender");
+  });
+});
+
+describe("additionalImports path normalisation", () => {
+  const ROOT = fileURLToPath(new URL("..", import.meta.url));
+  const filePath = path.resolve(ROOT, "test/fixtures/scan/PageWithMarker.vue");
+  const widgetAbs = path.resolve(ROOT, "test/fixtures/components/Counter.vue");
+  const ctx = {
+    resolve: async (id: string) => ({ id }),
+    error: (msg: string) => {
+      throw new Error(msg);
+    },
+  };
+
+  beforeEach(() => _resetOnigiriTargets());
+
+  it("registers the same root-relative target from the virtual load and the setup injection", async () => {
+    const plugin = onigiriCompilerPlugin({
+      additionalImports: { AutoWidget: widgetAbs },
+    }) as Plugin;
+    (plugin.configResolved as (c: ResolvedConfig) => void).call(plugin, {
+      root: ROOT,
+      isProduction: false,
+      plugins: [],
+    } as unknown as ResolvedConfig);
+
+    const load = plugin.load as (this: unknown, id: string) => Promise<unknown>;
+    await load.call(ctx, ONIGIRI_PREFIX + encodeURIComponent(filePath) + ONIGIRI_SUFFIX);
+    const fromLoad = [...getOnigiriTargets()];
+    _resetOnigiriTargets();
+
+    const { descriptor } = parse(readFileSync(filePath, "utf8"), { filename: filePath });
+    const compiled = compileScript(descriptor, { id: filePath, inlineTemplate: true });
+    const transform = (plugin.transform as { handler: Function }).handler as (
+      this: unknown,
+      code: string,
+      id: string,
+    ) => Promise<unknown>;
+    await transform.call(ctx, compiled.content, filePath + "?vue&type=script&setup=true");
+    const fromInject = [...getOnigiriTargets()];
+
+    // An absolute additionalImports path must reach the registry root-relative
+    // from both passes, or the manifest sees two spellings of one target.
+    expect(fromLoad).toContain("/test/fixtures/components/Counter.vue");
+    expect(fromInject).toEqual(fromLoad);
   });
 });
 
