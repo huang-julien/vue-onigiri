@@ -7,7 +7,7 @@ import type { Plugin, ResolvedConfig } from "vite";
 import { compileOnigiriInline } from "../src/template-compiler";
 import { injectIntoSetupAsync } from "../src/vite/compiler/inject-setup";
 import { onigiriCompilerPlugin } from "../src/vite/compiler";
-import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "../src/vite/compiler/constants";
+import { parseOnigiriId, toOnigiriId } from "../src/vite/compiler/constants";
 import { _resetOnigiriTargets, getOnigiriTargets } from "../src/vite/shared";
 import MagicString from "magic-string";
 
@@ -234,7 +234,7 @@ describe("injectIntoSetupAsync setup bridge", () => {
   });
 });
 
-describe("load of a virtual:onigiri module", () => {
+describe("load of an onigiri module", () => {
   const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
   it('loads an SFC whose path contains "devtools"', async () => {
@@ -253,7 +253,7 @@ describe("load of a virtual:onigiri module", () => {
           throw new Error(msg);
         },
       },
-      ONIGIRI_PREFIX + encodeURIComponent(filePath) + ONIGIRI_SUFFIX,
+      toOnigiriId(filePath),
     );
 
     expect(result?.code).toContain("__onigiriRender");
@@ -284,7 +284,7 @@ describe("additionalImports path normalisation", () => {
     } as unknown as ResolvedConfig);
 
     const load = plugin.load as (this: unknown, id: string) => Promise<unknown>;
-    await load.call(ctx, ONIGIRI_PREFIX + encodeURIComponent(filePath) + ONIGIRI_SUFFIX);
+    await load.call(ctx, toOnigiriId(filePath));
     const fromLoad = [...getOnigiriTargets()];
     _resetOnigiriTargets();
 
@@ -305,12 +305,12 @@ describe("additionalImports path normalisation", () => {
   });
 });
 
-describe("resolveId of imports coming from a virtual:onigiri module", () => {
+describe("resolveId of imports coming from an onigiri module", () => {
   // POSIX-shaped on purpose — see the `node:fs` mock above.
   const ROOT = "/project/app";
   const IN_ROOT = "/components/Counter.vue";
   const OUT_OF_ROOT = "/project/node_modules/@nuxt/ui/dist/runtime/components/Button.vue";
-  const IMPORTER = ONIGIRI_PREFIX + encodeURIComponent(`${ROOT}/pages/index.vue`) + ONIGIRI_SUFFIX;
+  const IMPORTER = toOnigiriId(`${ROOT}/pages/index.vue`);
 
   /**
    * Rollup answers truthy for absolute ids it never stat'd, which is why
@@ -359,5 +359,46 @@ describe("resolveId of imports coming from a virtual:onigiri module", () => {
 
   it("falls back to the root-joined path when neither exists", async () => {
     expect(await resolveFromVirtual(IN_ROOT)).toEqual({ id: ROOT + IN_ROOT });
+  });
+});
+
+describe("onigiri module id", () => {
+  const SFC = "D:/project/app/components/Foo.vue";
+
+  it("round-trips the SFC path", () => {
+    expect(parseOnigiriId(toOnigiriId(SFC))).toBe(SFC);
+  });
+
+  it("ignores plugin-vue block requests, including an `<onigiri>` custom block", () => {
+    expect(parseOnigiriId(SFC)).toBeUndefined();
+    expect(parseOnigiriId(`${SFC}?vue&type=script&setup=true&lang.ts`)).toBeUndefined();
+    expect(parseOnigiriId(`${SFC}?vue&type=onigiri&index=0&lang.onigiri`)).toBeUndefined();
+  });
+});
+
+describe("hotUpdate of an SFC", () => {
+  const SFC = "/project/app/components/Foo.vue";
+  const main = { id: SFC };
+  const style = { id: `${SFC}?vue&type=style&index=0&lang.css` };
+  const onigiri = { id: toOnigiriId(SFC) };
+
+  function hotUpdate(modules: { id: string }[], graph: { id: string }[] = [onigiri]) {
+    const plugin = onigiriCompilerPlugin() as Plugin;
+    const hook = plugin.hotUpdate as (this: unknown, options: unknown) => unknown;
+    const getModuleById = (id: string) => graph.find((mod) => mod.id === id);
+    return hook.call({ environment: { moduleGraph: { getModuleById } } }, { file: SFC, modules });
+  }
+
+  it("re-adds the onigiri module plugin-vue filtered out", () => {
+    expect(hotUpdate([main])).toEqual([main, onigiri]);
+  });
+
+  it("leaves a style-only update alone", () => {
+    expect(hotUpdate([style])).toBeUndefined();
+  });
+
+  it("leaves the list alone when the onigiri module is present or never loaded", () => {
+    expect(hotUpdate([main, onigiri])).toBeUndefined();
+    expect(hotUpdate([main], [])).toBeUndefined();
   });
 });

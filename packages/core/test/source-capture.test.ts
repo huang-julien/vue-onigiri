@@ -10,7 +10,7 @@ import {
   runWithCapturedSources,
   type SourceCaptureApi,
 } from "../src/vite/compiler/source-capture";
-import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "../src/vite/compiler/constants";
+import { toOnigiriId } from "../src/vite/compiler/constants";
 import { injectIntoSetupAsync } from "../src/vite/compiler/inject-setup";
 import { loadVirtualOnigiriModule } from "../src/vite/compiler/load-virtual";
 import { onigiriCompilerPlugin } from "../src/vite/compiler";
@@ -49,7 +49,7 @@ const lookupVia = (api: SourceCaptureApi, environment?: string) => (filePath: st
 
 const loadVirtual = (filePath: string) =>
   loadVirtualOnigiriModule(
-    ONIGIRI_PREFIX + encodeURIComponent(filePath) + ONIGIRI_SUFFIX,
+    toOnigiriId(filePath),
     { config: FAKE_CONFIG, sourceMap: false },
     (msg) => {
       throw new Error(msg);
@@ -57,7 +57,7 @@ const loadVirtual = (filePath: string) =>
   );
 
 describe("source capture feeding the compiler", () => {
-  it("compiles the virtual onigiri module from the captured source, not disk", async () => {
+  it("compiles the onigiri module from the captured source, not disk", async () => {
     // The file does not exist on disk: success itself proves the capture was used.
     const { api, capture } = makeCapture();
     capture(REWRITTEN_SFC, FAKE_PATH);
@@ -87,7 +87,7 @@ describe("source capture feeding the compiler", () => {
           throw new Error(msg);
         },
       },
-      ONIGIRI_PREFIX + encodeURIComponent(FAKE_PATH) + ONIGIRI_SUFFIX,
+      toOnigiriId(FAKE_PATH),
     );
 
     expect(result?.code).toContain("bound(");
@@ -114,7 +114,7 @@ describe("source capture feeding the compiler", () => {
 
     expect(getCapturedSource(fixturePath)).toBeUndefined();
     const result = await loadVirtualOnigiriModule(
-      ONIGIRI_PREFIX + encodeURIComponent(fixturePath) + ONIGIRI_SUFFIX,
+      toOnigiriId(fixturePath),
       { config: { root, isProduction: false } as ResolvedConfig, sourceMap: false },
       (msg) => {
         throw new Error(msg);

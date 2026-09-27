@@ -1,24 +1,23 @@
 import { genString } from "knitwork";
 import { compileOnigiriInline } from "../../template-compiler";
 import { type OnigiriCompileOptions, analyzeSfc, parseSfcFile } from "./analyze-sfc";
-import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "./constants";
+import { parseOnigiriId } from "./constants";
 import { genScriptImports } from "./imports";
 
 /**
  * Build the per-SFC standalone `__onigiriRender` module loaded as
- * `virtual:onigiri:<URL-encoded-path>.mjs`. Returns the JS source or
- * `null` when the id isn't an onigiri virtual module.
+ * `<abs-path>.vue?vue&type=onigiri&lang.mjs`. Returns the JS source or
+ * `null` when the id isn't an onigiri module.
  */
 export async function loadVirtualOnigiriModule(
   id: string,
   opts: OnigiriCompileOptions,
   reportError: (message: string) => void,
 ): Promise<{ code: string; map: null } | null> {
-  if (!id.startsWith(ONIGIRI_PREFIX) || !id.endsWith(ONIGIRI_SUFFIX)) return null;
+  const filePath = parseOnigiriId(id);
+  if (!filePath) return null;
 
   const { sourceMap, isCustomElement, additionalImports, resolveChunkUrl, registerTarget } = opts;
-  const encoded = id.slice(ONIGIRI_PREFIX.length, -ONIGIRI_SUFFIX.length);
-  const filePath = decodeURIComponent(encoded);
 
   const parsed = await parseSfcFile(filePath, sourceMap);
   const { descriptor, errors } = parsed;

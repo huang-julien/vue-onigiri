@@ -7,7 +7,7 @@ import type { Plugin, ResolvedConfig } from "vite";
 import { generateScopeId } from "../src/vite/compiler/scope-id";
 import { onigiriCompilerPlugin } from "../src/vite/compiler";
 import { onigiriPlugins } from "../src/vite/plugins";
-import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "../src/vite/compiler/constants";
+import { toOnigiriId } from "../src/vite/compiler/constants";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const FIXTURE = path.resolve(ROOT, "test/fixtures/components/ScopedStyle.vue");
@@ -34,7 +34,7 @@ async function loadVirtualScoped(plugin: Plugin, configIsProduction: boolean): P
         throw new Error(msg);
       },
     },
-    ONIGIRI_PREFIX + encodeURIComponent(FIXTURE) + ONIGIRI_SUFFIX,
+    toOnigiriId(FIXTURE),
   );
   return result!.code;
 }

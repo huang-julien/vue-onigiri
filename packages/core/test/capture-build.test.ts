@@ -1,9 +1,10 @@
 // Real SSR `vite build`: a toy `enforce: 'pre'` plugin rewrites the SFC, and
-// the bundled virtual onigiri module must carry that rewrite, not the disk source.
+// the bundled onigiri module must carry that rewrite, not the disk source.
 import { fileURLToPath, URL as NodeURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import { build, type Plugin, type Rollup } from "vite";
 import vue from "@vitejs/plugin-vue";
+import { parseOnigiriId } from "../src/vite/compiler/constants";
 import { onigiriCompilerPlugin } from "../src/vite/compiler";
 import { onigiriSourceCapturePlugin } from "../src/vite/compiler/source-capture";
 
@@ -46,11 +47,11 @@ describe("source capture in a real Vite build", () => {
       })) as Rollup.RollupOutput;
 
       const chunk = output.output.find((o): o is Rollup.OutputChunk => o.type === "chunk")!;
-      const virtualId = Object.keys(chunk.modules).find((id) => id.includes("virtual:onigiri"));
-      expect(virtualId, "virtual onigiri module missing from the bundle").toBeDefined();
+      const onigiriId = Object.keys(chunk.modules).find((id) => parseOnigiriId(id));
+      expect(onigiriId, "onigiri module missing from the bundle").toBeDefined();
 
       // Bundling may suffix-rename the identifier, hence the pattern.
-      expect(chunk.modules[virtualId!]!.code).toMatch(/bound(\$\d+)?\(/);
+      expect(chunk.modules[onigiriId!]!.code).toMatch(/bound(\$\d+)?\(/);
       // Sanity: Vue's own render saw the same rewrite, so the two agree.
       expect(chunk.code).toMatch(/ssrRenderList\(.*bound/);
     },

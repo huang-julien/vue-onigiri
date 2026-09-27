@@ -100,8 +100,13 @@ importers:
         specifier: ^3.2.8
         version: 3.2.8(typescript@6.0.3)
 
+  packages/test-ui-dep: {}
+
   packages/test-ui-lib:
     dependencies:
+      '@vue-onigiri/test-ui-dep':
+        specifier: workspace:*
+        version: link:../test-ui-dep
       vue:
         specifier: ^3.5.0
         version: 3.5.33(typescript@6.0.3)

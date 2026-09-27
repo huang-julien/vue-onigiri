@@ -4,6 +4,9 @@
   "private": true,
   "description": "Fixture package: a raw .vue component consumed as a bare specifier, exercising the manifest plugin's extraEntries across tests and the playground",
   "type": "module",
+  "dependencies": {
+    "@vue-onigiri/test-ui-dep": "workspace:*"
+  },
   "devDependencies": {
     "vue-onigiri": "workspace:*"
   },

@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import type { Plugin, ResolvedConfig } from "vite";
 import type { OnigiriCompileOptions } from "./analyze-sfc";
-import { ONIGIRI_PREFIX, ONIGIRI_SUFFIX } from "./constants";
+import { parseOnigiriId, toOnigiriId } from "./constants";
 import { loadVirtualOnigiriModule } from "./load-virtual";
 import { injectIntoSetupAsync } from "./inject-setup";
 import { attachAsProperty } from "./attach-property";
@@ -22,6 +22,8 @@ import type { ComponentIdGenerator } from "./scope-id";
 
 export type { AdditionalImportInput };
 export type { ComponentIdGenerator };
+
+const STYLE_BLOCK_RE = /[?&]type=style\b/;
 
 /**
  * Detect whether plugin-vue's output already inlines a render function
@@ -94,7 +96,7 @@ export interface OnigiriCompilerOptions {
 
 /**
  * Vite plugin adding onigiri serialization to Vue SFCs: dev attaches a
- * virtual `__onigiriRender` module to the default export, build injects
+ * generated `__onigiriRender` module to the default export, build injects
  * the render into `setup()` so it captures the setup-script closure.
  */
 export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plugin {
@@ -119,7 +121,7 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
   return {
     name: "vite:vue-onigiri-compiler",
     // Runs after plugin-vue but before vite:import-analysis; hook-level
-    // `order: 'post'` would leave `virtual:onigiri:*` unrewritten in the browser.
+    // `order: 'post'` would leave the onigiri import unrewritten in the browser.
     enforce: "post",
 
     config(userConfig, env) {
@@ -141,18 +143,10 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
     resolveId: {
       order: "pre",
       async handler(id, importer) {
-        if (id.startsWith(ONIGIRI_PREFIX) && id.endsWith(ONIGIRI_SUFFIX)) {
-          return id;
-        }
+        if (parseOnigiriId(id)) return id;
 
-        // Defensive: encode + suffix a raw specifier (shouldn't normally happen).
-        if (id.startsWith(ONIGIRI_PREFIX)) {
-          const tail = id.slice(ONIGIRI_PREFIX.length);
-          const encoded = /%[0-9A-Fa-f]{2}/.test(tail) ? tail : encodeURIComponent(tail);
-          return ONIGIRI_PREFIX + encoded + ONIGIRI_SUFFIX;
-        }
-
-        if (importer?.startsWith(ONIGIRI_PREFIX) && importer.endsWith(ONIGIRI_SUFFIX)) {
+        const originalFilePath = importer && parseOnigiriId(importer);
+        if (originalFilePath) {
           // Root-relative additionalImports paths resolve against the Vite
           // root; skip Windows-absolute (`/D:/...`) and `/@...` internal forms.
           if (
@@ -168,14 +162,20 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
             return { id: abs };
           }
           // Anything else (relative `./Foo.vue` etc) resolves against
-          // the original SFC the virtual module was built from.
-          const encoded = importer.slice(ONIGIRI_PREFIX.length, -ONIGIRI_SUFFIX.length);
-          const originalFilePath = decodeURIComponent(encoded);
+          // the original SFC the onigiri module was built from.
           return await this.resolve(id, originalFilePath, { skipSelf: true });
         }
 
         return null;
       },
+    },
+
+    // plugin-vue narrows the update to its own blocks; re-add the onigiri
+    // module unless only styles changed, which the render doesn't depend on.
+    hotUpdate({ file, modules }) {
+      if (modules.every((mod) => mod.id && STYLE_BLOCK_RE.test(mod.id))) return;
+      const onigiriModule = this.environment.moduleGraph.getModuleById(toOnigiriId(file));
+      if (onigiriModule && !modules.includes(onigiriModule)) return [...modules, onigiriModule];
     },
 
     async load(id) {
@@ -201,7 +201,7 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
     transform: {
       async handler(code, id) {
         const [filePath, query] = id.split("?");
-        if (!filePath || !filePath.endsWith(".vue") || filePath.startsWith(ONIGIRI_PREFIX)) {
+        if (!filePath || !filePath.endsWith(".vue") || parseOnigiriId(id)) {
           return null;
         }
 
@@ -223,7 +223,7 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
         // present (build closures are otherwise dark), then attach render + descriptor.
         if (!query) {
           if (!code.includes("export default")) return null;
-          const onigiriImport = `${ONIGIRI_PREFIX}${encodeURIComponent(filePath)}${ONIGIRI_SUFFIX}`;
+          const onigiriImport = toOnigiriId(filePath);
           const sourcePath = toRootRelative(filePath, config.root);
 
           const addressable =
