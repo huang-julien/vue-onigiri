@@ -1,7 +1,21 @@
-import { isVNode, type VNodeChild } from "vue";
+import {
+  isVNode,
+  type ComponentInternalInstance,
+  type VNodeChild,
+  // @ts-expect-error ssrUtils is not a public API
+  ssrUtils,
+} from "vue";
 import { serializeVNode, unrollServerComponentBufferPromises } from "./serialize";
 import { VServerComponentType } from "./shared";
 import type { VServerComponent, VServerComponentBuffered } from "./shared";
+
+const {
+  setCurrentRenderingInstance,
+}: {
+  setCurrentRenderingInstance: (
+    instance: ComponentInternalInstance | null,
+  ) => ComponentInternalInstance | null;
+} = ssrUtils;
 
 function wrapSlotResult(result: any): any {
   if (!Array.isArray(result)) return result;
@@ -38,15 +52,17 @@ export function renderSlot(
   const parentInstance = ctx && ctx._ ? ctx._ : undefined;
   const slot = slots?.[name];
 
+  const renderFallback = () => fallback && callInInstance(parentInstance, fallback);
+
   if (slot === undefined) {
-    return wrapSlotResult(fallback?.());
+    return wrapSlotResult(renderFallback());
   }
 
   if (typeof slot === "function") {
-    const content = slot(props);
+    const content = callInInstance(parentInstance, () => slot(props));
 
     if (content == null) {
-      return wrapSlotResult(fallback?.());
+      return wrapSlotResult(renderFallback());
     }
 
     if (Array.isArray(content)) {
@@ -81,9 +97,19 @@ export function renderSlot(
       if (serialized) {
         return unrollServerComponentBufferPromises(serialized);
       }
-      return unrollServerComponentBufferPromises(fallback?.() as VServerComponentBuffered);
+      return unrollServerComponentBufferPromises(renderFallback() as VServerComponentBuffered);
     });
   }
 
   return slot as VServerComponentBuffered;
+}
+
+function callInInstance<T>(instance: ComponentInternalInstance | undefined, fn: () => T): T {
+  if (!instance) return fn();
+  const prev = setCurrentRenderingInstance(instance);
+  try {
+    return fn();
+  } finally {
+    setCurrentRenderingInstance(prev);
+  }
 }

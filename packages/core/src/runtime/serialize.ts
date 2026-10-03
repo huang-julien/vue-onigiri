@@ -44,6 +44,7 @@ const {
   createComponentInstance,
   setupComponent,
   renderComponentRoot,
+  setCurrentRenderingInstance,
 }: {
   createComponentInstance: (
     vnode: VNode,
@@ -57,6 +58,9 @@ const {
   renderComponentRoot: (instance: ComponentInternalInstance) => VNode & {
     _onigiriLoadClient?: boolean;
   };
+  setCurrentRenderingInstance: (
+    instance: ComponentInternalInstance | null,
+  ) => ComponentInternalInstance | null;
 } = ssrUtils;
 
 export async function serializeComponent(
@@ -247,7 +251,7 @@ export function serializeComponentInContext(
   const doRender = (): Promise<VServerComponent | undefined> => {
     const taggedRender = pickTaggedRender(instance);
     if (taggedRender) {
-      const rendered = taggedRender.call(instance.proxy, instance.proxy, instance);
+      const rendered = runTaggedRender(taggedRender, instance);
       if (isPromise(rendered)) {
         return rendered.then((r: VServerComponentBuffered) =>
           unrollServerComponentBufferPromises(r),
@@ -342,7 +346,29 @@ function runOnigiriRender(
   onigiriRender: (...args: any[]) => VServerComponentBuffered,
   instance: ComponentInternalInstance,
 ): VServerComponentBuffered {
-  return onigiriRender(createOnigiriCtx(instance), instance);
+  return renderInInstance(instance, () => onigiriRender(createOnigiriCtx(instance), instance));
+}
+
+function runTaggedRender(
+  taggedRender: (...args: any[]) => any,
+  instance: ComponentInternalInstance,
+): MaybePromise<VServerComponentBuffered> {
+  return renderInInstance(instance, () =>
+    taggedRender.call(instance.proxy, instance.proxy, instance),
+  );
+}
+
+/**
+ * run an onigiri render with `instance` as the current rendering instance, like Vue's own render.
+ * covers the synchronous part only; the previous instance is restored even on throw.
+ */
+function renderInInstance<T>(instance: ComponentInternalInstance, fn: () => T): T {
+  const prev = setCurrentRenderingInstance(instance);
+  try {
+    return fn();
+  } finally {
+    setCurrentRenderingInstance(prev);
+  }
 }
 
 function runSetup(instance: ComponentInternalInstance): void | Promise<void> {
@@ -399,7 +425,7 @@ export async function serializeApp(
       const taggedRootRender = pickTaggedRender(instance);
       if (taggedRootRender) {
         const injectRendered = app.runWithContext(() =>
-          taggedRootRender.call(instance.proxy, instance.proxy, instance),
+          runTaggedRender(taggedRootRender, instance),
         );
         if (isPromise(injectRendered)) {
           const r = await injectRendered;
@@ -544,10 +570,11 @@ export async function serializeVNode(
   }
   if (isVNode(vnode)) {
     if (vnode.shapeFlag & ShapeFlags.ELEMENT) {
+      const props = vnode.dirs ? applySSRDirectives(vnode, vnode.props, vnode.dirs) : vnode.props;
       return [
         VServerComponentType.Element,
         vnode.type as string,
-        filterProps(vnode.props),
+        filterProps(props),
         serializeChildren(vnode.children, parentInstance),
       ];
     } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
@@ -574,9 +601,7 @@ export async function serializeVNode(
         await runSetup(instance);
 
         const tagged = pickTaggedRender(instance);
-        return tagged
-          ? tagged.call(instance.proxy, instance.proxy, instance)
-          : runOnigiriRender(standalone, instance);
+        return tagged ? runTaggedRender(tagged, instance) : runOnigiriRender(standalone, instance);
       }
 
       return serializeComponentSubtree(vnode, parentInstance);
@@ -691,6 +716,8 @@ function serializeComponentSubtree(
     if (child.shapeFlag & ShapeFlags.COMPONENT) {
       return serializeVNode(child, instance);
     }
+    // already merged into props above; serializeVNode must not apply them twice.
+    child.dirs = null;
     const children = isVNode(child.children) ? child.children : child;
     return [VServerComponentType.Fragment, serializeChildren(children, instance)];
   };
