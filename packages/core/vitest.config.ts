@@ -10,7 +10,8 @@ const srcUrl = (rel: string) => fileURLToPath(new URL(`src/${rel}`, import.meta.
 export default defineProject({
   plugins: [
     onigiriScanPlugin(),
-    onigiriCompilerPlugin(),
+    // happy-dom suites serialize inside Vitest's client environment.
+    onigiriCompilerPlugin({ serializeInClient: true }),
     vue(),
     onigiriManifestPlugin({
       clientInclude: "/test/fixtures/components/**/*.vue",

@@ -180,6 +180,14 @@ interface OnigiriCompilerOptions {
    * @remarks Returning `undefined` keeps the source path for runtime resolution.
    */
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
+  /**
+   * Attaches the onigiri render in client environments too, for test
+   * harnesses that serialize in a browser-like realm. A client bundle
+   * otherwise carries no render, since only server code reads it.
+   *
+   * @default false
+   */
+  serializeInClient?: boolean;
 }
 
 /**

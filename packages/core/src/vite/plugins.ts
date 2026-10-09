@@ -29,6 +29,7 @@ export function onigiriPlugins(options: OnigiriPluginsOptions = {}): Plugin[] {
     isCustomElement,
     additionalImports,
     resolveChunkUrl,
+    serializeInClient,
     scan = true,
     serverInclude,
     clientInclude,
@@ -50,6 +51,7 @@ export function onigiriPlugins(options: OnigiriPluginsOptions = {}): Plugin[] {
       isCustomElement,
       additionalImports,
       resolveChunkUrl,
+      serializeInClient,
     }),
     onigiriManifestPlugin({ serverInclude, clientInclude, extraEntries, stub }),
   );

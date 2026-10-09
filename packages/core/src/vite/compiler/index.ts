@@ -23,6 +23,9 @@ import type { ComponentIdGenerator } from "./scope-id";
 export type { AdditionalImportInput };
 export type { ComponentIdGenerator };
 
+/** The slice of a hook's `this` every hook shares, `hotUpdate`'s minimal one included. */
+type HookContext = { environment?: { config?: { consumer?: string } } };
+
 const STYLE_BLOCK_RE = /[?&]type=style\b/;
 
 /**
@@ -49,6 +52,18 @@ function hasInlineTemplate(code: string): boolean {
     code.includes("ssrRenderStyle") ||
     code.includes("ssrRenderVNode")
   );
+}
+
+/**
+ * Only the server reads `__onigiriRender` and the AST descriptor, so a
+ * client bundle must not carry them: the attached module would statically
+ * import every `additionalImports` target, server-only components included.
+ */
+function isClientEnvironment(ctx: HookContext, ssr?: boolean): boolean {
+  const consumer = ctx.environment?.config?.consumer;
+  if (consumer) return consumer === "client";
+  // Pre-environment hosts: only client transforms set `ssr`, to false.
+  return ssr === false;
 }
 
 export interface OnigiriCompilerOptions {
@@ -92,6 +107,14 @@ export interface OnigiriCompilerOptions {
    * @remarks Returning `undefined` keeps the source path for runtime resolution.
    */
   resolveChunkUrl?: (sourcePath: string) => string | undefined;
+  /**
+   * Attaches the onigiri render in client environments too, for test
+   * harnesses that serialize in a browser-like realm. A client bundle
+   * otherwise carries no render, since only server code reads it.
+   *
+   * @default false
+   */
+  serializeInClient?: boolean;
 }
 
 /**
@@ -107,9 +130,13 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
     isCustomElement,
     additionalImports,
     resolveChunkUrl,
+    serializeInClient = false,
   } = options;
   let config: ResolvedConfig;
   let captureApi: SourceCaptureApi | undefined;
+
+  const skipEnvironment = (ctx: HookContext, ssr?: boolean): boolean =>
+    !serializeInClient && isClientEnvironment(ctx, ssr);
 
   const withCapturedSources = <T>(environment: string | undefined, fn: () => T): T => {
     const api = captureApi;
@@ -173,12 +200,14 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
     // plugin-vue narrows the update to its own blocks; re-add the onigiri
     // module unless only styles changed, which the render doesn't depend on.
     hotUpdate({ file, modules }) {
+      if (skipEnvironment(this)) return;
       if (modules.every((mod) => mod.id && STYLE_BLOCK_RE.test(mod.id))) return;
       const onigiriModule = this.environment.moduleGraph.getModuleById(toOnigiriId(file));
       if (onigiriModule && !modules.includes(onigiriModule)) return [...modules, onigiriModule];
     },
 
     async load(id) {
+      if (skipEnvironment(this)) return null;
       return withCapturedSources(this.environment?.name, () =>
         loadVirtualOnigiriModule(
           id,
@@ -199,11 +228,12 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
     },
 
     transform: {
-      async handler(code, id) {
+      async handler(code, id, transformOptions) {
         const [filePath, query] = id.split("?");
         if (!filePath || !filePath.endsWith(".vue") || parseOnigiriId(id)) {
           return null;
         }
+        if (skipEnvironment(this, transformOptions?.ssr)) return null;
 
         // Built on demand: `additionalImports` may be a getter re-evaluated
         // per transform, so it stays unread unless an injection happens.

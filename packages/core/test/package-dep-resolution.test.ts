@@ -96,6 +96,14 @@ describe("dev SSR: package component with its own dependency", () => {
     expect(mod!.transformResult?.code).toContain("__onigiriRender");
   });
 
+  it("serves the generated module untouched by plugin-vue", () => {
+    const id = toOnigiriId(labelPath().replaceAll("\\", "/"));
+    const code = server.environments.ssr.moduleGraph.getModuleById(id)!.transformResult?.code;
+    expect(code).toContain("function __onigiriRender");
+    // plugin-vue must leave it alone: no SFC main-module wrapper.
+    expect(code).not.toContain("_sfc_main");
+  });
+
   it("invalidates the generated module when the SFC changes", () => {
     const file = labelPath().replaceAll("\\", "/");
     const { moduleGraph } = server.environments.ssr;
@@ -107,17 +115,11 @@ describe("dev SSR: package component with its own dependency", () => {
   });
 
   it(
-    "serves the generated module to the client under the url the SFC imports",
+    "keeps the generated module out of the client environment",
     async () => {
       const client = server.environments.client;
       const sfc = await client.transformRequest(`/@fs/${labelPath().replaceAll("\\", "/")}`);
-      const url = /import __onigiriRender from "([^"]+)"/.exec(sfc!.code)?.[1];
-      expect(url).toBeDefined();
-
-      const generated = await client.transformRequest(url!.replace(/^\/@id\//, ""));
-      expect(generated?.code).toContain("export default function __onigiriRender");
-      // plugin-vue must leave it alone: no SFC main-module wrapper.
-      expect(generated?.code).not.toContain("_sfc_main");
+      expect(sfc!.code).not.toContain("__onigiriRender");
     },
     TIMEOUT,
   );
