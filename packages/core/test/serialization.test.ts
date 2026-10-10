@@ -22,6 +22,7 @@ import { serializeApp, serializeComponent } from "../src/runtime/serialize";
 import AsyncComponent from "./fixtures/components/AsyncComponent.vue";
 import WithAsyncComponent from "./fixtures/components/WithAsyncComponent.vue";
 import SlotToCounter from "./fixtures/components/SlotToCounter.vue";
+import IslandSlotChildren from "./fixtures/components/IslandSlotChildren.vue";
 import WithSuspense from "./fixtures/components/WithSuspense.vue";
 import ForVariants from "./fixtures/components/ForVariants.vue";
 import DisplayValues from "./fixtures/components/DisplayValues.vue";
@@ -387,6 +388,29 @@ describe("slots", () => {
     expect(removeCommentsFromHtml(html)).toMatchInlineSnapshot(
       `"<div><div> counter : 0 <button>Increment</button><div><p>Slot content (static)</p></div></div></div>"`,
     );
+  });
+
+  it("resolves server children and nested islands inside an island slot", async () => {
+    const { ast } = await serializeComponent(IslandSlotChildren);
+    const { ast: child } = await serializeComponent(ElementsOnly);
+    const island = (slot: unknown[]) => [
+      VServerComponentType.Component,
+      undefined,
+      "/test/fixtures/components/Counter.vue",
+      "default",
+      { default: slot },
+    ];
+
+    expect(ast).toEqual([
+      VServerComponentType.Element,
+      "div",
+      undefined,
+      [island([child, island([child])])],
+    ]);
+
+    const astHtml = await renderToString(h(Suspense, null, { default: () => renderOnigiri(ast) }));
+    const html = await renderToString(h(IslandSlotChildren));
+    expect(removeCommentsFromHtml(astHtml)).toBe(removeCommentsFromHtml(html));
   });
 });
 
