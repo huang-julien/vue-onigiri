@@ -2,11 +2,12 @@ import { defineConfig } from "vitest/config";
 import vue from "@vitejs/plugin-vue";
 import { fileURLToPath } from "node:url";
 import { onigiriCompilerPlugin } from "./src/vite/compiler";
+import codspeedPlugin from "@codspeed/vitest-plugin";
 
 const srcUrl = (rel: string) => fileURLToPath(new URL(`src/${rel}`, import.meta.url));
 
 export default defineConfig({
-  plugins: [onigiriCompilerPlugin({ serializeInClient: true }), vue()],
+  plugins: [onigiriCompilerPlugin({ serializeInClient: true }), vue(), codspeedPlugin()],
   resolve: {
     alias: {
       "vue-onigiri/runtime/serialize": srcUrl("runtime/serialize.ts"),
