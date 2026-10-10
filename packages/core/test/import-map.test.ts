@@ -59,6 +59,17 @@ describe("buildImportMap", () => {
     expect(map.get("Button")).toBe("@acme/ui-lib/Button.vue");
   });
 
+  it("keeps the bare specifier for out-of-root workspace packages on POSIX paths", async () => {
+    // Out-of-root POSIX paths also start with "/", like root-relative ones.
+    const map = await buildImportMap(
+      bindings(["Button", "@acme/ui-lib/Button.vue"]),
+      "/proj/src/pages/Home.vue",
+      "/proj",
+      async () => "/monorepo/packages/ui-lib/Button.vue",
+    );
+    expect(map.get("Button")).toBe("@acme/ui-lib/Button.vue");
+  });
+
   it("strips resolution queries before deriving the chunk path", async () => {
     const map = await buildImportMap(
       bindings(["Widget", "@/Widget.vue"]),

@@ -36,13 +36,23 @@ function fixtureConfig(): InlineConfig {
   };
 }
 
+/**
+ * Walks `dir`'s ancestor node_modules like Node, minus NODE_PATH globals.
+ * pnpm's bin shim puts its hoisted store there; bundlers ignore it.
+ */
+function inAncestorNodeModules(dir: string, spec: string): boolean {
+  for (let current = dir; ; current = path.dirname(current)) {
+    if (existsSync(path.join(current, "node_modules", spec))) return true;
+    if (path.dirname(current) === current) return false;
+  }
+}
+
 const labelPath = () =>
   createRequire(path.join(FIXTURE_ROOT, "entry.ts")).resolve(`${LIB}/Label.vue`);
 
 describe("fixture layout", () => {
   it("hides the dependency from the app root", () => {
-    const fromRoot = createRequire(path.join(FIXTURE_ROOT, "entry.ts"));
-    expect(() => fromRoot.resolve(DEP)).toThrow();
+    expect(inAncestorNodeModules(FIXTURE_ROOT, DEP)).toBe(false);
     expect(existsSync(createRequire(labelPath()).resolve(DEP))).toBe(true);
   });
 });

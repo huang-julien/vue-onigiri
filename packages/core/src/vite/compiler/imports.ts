@@ -54,10 +54,11 @@ async function resolveImportSource(
     if (resolved) {
       const clean = resolved.split("?")[0]!;
       const rel = toRootRelative(clean, root);
+      const outOfRoot = rel === normalizePath(clean);
       // Package files can't be glob keys, so the bare specifier stays
       // mappable by the host. Out-of-root covers workspace-linked packages,
       // whose realpath escapes both node_modules and the root.
-      if (!isRelative && (clean.includes("node_modules") || !rel.startsWith("/"))) {
+      if (!isRelative && (clean.includes("node_modules") || outOfRoot)) {
         return source;
       }
       return rel;
