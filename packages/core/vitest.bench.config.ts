@@ -5,7 +5,6 @@ import { onigiriCompilerPlugin } from "./src/vite/compiler";
 
 const srcUrl = (rel: string) => fileURLToPath(new URL(`src/${rel}`, import.meta.url));
 
-
 export default defineConfig({
   plugins: [onigiriCompilerPlugin({ serializeInClient: true }), vue()],
   resolve: {
@@ -25,9 +24,9 @@ export default defineConfig({
   test: {
     environment: "node",
     pool: "forks",
-    env: { 
+    env: {
       // Force production build for vue
-      NODE_ENV: "production"
+      NODE_ENV: "production",
     },
     include: ["./bench/**/*.measure.ts"],
     benchmark: {

@@ -1,4 +1,3 @@
-
 export const ONIGIRI_QUERY = "?vue&type=onigiri&lang.mjs";
 
 export function toOnigiriId(filePath: string): string {
