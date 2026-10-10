@@ -4,22 +4,13 @@ import { fileURLToPath } from "node:url";
 interface VitestBenchmark {
   name: string;
   median: number;
+  mean: number;
   p99: number;
   sampleCount: number;
 }
 
 interface VitestBenchReport {
   files: { groups: { fullName: string; benchmarks: VitestBenchmark[] }[] }[];
-}
-
-interface TachometerBenchmark {
-  name: string;
-  mean: { low: number; high: number };
-  samples?: number[];
-}
-
-interface TachometerReport {
-  benchmarks: TachometerBenchmark[];
 }
 
 interface SizeReport {
@@ -48,7 +39,7 @@ main();
 
 function main(): void {
   const ssr = readJson<VitestBenchReport>("ssr.json");
-  const client = readJson<TachometerReport>("client.json");
+  const client = readJson<VitestBenchReport>("client.json");
   const sizes = readJson<SizeReport>("payload-size.json");
 
   const sections = [
@@ -99,29 +90,25 @@ function ssrSection(report: VitestBenchReport | undefined): string {
   return `### SSR (Node, production Vue)\n\nMedian per call.\n\n${lines.join("\n")}\n`;
 }
 
-function clientSection(report: TachometerReport | undefined): string {
-  if (!report) return "### Client (Chrome)\n\n_No results, `bench:client` did not run._\n";
-
-  const byName = new Map(report.benchmarks.map((b) => [b.name, b]));
-  const cases = new Set<string>();
-  for (const name of byName.keys()) {
-    const m = name.match(/^(vue|onigiri) (\w+ rows=\d+)$/);
-    if (m) cases.add(m[2]!);
-  }
+function clientSection(report: VitestBenchReport | undefined): string {
+  if (!report) return "### Client (Chromium)\n\n_No results, `bench:client` did not run._\n";
 
   const lines = ["| rows | mode | vue | onigiri | ratio |", "|---|---|---:|---:|---:|"];
-  for (const key of [...cases].toSorted(sortByRows)) {
-    const [mode, rowsPart] = key.split(" ");
-    const rows = rowsPart!.replace("rows=", "");
-    const vue = byName.get(`vue ${key}`);
-    const onigiri = byName.get(`onigiri ${key}`);
-    const ratio = vue && onigiri ? `${(centre(onigiri) / centre(vue)).toFixed(2)}x` : "n/a";
-    const vueCell = vue ? formatCi(vue) : "n/a";
-    const onigiriCell = onigiri ? formatCi(onigiri) : "n/a";
-    lines.push(`| ${rows} | ${mode} | ${vueCell} | ${onigiriCell} | ${ratio} |`);
+  for (const file of report.files) {
+    for (const group of file.groups) {
+      const m = group.fullName.match(/client (\w+) rows=(\d+)/);
+      if (!m) continue;
+      const byName = new Map(group.benchmarks.map((b) => [b.name, b]));
+      const vue = byName.get("vue");
+      const onigiri = byName.get("onigiri");
+      const ratio = vue && onigiri ? `${(onigiri.mean / vue.mean).toFixed(2)}x` : "n/a";
+      const vueCell = vue ? formatMs(vue.mean) : "n/a";
+      const onigiriCell = onigiri ? formatMs(onigiri.mean) : "n/a";
+      lines.push(`| ${m[2]} | ${m[1]} | ${vueCell} | ${onigiriCell} | ${ratio} |`);
+    }
   }
 
-  return `### Client (headless Chrome)\n\nMean with 95% confidence interval, per \`mount()\`.\n\n${lines.join("\n")}\n`;
+  return `### Client (headless Chromium, Playwright)\n\nMean per \`mount()\` plus unmount, since Chromium rounds single timings to 0.1 ms.\n\n${lines.join("\n")}\n`;
 }
 
 function sizeSection(report: SizeReport | undefined): string {
@@ -141,15 +128,6 @@ function sizeSection(report: SizeReport | undefined): string {
   return `### Wire size\n\nVue SSR HTML vs the onigiri JSON payload for the same tree.\n\n${lines.join("\n")}\n`;
 }
 
-function centre(b: TachometerBenchmark): number {
-  return (b.mean.low + b.mean.high) / 2;
-}
-
-function formatCi(b: TachometerBenchmark): string {
-  const half = (b.mean.high - b.mean.low) / 2;
-  return `${formatMs(centre(b))} ± ${formatMs(half)}`;
-}
-
 function formatMs(ms: number): string {
   if (ms < 1) return `${(ms * 1000).toPrecision(3)} µs`;
   return `${ms.toPrecision(3)} ms`;
@@ -158,9 +136,4 @@ function formatMs(ms: number): string {
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   return `${(bytes / 1024).toFixed(1)} kB`;
-}
-
-function sortByRows(a: string, b: string): number {
-  const rows = (s: string) => Number(s.match(/rows=(\d+)/)?.[1] ?? 0);
-  return rows(a) - rows(b) || a.localeCompare(b);
 }

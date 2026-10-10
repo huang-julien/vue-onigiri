@@ -32,11 +32,10 @@
     "prepack": "pnpm build",
     "test": "pnpm lint && pnpm test:types && vitest run --coverage",
     "test:types": "vue-tsc",
-    "bench": "pnpm bench:size && pnpm bench:ssr && pnpm bench:client:build && pnpm bench:client && pnpm bench:report",
+    "bench": "pnpm bench:size && pnpm bench:ssr && pnpm bench:client && pnpm bench:report",
     "bench:size": "vitest run --config vitest.bench.config.ts",
     "bench:ssr": "vitest bench --run --config vitest.bench.config.ts --outputJson bench/results/ssr.json",
-    "bench:client:build": "vite build --config bench/client/vite.config.ts",
-    "bench:client": "node --experimental-strip-types bench/client/run-tachometer.ts",
+    "bench:client": "vitest bench --run --config vitest.browser-bench.config.ts --outputJson bench/results/client.json",
     "bench:report": "node --experimental-strip-types bench/report.ts"
   },
   "dependencies": {
@@ -50,6 +49,7 @@
   "devDependencies": {
     "@types/node": "^22.19.17",
     "@vitejs/plugin-vue": "^6.0.6",
+    "@vitest/browser-playwright": "4.1.10",
     "@vitest/coverage-v8": "^4.1.10",
     "@vitest/ui": "^4.1.10",
     "@vue-onigiri/test-ui-lib": "workspace:*",
@@ -57,7 +57,7 @@
     "@vue/test-utils": "^2.4.10",
     "automd": "^0.4.3",
     "happy-dom": "^20.9.0",
-    "tachometer": "^0.7.2",
+    "playwright": "^1.64.0",
     "typescript": "^6.0.3",
     "unbuild": "^3.6.1",
     "vite": "catalog:",
