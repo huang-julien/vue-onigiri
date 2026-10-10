@@ -7,3 +7,7 @@ dist
 *.log*
 *.env*
 *.tgz
+
+packages/core/bench/results
+packages/core/bench/client/dist
+packages/core/bench/client/generated

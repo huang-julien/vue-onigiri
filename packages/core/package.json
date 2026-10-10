@@ -31,7 +31,13 @@
     "lint:fix": "automd && oxlint --fix && oxfmt",
     "prepack": "pnpm build",
     "test": "pnpm lint && pnpm test:types && vitest run --coverage",
-    "test:types": "vue-tsc"
+    "test:types": "vue-tsc",
+    "bench": "pnpm bench:size && pnpm bench:ssr && pnpm bench:client:build && pnpm bench:client && pnpm bench:report",
+    "bench:size": "vitest run --config vitest.bench.config.ts",
+    "bench:ssr": "vitest bench --run --config vitest.bench.config.ts --outputJson bench/results/ssr.json",
+    "bench:client:build": "vite build --config bench/client/vite.config.ts",
+    "bench:client": "node --experimental-strip-types bench/client/run-tachometer.ts",
+    "bench:report": "node --experimental-strip-types bench/report.ts"
   },
   "dependencies": {
     "@babel/parser": "^7.29.3",
@@ -51,6 +57,7 @@
     "@vue/test-utils": "^2.4.10",
     "automd": "^0.4.3",
     "happy-dom": "^20.9.0",
+    "tachometer": "^0.7.2",
     "typescript": "^6.0.3",
     "unbuild": "^3.6.1",
     "vite": "catalog:",
