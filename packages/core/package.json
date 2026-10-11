@@ -36,7 +36,8 @@
     "bench:size": "vitest run --config vitest.bench.config.ts",
     "bench:ssr": "vitest bench --run --config vitest.bench.config.ts --outputJson bench/results/ssr.json",
     "bench:client": "vitest bench --run --config vitest.browser-bench.config.ts --outputJson bench/results/client.json",
-    "bench:report": "node --experimental-strip-types bench/report.ts"
+    "bench:report": "node --experimental-strip-types bench/report.ts",
+    "bench:codspeed": "vitest bench --run --config vitest.bench.config.ts bench/ssr bench/compiler"
   },
   "dependencies": {
     "@babel/parser": "^7.29.3",
@@ -47,6 +48,7 @@
     "magic-string": "^0.30.21"
   },
   "devDependencies": {
+    "@codspeed/vitest-plugin": "^5.7.1",
     "@types/node": "^22.19.17",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vitest/browser-playwright": "4.1.10",

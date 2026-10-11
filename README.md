@@ -7,6 +7,8 @@
 
 <!-- /automd -->
 
+[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/huang-julien/vue-onigiri?utm_source=badge)
+
 Vue Onigiri brings React Server Components-style rendering to Vue. Components render on the server into a transferable AST; the client deserializes that AST back into VNodes, and only components marked with `v-load-client` ship their JS to the browser.
 
 ## Motivation
