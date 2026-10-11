@@ -76,12 +76,11 @@ type VServerComponentStaticHtml = [
 
 export type MaybePromise<T> = T | Promise<T>;
 
-type VServerComponentElementBuffered = [
-  VServerComponentType.Element,
-  Tag,
-  Attrs,
-  MaybePromise<(VServerComponentBuffered | undefined)[]> | undefined,
-];
+export type BufferedChildren =
+  | MaybePromise<MaybePromise<VServerComponentBuffered | undefined>[]>
+  | undefined;
+
+type VServerComponentElementBuffered = [VServerComponentType.Element, Tag, Attrs, BufferedChildren];
 
 type VServerComponentComponentBuffered = [
   VServerComponentType.Component,
@@ -89,24 +88,21 @@ type VServerComponentComponentBuffered = [
   ChunkPath,
   // export name
   string,
-  MaybePromise<Record<string, VServerComponent[] | undefined>> | undefined,
+  MaybePromise<Record<string, BufferedChildren>> | undefined,
 ];
 type VServerComponentTextBuffered = [VServerComponentType.Text, string];
 type VServerComponentCommentBuffered = [VServerComponentType.Comment, string];
-type VServerComponentFragmentBuffered = [
-  VServerComponentType.Fragment,
-  MaybePromise<VServerComponentBuffered[]> | undefined,
-];
+type VServerComponentFragmentBuffered = [VServerComponentType.Fragment, BufferedChildren];
 type VServerComponentSuspenseBuffered = [
   VServerComponentType.Suspense,
-  MaybePromise<VServerComponentBuffered[]> | undefined,
-  (MaybePromise<VServerComponentBuffered[]> | undefined)?,
+  BufferedChildren,
+  BufferedChildren?,
 ];
 type VServerComponentTeleportBuffered = [
   VServerComponentType.Teleport,
   string,
   boolean | undefined,
-  MaybePromise<(VServerComponentBuffered | undefined)[]> | undefined,
+  BufferedChildren,
 ];
 
 type VServerComponentStaticHtmlBuffered = [VServerComponentType.StaticHtml, string, number];

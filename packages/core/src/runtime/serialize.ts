@@ -251,13 +251,7 @@ export function serializeComponentInContext(
   const doRender = (): Promise<VServerComponent | undefined> => {
     const taggedRender = pickTaggedRender(instance);
     if (taggedRender) {
-      const rendered = runTaggedRender(taggedRender, instance);
-      if (isPromise(rendered)) {
-        return rendered.then((r: VServerComponentBuffered) =>
-          unrollServerComponentBufferPromises(r),
-        );
-      }
-      return unrollServerComponentBufferPromises(rendered as VServerComponentBuffered);
+      return unrollServerComponentBufferPromises(runTaggedRender(taggedRender, instance));
     }
 
     const standalone = onigiriRenderOf(component);
@@ -424,14 +418,9 @@ export async function serializeApp(
     return await app.runWithContext(async () => {
       const taggedRootRender = pickTaggedRender(instance);
       if (taggedRootRender) {
-        const injectRendered = app.runWithContext(() =>
-          runTaggedRender(taggedRootRender, instance),
+        return unrollServerComponentBufferPromises(
+          app.runWithContext(() => runTaggedRender(taggedRootRender, instance)),
         );
-        if (isPromise(injectRendered)) {
-          const r = await injectRendered;
-          return unrollServerComponentBufferPromises(r as VServerComponentBuffered);
-        }
-        return unrollServerComponentBufferPromises(injectRendered as VServerComponentBuffered);
       }
 
       const standalone = onigiriRenderOf(componentType);
@@ -450,112 +439,60 @@ export async function serializeApp(
   return { v: ONIGIRI_PAYLOAD_VERSION, ast };
 }
 
-async function unrollSlotsObject(
-  slots: Record<string, unknown>,
-  unserializableProp?: Set<string>,
-): Promise<Record<string, unknown>> {
-  const out: Record<string, unknown> = {};
-  await Promise.all(
-    Object.entries(slots).map(async ([key, value]) => {
-      if (isPromise(value)) {
-        const resolved = await value;
-        out[key] = Array.isArray(resolved)
-          ? await unrollServerComponentBufferPromises(
-              resolved as VServerComponentBuffered,
-              unserializableProp,
-            )
-          : resolved;
-      } else if (Array.isArray(value)) {
-        out[key] = await unrollServerComponentBufferPromises(
-          value as VServerComponentBuffered,
-          unserializableProp,
-        );
-      } else {
-        out[key] = value;
-      }
-    }),
-  );
-  return out;
-}
-
 export function unrollServerComponentBufferPromises(
-  buffer: VServerComponentBuffered | MaybePromise<VServerComponentBuffered>,
+  buffer: MaybePromise<VServerComponentBuffered>,
   warned: Set<string> = new Set(),
 ): Promise<VServerComponent> {
-  if (isPromise(buffer)) {
-    return buffer.then((r) => {
-      return unrollServerComponentBufferPromises(r, warned);
-    });
+  return Promise.resolve(unroll(buffer, warned) as MaybePromise<VServerComponent>);
+}
+
+function unroll(node: unknown, warned: Set<string>): MaybePromise<unknown> {
+  if (!Array.isArray(node)) {
+    return isPromise(node) ? node.then((r) => unroll(r, warned)) : node;
   }
-  const result = [] as unknown as VServerComponent;
-  const promises: Promise<any>[] = [];
-  // Index 4 of a `[Component, ...]` tuple is the slots object; recurse into it so Promises in slot bodies get awaited.
-  const isComponentTuple =
-    Array.isArray(buffer) && (buffer as any)[0] === VServerComponentType.Component;
+  const isComponentTuple = node[0] === VServerComponentType.Component;
 
   if ((typeof __DEV__ === "undefined" || __DEV__) && isComponentTuple) {
-    warnNonSerializableProps((buffer as any)[2], (buffer as any)[1], warned);
+    warnNonSerializableProps(node[2], node[1], warned);
   }
 
-  for (const i in buffer) {
-    const item = buffer[i];
-    if (isPromise(item)) {
-      promises.push(
-        item.then((r) => {
-          if (Array.isArray(r)) {
-            return Promise.all(r.map((v) => unrollServerComponentBufferPromises(v, warned))).then(
-              (unrolled) => {
-                result[i] = unrolled;
-              },
-            );
-          }
+  return mapMaybe(node, (item, i) => {
+    if (isComponentTuple && i === 4) return unrollSlots(item, warned);
+    return item !== null && typeof item === "object" ? unroll(item, warned) : item;
+  });
+}
 
-          result[i] = r;
-          return r;
-        }),
-      );
-    } else if (Array.isArray(item)) {
-      promises.push(
-        Promise.all(
-          item.map((v) => {
-            if (isPromise(v)) {
-              return v.then((resolved) => {
-                if (resolved && Array.isArray(resolved)) {
-                  return unrollServerComponentBufferPromises(
-                    resolved as VServerComponentBuffered,
-                    warned,
-                  );
-                }
-                return resolved;
-              });
-            }
-            if (Array.isArray(v)) {
-              return unrollServerComponentBufferPromises(v as VServerComponentBuffered, warned);
-            }
-            return v;
-          }),
-        ).then((unrolled) => {
-          result[i] = unrolled;
-        }),
-      );
-    } else if (
-      isComponentTuple &&
-      i === "4" &&
-      item &&
-      typeof item === "object" &&
-      !Array.isArray(item)
-    ) {
-      promises.push(
-        unrollSlotsObject(item as Record<string, unknown>, warned).then((unrolled) => {
-          result[i] = unrolled as any;
+function unrollSlots(slots: unknown, warned: Set<string>): MaybePromise<unknown> {
+  if (isPromise(slots)) return slots.then((r) => unrollSlots(r, warned));
+  if (!slots) return slots;
+  const keys = Object.keys(slots);
+  const values = mapMaybe(keys, (key) => unroll((slots as Record<string, unknown>)[key], warned));
+  const toObject = (resolved: unknown[]) =>
+    Object.fromEntries(keys.map((key, i) => [key, resolved[i]]));
+  return Array.isArray(values) ? toObject(values) : values.then(toObject);
+}
+
+function mapMaybe<T>(
+  items: T[],
+  map: (item: T, index: number) => unknown,
+): MaybePromise<unknown[]> {
+  const out: unknown[] = [];
+  let pending: Promise<void>[] | undefined;
+  for (let i = 0; i < items.length; i++) {
+    const value = map(items[i]!, i);
+    // most entries are arrays or primitives; skip the thenable probe for them
+    if (value !== null && typeof value === "object" && !Array.isArray(value) && isPromise(value)) {
+      out.push(undefined);
+      (pending ??= []).push(
+        value.then((resolved) => {
+          out[i] = resolved;
         }),
       );
     } else {
-      result[i] = item as VServerComponent;
+      out.push(value);
     }
   }
-
-  return Promise.all(promises).then(() => result);
+  return pending ? Promise.all(pending).then(() => out) : out;
 }
 
 export async function serializeVNode(
