@@ -32,9 +32,9 @@
     "prepack": "pnpm build",
     "test": "pnpm lint && pnpm test:types && vitest run --coverage",
     "test:types": "vue-tsc",
-    "bench": "pnpm bench:size && pnpm bench:ssr && pnpm bench:client && pnpm bench:report",
+    "bench": "pnpm bench:size && pnpm bench:client && pnpm bench:report",
     "bench:size": "vitest run --config vitest.bench.config.ts",
-    "bench:ssr": "vitest bench --run --config vitest.bench.config.ts --outputJson bench/results/ssr.json",
+    "bench:ssr": "vitest bench --run --config vitest.bench.config.ts",
     "bench:client": "vitest bench --run --config vitest.browser-bench.config.ts --outputJson bench/results/client.json",
     "bench:report": "node --experimental-strip-types bench/report.ts",
     "bench:codspeed": "vitest bench --run --config vitest.bench.config.ts bench/ssr bench/compiler"

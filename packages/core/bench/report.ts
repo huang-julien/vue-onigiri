@@ -29,16 +29,9 @@ const COMMENT_MARKER = "<!-- vue-onigiri-bench -->";
 
 const RESULTS_DIR = fileURLToPath(new URL("./results/", import.meta.url));
 
-const SSR_COLUMNS = [
-  "vue renderToString",
-  "onigiri serializeComponent",
-  "onigiri serialize + renderToString",
-];
-
 main();
 
 function main(): void {
-  const ssr = readJson<VitestBenchReport>("ssr.json");
   const client = readJson<VitestBenchReport>("client.json");
   const sizes = readJson<SizeReport>("payload-size.json");
 
@@ -47,7 +40,8 @@ function main(): void {
     "## 🍙 Runtime benchmarks",
     process.env.BENCH_COMMIT ? `Commit: \`${process.env.BENCH_COMMIT}\`` : "",
     "",
-    ssrSection(ssr),
+    "SSR and compiler timings are tracked by CodSpeed, see its check on this PR.",
+    "",
     clientSection(client),
     sizeSection(sizes),
     "<sub>Ratios are onigiri / Vue, lower is better. Timings come from one CI runner and should be read as ratios, not absolutes.</sub>",
@@ -64,34 +58,9 @@ function readJson<T>(file: string): T | undefined {
   return JSON.parse(readFileSync(path, "utf8")) as T;
 }
 
-function ssrSection(report: VitestBenchReport | undefined): string {
-  if (!report) return "### SSR (Node)\n\n_No results, `bench:ssr` did not run._\n";
-
-  const header = `| rows | ${SSR_COLUMNS.join(" | ")} |`;
-  const divider = `|---|${SSR_COLUMNS.map(() => "---:").join("|")}|`;
-  const lines = [header, divider];
-
-  for (const file of report.files) {
-    for (const group of file.groups) {
-      const rows = group.fullName.match(/rows=(\d+)/)?.[1] ?? group.fullName;
-      const byName = new Map(group.benchmarks.map((b) => [b.name, b]));
-      const base = byName.get(SSR_COLUMNS[0]!)?.median;
-      const cells = SSR_COLUMNS.map((name) => {
-        const b = byName.get(name);
-        if (!b) return "n/a";
-        const showRatio = base !== undefined && name !== SSR_COLUMNS[0];
-        const ratio = showRatio ? ` (${(b.median / base).toFixed(1)}x)` : "";
-        return `${formatMs(b.median)}${ratio}`;
-      });
-      lines.push(`| ${rows} | ${cells.join(" | ")} |`);
-    }
-  }
-
-  return `### SSR (Node, production Vue)\n\nMedian per call.\n\n${lines.join("\n")}\n`;
-}
-
 function clientSection(report: VitestBenchReport | undefined): string {
-  if (!report) return "### Client (Chromium)\n\n_No results, `bench:client` did not run._\n";
+  if (!report)
+    return "### Client (Chromium)\n\n_Skipped. Add the `bench` label to the PR to run it._\n";
 
   const lines = ["| rows | mode | vue | onigiri | ratio |", "|---|---|---:|---:|---:|"];
   for (const file of report.files) {
