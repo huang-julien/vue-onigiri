@@ -1,8 +1,94 @@
 # Changelog
 
+## v0.7.0
+
+[compare changes](https://github.com/huang-julien/vue-onigiri/compare/cd2fc4d...v0.7.0)
+
+### 🔥 Performance
+
+- **runtime:** Don't create promises for sync subtrees ([#20](https://github.com/huang-julien/vue-onigiri/pull/20))
+- **runtime:** Unroll buffered trees in place instead of copying ([#22](https://github.com/huang-julien/vue-onigiri/pull/22))
+- **runtime:** Unroll serialized trees once at the root ([#23](https://github.com/huang-julien/vue-onigiri/pull/23))
+- **runtime:** Keep the vnode walk synchronous when nothing is async ([#24](https://github.com/huang-julien/vue-onigiri/pull/24))
+- **runtime:** Build element vnodes with createElementVNode ([#26](https://github.com/huang-julien/vue-onigiri/pull/26))
+- **payload:** ⚠️  Make children AST entry simple string ([#27](https://github.com/huang-julien/vue-onigiri/pull/27))
+
+### 🩹 Fixes
+
+- **compiler:** Detect out-of-root package imports on POSIX paths ([2cde249](https://github.com/huang-julien/vue-onigiri/commit/2cde249))
+
+### 🏡 Chore
+
+- Lint ([#17](https://github.com/huang-julien/vue-onigiri/pull/17))
+- Exclude bench from tsconfig ([#18](https://github.com/huang-julien/vue-onigiri/pull/18))
+- Lint ([#19](https://github.com/huang-julien/vue-onigiri/pull/19))
+- Set up CodSpeed benchmarks ([#21](https://github.com/huang-julien/vue-onigiri/pull/21))
+
+### ✅ Tests
+
+- Ad benchmarks tests ([#16](https://github.com/huang-julien/vue-onigiri/pull/16))
+- Add bench for component with vnodeonly ([#25](https://github.com/huang-julien/vue-onigiri/pull/25))
+
+### 🤖 CI
+
+- Drop SSR bench from bench.yml ([56fe19d](https://github.com/huang-julien/vue-onigiri/commit/56fe19d))
+
+#### ⚠️ Breaking Changes
+
+- **payload:** ⚠️  Make children AST entry simple string ([#27](https://github.com/huang-julien/vue-onigiri/pull/27))
+
+  The payload version is now 2. An element whose only child is text carries the string directly in the children slot instead of a `[2, text]` tuple, like Vue's own `TEXT_CHILDREN`. `renderOnigiri` rejects version 1 payloads, so the server and the client must ship the same package version.
+
+### ❤️ Contributors
+
+- Julien Huang ([@huang-julien](https://github.com/huang-julien))
+
+## v0.6.4
+
+[compare changes](https://github.com/huang-julien/vue-onigiri/compare/1b400d7...cd2fc4d)
+
+### 🩹 Fixes
+
+- Disable client serialization by default ([b90d552](https://github.com/huang-julien/vue-onigiri/commit/b90d552))
+
+### ❤️ Contributors
+
+- Julien Huang ([@huang-julien](https://github.com/huang-julien))
+
+## v0.6.3
+
+[compare changes](https://github.com/huang-julien/vue-onigiri/compare/0ccb472...1b400d7)
+
+### 🩹 Fixes
+
+- **runtime:** Set rendering instance for slot and onigiri render calls ([1a6b124](https://github.com/huang-julien/vue-onigiri/commit/1a6b124))
+
+### ❤️ Contributors
+
+- Julien Huang ([@huang-julien](https://github.com/huang-julien))
+
+## v0.6.2
+
+[compare changes](https://github.com/huang-julien/vue-onigiri/compare/v0.6.1...0ccb472)
+
+### 🩹 Fixes
+
+- **compiler:** Leave vue globals unprefixed ([0165d84](https://github.com/huang-julien/vue-onigiri/commit/0165d84))
+- **compiler:** Always gen slot content in array ([6a1d379](https://github.com/huang-julien/vue-onigiri/commit/6a1d379))
+- **compiler:** Normalize additionnal imports ([0e2bfc3](https://github.com/huang-julien/vue-onigiri/commit/0e2bfc3))
+- **compiler:** Key onigiri modules on the real SFC path ([af7c79f](https://github.com/huang-julien/vue-onigiri/commit/af7c79f))
+
+### 🏡 Chore
+
+- Lint ([153b523](https://github.com/huang-julien/vue-onigiri/commit/153b523))
+
+### ❤️ Contributors
+
+- Julien Huang ([@huang-julien](https://github.com/huang-julien))
+
 ## v0.6.1
 
-[compare changes](https://undefined/undefined/compare/v0.6.0...v0.6.1)
+[compare changes](https://github.com/huang-julien/vue-onigiri/compare/v0.6.0...v0.6.1)
 
 ### 🩹 Fixes
 
