@@ -5,6 +5,7 @@ import { serializeComponent } from "../../src/runtime/serialize";
 import { renderOnigiri } from "../../src/runtime/deserialize";
 import Tree from "../fixtures/Tree.vue";
 import Nested from "../fixtures/Nested.vue";
+import { PlainTree } from "../fixtures/PlainTree";
 import { ROW_COUNTS } from "../shared";
 
 const BENCH_OPTIONS = { warmupIterations: 20, iterations: 100, time: 1000 };
@@ -55,6 +56,25 @@ describe(`ssr nested depth=${NESTED.depth} width=${NESTED.width}`, () => {
     "onigiri serializeComponent",
     async () => {
       await serializeComponent(Nested, NESTED);
+    },
+    BENCH_OPTIONS,
+  );
+});
+
+// Components without `__onigiriRender` go through the VNode walk instead of compiled output.
+describe("ssr vnode walk rows=10000", () => {
+  bench(
+    "vue renderToString",
+    async () => {
+      await renderToString(createSSRApp(PlainTree, { count: 10_000 }));
+    },
+    BENCH_OPTIONS,
+  );
+
+  bench(
+    "onigiri serializeComponent",
+    async () => {
+      await serializeComponent(PlainTree, { count: 10_000 });
     },
     BENCH_OPTIONS,
   );

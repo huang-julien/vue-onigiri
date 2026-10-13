@@ -5,7 +5,8 @@ import {
   // @ts-expect-error ssrUtils is not a public API
   ssrUtils,
 } from "vue";
-import { serializeVNode } from "./serialize";
+import { isPromise } from "@vue/shared";
+import { allMaybe, serializeVNode } from "./serialize";
 import { VServerComponentType } from "./shared";
 import type { VServerComponentBuffered } from "./shared";
 
@@ -80,16 +81,18 @@ export function renderSlot(
         return wrapSlotResult(content);
       }
       if (isVNode(first)) {
-        return Promise.all(
+        const serialized = allMaybe(
           content.map((child: VNodeChild) => serializeVNode(child, parentInstance)),
-        ).then(wrapSlotResult);
+        );
+        return isPromise(serialized) ? serialized.then(wrapSlotResult) : wrapSlotResult(serialized);
       }
       return wrapSlotResult(content) as VServerComponentBuffered;
     }
 
-    return serializeVNode(content as VNodeChild, parentInstance).then(
-      (serialized) => serialized ?? wrapSlotResult(renderFallback()),
-    );
+    const serialized = serializeVNode(content as VNodeChild, parentInstance);
+    const orFallback = (node: VServerComponentBuffered | undefined) =>
+      node ?? wrapSlotResult(renderFallback());
+    return isPromise(serialized) ? serialized.then(orFallback) : orFallback(serialized);
   }
 
   return slot as VServerComponentBuffered;
