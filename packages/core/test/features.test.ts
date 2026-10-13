@@ -89,10 +89,9 @@ describe("provide/inject across boundaries", () => {
     });
     const ast = await serializeComponent(Parent);
     const astHtml = await renderToString(h(Suspense, null, { default: () => renderOnigiri(ast) }));
-    // Accept either value: the system currently serializes the already-
-    // resolved span, so the end state after renderToString must show the
-    // injected value. If it shows 'fallback', the provides chain broke.
-    expect(astHtml).toMatch(/from parent|fallback/);
+    // The parent is the app root and the child renders synchronously, which
+    // used to resolve against app provides when serializeApp ran in app context.
+    expect(astHtml).toContain("from parent");
   });
 });
 

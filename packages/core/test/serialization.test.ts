@@ -18,7 +18,8 @@ import {
 } from "vue";
 import { renderOnigiri } from "../src/runtime/deserialize";
 import LoadComponent from "./fixtures/components/LoadComponent.vue";
-import { serializeApp, serializeComponent } from "../src/runtime/serialize";
+import { serializeApp, serializeComponent, serializeVNode } from "../src/runtime/serialize";
+import { isPromise } from "@vue/shared";
 import AsyncComponent from "./fixtures/components/AsyncComponent.vue";
 import WithAsyncComponent from "./fixtures/components/WithAsyncComponent.vue";
 import SlotToCounter from "./fixtures/components/SlotToCounter.vue";
@@ -748,5 +749,21 @@ describe("app-level context", () => {
 
     expect(JSON.stringify(ast)).toContain("from app");
     expect(context.touched).toBe("yes");
+  });
+});
+
+describe("serializeVNode", () => {
+  it("stays synchronous for a plain element tree", () => {
+    const buffered = serializeVNode(h("div", null, [h("span", null, "a"), "b"]));
+    expect(isPromise(buffered)).toBe(false);
+    expect(buffered).toEqual([
+      VServerComponentType.Element,
+      "div",
+      undefined,
+      [
+        [VServerComponentType.Element, "span", undefined, [[VServerComponentType.Text, "a"]]],
+        [VServerComponentType.Text, "b"],
+      ],
+    ]);
   });
 });

@@ -410,30 +410,19 @@ export async function serializeApp(
     __onigiriRender?: (ctx: any, slots: any) => VServerComponentBuffered;
   };
 
-  const ast = await app.runWithContext(async () => {
-    await runSetup(instance);
+  // not wrapped in app.runWithContext
+  // while it is active, Vue's inject reads app provides only and skips component-level provide() on sync render chains.
+  await runSetup(instance);
 
-    return await app.runWithContext(async () => {
-      const taggedRootRender = pickTaggedRender(instance);
-      if (taggedRootRender) {
-        return unrollServerComponentBufferPromises(
-          app.runWithContext(() => runTaggedRender(taggedRootRender, instance)),
-        );
-      }
+  const taggedRootRender = pickTaggedRender(instance);
+  const standalone = taggedRootRender ? undefined : onigiriRenderOf(componentType);
+  const buffered = await (taggedRootRender
+    ? runTaggedRender(taggedRootRender, instance)
+    : standalone
+      ? runOnigiriRender(standalone, instance)
+      : serializeVNode(renderComponentRoot(instance), instance));
 
-      const standalone = onigiriRenderOf(componentType);
-      if (standalone) {
-        const result = app.runWithContext(() => runOnigiriRender(standalone, instance));
-        return unrollServerComponentBufferPromises(result);
-      }
-
-      const child = renderComponentRoot(instance);
-      const result = await app.runWithContext(() => serializeVNode(child, instance));
-      if (result) {
-        return unrollServerComponentBufferPromises(result);
-      }
-    });
-  });
+  const ast = buffered ? await unrollServerComponentBufferPromises(buffered) : undefined;
   return { v: ONIGIRI_PAYLOAD_VERSION, ast };
 }
 
@@ -506,10 +495,13 @@ function unrollComponentSlotsInPlace(
 
 function noOp(): void {}
 
-export async function serializeVNode(
+/**
+ * serialize a Vue VNode tree into the buffered format
+ */
+export function serializeVNode(
   vnode: VNodeChild,
   parentInstance?: ComponentInternalInstance,
-): Promise<VServerComponentBuffered | undefined> {
+): MaybePromise<VServerComponentBuffered | undefined> {
   if (Array.isArray(vnode)) {
     return [
       VServerComponentType.Fragment,
@@ -546,10 +538,14 @@ export async function serializeVNode(
       const standalone = onigiriRenderOf(componentType);
       if (standalone) {
         const instance = createComponentInstance(vnode, parentInstance ?? null, null);
-        await runSetup(instance);
-
-        const tagged = pickTaggedRender(instance);
-        return tagged ? runTaggedRender(tagged, instance) : runOnigiriRender(standalone, instance);
+        const render = () => {
+          const tagged = pickTaggedRender(instance);
+          return tagged
+            ? runTaggedRender(tagged, instance)
+            : runOnigiriRender(standalone, instance);
+        };
+        const pending = runSetup(instance);
+        return pending ? pending.then(render) : render();
       }
 
       return serializeComponentSubtree(vnode, parentInstance);
@@ -631,13 +627,24 @@ function serializeChildren(
   }
 
   if (Array.isArray(children)) {
-    return Promise.all(children.map((vnode) => serializeVNode(vnode, parentInstance))).then(
-      (vnodes) => vnodes.filter(Boolean) as VServerComponentBuffered[],
-    );
+    const serialized = allMaybe(children.map((vnode) => serializeVNode(vnode, parentInstance)));
+    return isPromise(serialized) ? serialized.then(withoutEmpty) : withoutEmpty(serialized);
   }
   if (typeof children === "string" || typeof children === "number") {
     return [[VServerComponentType.Text, children as string]];
   }
+}
+
+function withoutEmpty(nodes: (VServerComponentBuffered | undefined)[]): VServerComponentBuffered[] {
+  return nodes.filter(Boolean) as VServerComponentBuffered[];
+}
+
+/** `Promise.all` that stays synchronous when no item is a Promise. */
+export function allMaybe<T>(items: MaybePromise<T>[]): MaybePromise<T[]> {
+  for (let i = 0; i < items.length; i++) {
+    if (isPromise(items[i])) return Promise.all(items);
+  }
+  return items as T[];
 }
 
 function serializeComponentSubtree(
