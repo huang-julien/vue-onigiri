@@ -10,8 +10,25 @@ import { ROW_COUNTS } from "../shared";
 
 const BENCH_OPTIONS = { warmupIterations: 20, iterations: 100, time: 1000 };
 
+// One payload per row count, so the deserialize bench measures only the AST to VNode rebuild.
+const PAYLOADS = new Map(
+  await Promise.all(
+    ROW_COUNTS.map(
+      async (rows) => [rows, await serializeComponent(Tree, { count: rows })] as const,
+    ),
+  ),
+);
+
 for (const rows of ROW_COUNTS) {
   describe(`ssr rows=${rows}`, () => {
+    bench(
+      "onigiri renderOnigiri",
+      () => {
+        renderOnigiri(PAYLOADS.get(rows));
+      },
+      BENCH_OPTIONS,
+    );
+
     bench(
       "vue renderToString",
       async () => {
