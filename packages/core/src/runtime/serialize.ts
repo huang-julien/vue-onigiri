@@ -26,6 +26,7 @@ import {
 import { isPromise, ShapeFlags } from "@vue/shared";
 import {
   type VServerComponentBuffered,
+  type BufferedChildren,
   VServerComponentType,
   type VServerComponent,
   type MaybePromise,
@@ -86,7 +87,7 @@ type OnigiriComponent = Component & {
   __onigiriASTDescriptor?: OnigiriASTDescriptor;
 };
 
-export async function serializeChildComponent(
+export function serializeChildComponent(
   component: OnigiriComponent,
   props?: any,
   parentInstance?: ComponentInternalInstance,
@@ -94,7 +95,7 @@ export async function serializeChildComponent(
   slots?: Record<string, VServerComponent[] | ((props?: any) => any)>,
   fallbackChunk?: string,
   fallbackExport: string = "default",
-): Promise<VServerComponent | undefined> {
+): MaybePromise<VServerComponentBuffered | undefined> {
   if (loadClient) {
     const descriptor = component.__onigiriASTDescriptor;
     const chunk = descriptor?.chunk ?? fallbackChunk;
@@ -114,7 +115,7 @@ export async function serializeChildComponent(
       filterProps(props),
       chunk,
       exportName,
-      slots as Record<string, VServerComponent[]> | undefined,
+      slots as Record<string, BufferedChildren> | undefined,
     ];
   }
   return serializeComponentInContext(component, props, parentInstance, slots);
@@ -166,7 +167,8 @@ function makeAsyncASTComponent(promise: Promise<any>) {
   const comp: any = defineComponent({
     name: "OnigiriAsyncAST",
     async setup() {
-      const resolved = await promise;
+      // Boundaries hand back buffered trees; resolve them before building VNodes.
+      const resolved = await unrollServerComponentBufferPromises(promise);
       const vnode = astToVNode(resolved);
       return () => vnode || createVNode(Fragment, null, []);
     },
@@ -238,33 +240,29 @@ function wrapSlotFnsForVue(
 /**
  * Serialize a component within an existing render context. Called by
  * the compiled `__onigiriRender` function for each child component.
+ * Returns the buffered tree as is: only the root entry point unrolls it.
  */
 export function serializeComponentInContext(
   component: OnigiriComponent,
   props?: any,
   parentInstance?: ComponentInternalInstance,
   slots?: Record<string, ((props?: any) => any) | VServerComponent[]>,
-): Promise<VServerComponent | undefined> {
+): MaybePromise<VServerComponentBuffered | undefined> {
   const vnode = createVNode(component, props, wrapSlotFnsForVue(slots) as any);
   const instance = createComponentInstance(vnode, parentInstance ?? null, null);
 
-  const doRender = (): Promise<VServerComponent | undefined> => {
+  const doRender = (): MaybePromise<VServerComponentBuffered | undefined> => {
     const taggedRender = pickTaggedRender(instance);
     if (taggedRender) {
-      return unrollServerComponentBufferPromises(runTaggedRender(taggedRender, instance));
+      return runTaggedRender(taggedRender, instance);
     }
 
     const standalone = onigiriRenderOf(component);
     if (standalone) {
-      return unrollServerComponentBufferPromises(runOnigiriRender(standalone, instance));
+      return runOnigiriRender(standalone, instance);
     }
 
-    const child = renderComponentRoot(instance);
-    return Promise.resolve(serializeVNode(child, instance)).then((result) => {
-      if (result) {
-        return unrollServerComponentBufferPromises(result);
-      }
-    });
+    return serializeVNode(renderComponentRoot(instance), instance);
   };
 
   const pending = runSetup(instance);

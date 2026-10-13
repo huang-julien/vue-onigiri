@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import { unrollServerComponentBufferPromises } from "../src/runtime/serialize";
+import { isPromise } from "@vue/shared";
+import { defineComponent, getCurrentInstance, h, type ComponentInternalInstance } from "vue";
+import {
+  serializeComponent,
+  serializeComponentInContext,
+  unrollServerComponentBufferPromises,
+} from "../src/runtime/serialize";
+import WithAsyncComponent from "./fixtures/components/WithAsyncComponent.vue";
 import {
   VServerComponentType,
   type BufferedChildren,
@@ -111,5 +118,34 @@ describe("unrollServerComponentBufferPromises", () => {
     );
     expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
+  });
+});
+
+// Each component boundary used to unroll its own subtree, so nested trees were
+// walked once per ancestor. Boundaries now hand back buffered trees untouched.
+describe("component boundaries", () => {
+  const containsPromise = (node: unknown): boolean => {
+    if (node === null || typeof node !== "object") return false;
+    if (isPromise(node)) return true;
+    return Object.values(node).some(containsPromise);
+  };
+
+  it("leaves an async child buffered until the root unrolls", async () => {
+    // Boundaries need a parent instance for the app context; borrow one from a probe render.
+    let parent: ComponentInternalInstance | null = null;
+    const Probe = defineComponent({
+      setup() {
+        parent = getCurrentInstance();
+        return () => h("div");
+      },
+    });
+    await serializeComponent(Probe);
+
+    const buffered = await serializeComponentInContext(WithAsyncComponent, undefined, parent!);
+    expect(containsPromise(buffered)).toBe(true);
+
+    const resolved = await unrollServerComponentBufferPromises(buffered!);
+    expect(containsPromise(resolved)).toBe(false);
+    expect(resolved).toEqual((await serializeComponent(WithAsyncComponent)).ast);
   });
 });

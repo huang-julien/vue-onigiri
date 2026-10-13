@@ -5,9 +5,9 @@ import {
   // @ts-expect-error ssrUtils is not a public API
   ssrUtils,
 } from "vue";
-import { serializeVNode, unrollServerComponentBufferPromises } from "./serialize";
+import { serializeVNode } from "./serialize";
 import { VServerComponentType } from "./shared";
-import type { VServerComponent, VServerComponentBuffered } from "./shared";
+import type { VServerComponentBuffered } from "./shared";
 
 const {
   setCurrentRenderingInstance,
@@ -47,7 +47,7 @@ export function renderSlot(
 ):
   | VServerComponentBuffered
   | VServerComponentBuffered[]
-  | Promise<VServerComponent | VServerComponent[]>
+  | Promise<VServerComponentBuffered | VServerComponentBuffered[] | undefined>
   | undefined {
   const parentInstance = ctx && ctx._ ? ctx._ : undefined;
   const slot = slots?.[name];
@@ -81,24 +81,15 @@ export function renderSlot(
       }
       if (isVNode(first)) {
         return Promise.all(
-          content.map(async (child: VNodeChild) => {
-            const serialized = await serializeVNode(child, parentInstance);
-            if (serialized) {
-              return unrollServerComponentBufferPromises(serialized);
-            }
-            return undefined;
-          }),
-        ).then((results) => wrapSlotResult(results.filter(Boolean)) as VServerComponent);
+          content.map((child: VNodeChild) => serializeVNode(child, parentInstance)),
+        ).then(wrapSlotResult);
       }
       return wrapSlotResult(content) as VServerComponentBuffered;
     }
 
-    return serializeVNode(content as VNodeChild, parentInstance).then((serialized) => {
-      if (serialized) {
-        return unrollServerComponentBufferPromises(serialized);
-      }
-      return unrollServerComponentBufferPromises(renderFallback() as VServerComponentBuffered);
-    });
+    return serializeVNode(content as VNodeChild, parentInstance).then(
+      (serialized) => serialized ?? wrapSlotResult(renderFallback()),
+    );
   }
 
   return slot as VServerComponentBuffered;
