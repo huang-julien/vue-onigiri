@@ -8,7 +8,7 @@ import type { InjectionKey } from "vue";
 export const ONIGIRI_RENDER_SYMBOL: InjectionKey<true> =
   /* #__PURE__ */ Symbol.for("onigiri-render");
 
-export const ONIGIRI_PAYLOAD_VERSION = 1;
+export const ONIGIRI_PAYLOAD_VERSION = 2;
 
 /** Versioned envelope produced by `serializeApp` / `serializeComponent`. */
 export interface OnigiriPayload {
@@ -31,10 +31,12 @@ export enum VServerComponentType {
 type Tag = string;
 type ChunkPath = string;
 type Children = VServerComponent[] | undefined;
+/** A lone text child travels as the string itself, like Vue's TEXT_CHILDREN. */
+type ElementChildren = Children | string;
 type Props = Record<string, any> | undefined;
 type Attrs = Record<string, any> | undefined;
 type Slots = Record<string, Children> | undefined;
-type VServerComponentElement = [VServerComponentType.Element, Tag, Attrs, Children];
+type VServerComponentElement = [VServerComponentType.Element, Tag, Attrs, ElementChildren];
 
 export type VServerComponentComponent = [
   VServerComponentType.Component,
@@ -80,7 +82,12 @@ export type BufferedChildren =
   | MaybePromise<MaybePromise<VServerComponentBuffered | undefined>[]>
   | undefined;
 
-type VServerComponentElementBuffered = [VServerComponentType.Element, Tag, Attrs, BufferedChildren];
+type VServerComponentElementBuffered = [
+  VServerComponentType.Element,
+  Tag,
+  Attrs,
+  BufferedChildren | string,
+];
 
 type VServerComponentComponentBuffered = [
   VServerComponentType.Component,

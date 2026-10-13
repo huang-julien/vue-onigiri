@@ -5,6 +5,7 @@ import type { CodegenContext } from "./context";
 import { withoutRenderlessChildren, genNodeList } from "./vnode";
 import { genComponent } from "./components";
 import { genSlotOutlet } from "./slots";
+import { genTextContent, textLikeNode } from "./text";
 import { genProps } from "./props";
 import {
   extractWrappedDirectives,
@@ -98,8 +99,13 @@ function genHtmlElement(node: ElementNode, context: CodegenContext): void {
     // Comments emit no code. Filter them so a leading or middle comment
     // doesn't leave a sparse-array hole that JSON turns into a null child.
     const renderableChildren = withoutRenderlessChildren(children);
+    const soleText =
+      renderableChildren.length === 1 ? textLikeNode(renderableChildren[0]) : undefined;
     if (renderableChildren.length === 0) {
       context.push("undefined");
+    } else if (soleText) {
+      // A lone text child ships as the string itself, like Vue's TEXT_CHILDREN.
+      genTextContent(soleText, context);
     } else {
       genNodeList(renderableChildren, context);
     }

@@ -167,8 +167,8 @@ describe("onigiri compiler", () => {
       const result = compileOnigiri(template);
 
       expect(result.code).toContain("message");
-      // Text type is 2
-      expect(result.code).toContain("[2,");
+      // A lone interpolation ships as the span's string children
+      expect(result.code).toContain('[0, "span", undefined, _toDisplayString(_ctx.message)]');
     });
 
     it("should handle multiple interpolations", () => {

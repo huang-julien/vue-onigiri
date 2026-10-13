@@ -16,7 +16,7 @@ export function renderOnigiri(_ctx, __instance) {
             0,
             "li",
             { key: item.id },
-            [[2, _toDisplayString(index) + " - " + _toDisplayString(item.label)]],
+            _toDisplayString(index) + " - " + _toDisplayString(item.label),
           ]),
         ],
       ],
@@ -29,25 +29,16 @@ export function renderOnigiri(_ctx, __instance) {
             0,
             "dt",
             { key: key },
-            [
-              [
-                2,
-                _toDisplayString(key) +
-                  ":" +
-                  _toDisplayString(value) +
-                  ":" +
-                  _toDisplayString(index),
-              ],
-            ],
+            _toDisplayString(key) + ":" + _toDisplayString(value) + ":" + _toDisplayString(index),
           ]),
         ],
       ],
-      ..._renderList(3, (n) => [0, "span", { key: n }, [[2, _toDisplayString(n)]]]),
+      ..._renderList(3, (n) => [0, "span", { key: n }, _toDisplayString(n)]),
       ..._renderList(_ctx.items, (item) => [
         3,
         [
-          [0, "b", undefined, [[2, _toDisplayString(item.label)]]],
-          ..._renderList(item.tags, (tag) => [0, "i", { key: tag }, [[2, _toDisplayString(tag)]]]),
+          [0, "b", undefined, _toDisplayString(item.label)],
+          ..._renderList(item.tags, (tag) => [0, "i", { key: tag }, _toDisplayString(tag)]),
         ],
       ]),
     ],

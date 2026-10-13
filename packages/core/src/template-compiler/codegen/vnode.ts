@@ -6,7 +6,7 @@ import { genIf, genFor } from "./control-flow";
 import { genCompoundExpression, genInterpolation, genText, genTextCall } from "./text";
 
 // Internal Vue transform-phase node types not exported by `@vue/compiler-dom`.
-const TEXT_CALL = 12;
+export const TEXT_CALL = 12;
 const VNODE_CALL = 13;
 const JS_CALL_EXPRESSION = 14;
 

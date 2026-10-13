@@ -188,8 +188,8 @@ const msg = 'hello'
     // Should contain element type (0) for div and span
     expect(result).toContain('[0, "div"');
     expect(result).toContain('[0, "span"');
-    // Should contain text type (2) for the interpolation
-    expect(result).toContain("[2,");
+    // A lone interpolation ships as the element's string children
+    expect(result).toContain('[0, "span", undefined, _toDisplayString(_ctx.msg)]');
   });
 });
 

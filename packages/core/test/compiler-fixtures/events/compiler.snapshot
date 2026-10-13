@@ -23,13 +23,13 @@ export function renderOnigiri(_ctx, __instance) {
           onClick: _withModifiers(_ctx.submit, ["stop", "prevent"]),
           onMouseenter: ($event) => _ctx.count++,
         },
-        [[2, "Go"]],
+        "Go",
       ],
       [
         0,
         "button",
         { onClick: ($event) => (_ctx.count += 1), onDblclick: () => _ctx.count-- },
-        [[2, "Inline"]],
+        "Inline",
       ],
       [
         0,

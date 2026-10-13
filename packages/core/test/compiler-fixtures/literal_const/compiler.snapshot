@@ -5,6 +5,6 @@ export function renderOnigiri(_ctx, __instance) {
     0,
     "div",
     { "data-version": _ctx.VERSION, "data-enabled": _ctx.ENABLED },
-    [[2, _toDisplayString(_ctx.TITLE)]],
+    _toDisplayString(_ctx.TITLE),
   ];
 }

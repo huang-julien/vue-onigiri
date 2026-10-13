@@ -9,13 +9,13 @@ export function renderOnigiri(_ctx, __instance) {
       __withDirective(_ctx.vFocus, [0, "input", undefined], {}, __instance),
       __withDirective(
         "highlight",
-        [0, "p", undefined, [[2, "modifiers"]]],
+        [0, "p", undefined, "modifiers"],
         { value: _ctx.color, modifiers: { lazy: true, deep: true } },
         __instance,
       ),
       __withDirective(
         "color",
-        [0, "p", undefined, [[2, "argument"]]],
+        [0, "p", undefined, "argument"],
         { value: _ctx.color, arg: "background" },
         __instance,
       ),
