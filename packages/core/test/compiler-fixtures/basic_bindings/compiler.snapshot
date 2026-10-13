@@ -6,12 +6,12 @@ export function renderOnigiri(_ctx, __instance) {
     "div",
     { class: "counter" },
     [
-      [0, "span", undefined, [[2, _toDisplayString(_ctx.label)]]],
+      [0, "span", undefined, _toDisplayString(_ctx.label)],
       [
         0,
         "button",
         { class: { active: _ctx.count > 0 }, onClick: _ctx.increment },
-        [[2, _toDisplayString(_ctx.count)]],
+        _toDisplayString(_ctx.count),
       ],
     ],
   ];

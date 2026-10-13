@@ -59,9 +59,7 @@ describe("onigiri compiler", () => {
     it("Teleport keeps its target instead of flattening into a fragment", () => {
       const result = compileOnigiri(`<Teleport to="#modal"><p>x</p></Teleport>`);
       expectParses(result.code);
-      expect(result.code).toContain(
-        'return [7, "#modal", undefined, [[0, "p", undefined, [[2, "x"]]]]];',
-      );
+      expect(result.code).toContain('return [7, "#modal", undefined, [[0, "p", undefined, "x"]]];');
     });
 
     it("Teleport supports dynamic target and disabled", () => {
@@ -77,9 +75,7 @@ describe("onigiri compiler", () => {
         `<Suspense><template #default><Content /></template><template #fallback><p>loading</p></template></Suspense>`,
       );
       expectParses(result.code);
-      expect(result.code).toMatch(
-        /return \[4, \[.+\], \[\[0, "p", undefined, \[\[2, "loading"\]\]\]\]\];/,
-      );
+      expect(result.code).toMatch(/return \[4, \[.+\], \[\[0, "p", undefined, "loading"\]\]\];/);
     });
 
     it("Suspense without a fallback keeps the two-element tuple", () => {
@@ -107,7 +103,7 @@ describe("onigiri compiler", () => {
       const result = compileOnigiri(`<div><!-- c --><span>a</span></div>`);
       expectParses(result.code);
       expect(result.code).not.toContain("[, ");
-      expect(result.code).toContain('[[0, "span", undefined, [[2, "a"]]]]');
+      expect(result.code).toContain('[[0, "span", undefined, "a"]]');
     });
 
     it("comment-only template emits null", () => {
@@ -127,7 +123,7 @@ describe("onigiri compiler", () => {
       expectParses(result.code);
       expect(result.code).toContain("_renderList(_ctx.items, ({ id, name }) =>");
       expect(result.code).toContain('{"key": id}');
-      expect(result.code).toContain("[2, _toDisplayString(name)]");
+      expect(result.code).toContain(", _toDisplayString(name)]");
       expect(result.code).not.toContain("_ctx.id");
       expect(result.code).not.toContain("_ctx.name");
     });
@@ -136,7 +132,7 @@ describe("onigiri compiler", () => {
       const result = compileOnigiri(`<span>{{ maybeNull }}</span>`);
       expectParses(result.code);
       expect(result.code).toContain('import { toDisplayString as _toDisplayString } from "vue"');
-      expect(result.code).toContain("[2, _toDisplayString(_ctx.maybeNull)]");
+      expect(result.code).toContain("undefined, _toDisplayString(_ctx.maybeNull)]");
 
       const compound = compileOnigiri(`<span>{{ a }} - {{ b }}</span>`);
       expectParses(compound.code);
@@ -304,7 +300,7 @@ describe("onigiri compiler", () => {
         importMap,
       });
       expectParses(single.code);
-      expect(single.code).toContain('{ "default": [[0, "span", undefined, [[2, "a"]]]] }');
+      expect(single.code).toContain('{ "default": [[0, "span", undefined, "a"]] }');
     });
   });
 });

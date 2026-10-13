@@ -49,38 +49,23 @@ describe("serialize/deserialize", () => {
               0,
               "div",
               undefined,
-              [
-                [
-                  2,
-                  "1",
-                ],
-              ],
+              "1",
             ],
             [
               0,
               "div",
               undefined,
-              [
-                [
-                  2,
-                  "2",
-                ],
-              ],
+              "2",
             ],
             [
               0,
               "div",
               undefined,
-              [
-                [
-                  2,
-                  "0",
-                ],
-              ],
+              "0",
             ],
           ],
         ],
-        "v": 1,
+        "v": 2,
       }
     `);
     const clientSide = mount(
@@ -116,23 +101,13 @@ describe("serialize/deserialize", () => {
                 0,
                 "div",
                 undefined,
-                [
-                  [
-                    2,
-                    "1",
-                  ],
-                ],
+                "1",
               ],
               [
                 0,
                 "div",
                 undefined,
-                [
-                  [
-                    2,
-                    "2",
-                  ],
-                ],
+                "2",
               ],
               [
                 1,
@@ -143,7 +118,7 @@ describe("serialize/deserialize", () => {
               ],
             ],
           ],
-          "v": 1,
+          "v": 2,
         }
       `);
       const clientSide = mount(
@@ -200,14 +175,9 @@ describe("Async components", () => {
           0,
           "div",
           undefined,
-          [
-            [
-              2,
-              "Hello world ! some text",
-            ],
-          ],
+          "Hello world ! some text",
         ],
-        "v": 1,
+        "v": 2,
       }
     `);
     await flushPromises();
@@ -239,16 +209,11 @@ describe("Async components", () => {
               0,
               "div",
               undefined,
-              [
-                [
-                  2,
-                  "Hello world ! yolo",
-                ],
-              ],
+              "Hello world ! yolo",
             ],
           ],
         ],
-        "v": 1,
+        "v": 2,
       }
     `);
   });
@@ -274,18 +239,13 @@ describe("Async components", () => {
                   0,
                   "div",
                   undefined,
-                  [
-                    [
-                      2,
-                      "Hello world ! yolo",
-                    ],
-                  ],
+                  "Hello world ! yolo",
                 ],
               ],
             ],
           ],
         ],
-        "v": 1,
+        "v": 2,
       }
     `);
   });
@@ -360,12 +320,7 @@ describe("slots", () => {
                         0,
                         "p",
                         undefined,
-                        [
-                          [
-                            2,
-                            "Slot content (static)",
-                          ],
-                        ],
+                        "Slot content (static)",
                       ],
                     ],
                   ],
@@ -374,7 +329,7 @@ describe("slots", () => {
             ],
           ],
         ],
-        "v": 1,
+        "v": 2,
       }
     `);
     // The loader's `async setup` awaits `importFn` inside a `<Suspense>`
@@ -418,7 +373,7 @@ describe("slots", () => {
 describe("payload versioning", () => {
   it("serialize entry points wrap the AST in a versioned envelope", async () => {
     const payload = await serializeComponent(ElementsOnly);
-    expect(payload.v).toBe(1);
+    expect(payload.v).toBe(2);
     expect(Array.isArray(payload.ast)).toBe(true);
   });
 
@@ -537,7 +492,7 @@ describe("interpolation display semantics", () => {
     const ast = ((await serializeComponent(DisplayValues)) as any).ast;
     const spanTexts = (ast[3] as any[])
       .filter((child) => child[0] === VServerComponentType.Element)
-      .map((span) => span[3][0][1]);
+      .map((span) => span[3]);
 
     expect(spanTexts[0]).toBe("");
     expect(spanTexts[1]).toBe("");
@@ -761,7 +716,7 @@ describe("serializeVNode", () => {
       "div",
       undefined,
       [
-        [VServerComponentType.Element, "span", undefined, [[VServerComponentType.Text, "a"]]],
+        [VServerComponentType.Element, "span", undefined, "a"],
         [VServerComponentType.Text, "b"],
       ],
     ]);

@@ -16,7 +16,7 @@ export function renderOnigiri(_ctx, __instance) {
           "aria-label": "Title",
         },
       ],
-      [0, "button", { type: "submit", class: "btn primary", id: "submit-btn" }, [[2, "Send"]]],
+      [0, "button", { type: "submit", class: "btn primary", id: "submit-btn" }, "Send"],
     ],
   ];
 }

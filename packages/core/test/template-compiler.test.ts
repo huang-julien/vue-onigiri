@@ -8,7 +8,7 @@ describe("compileOnigiri", () => {
     expect(result).toBeDefined();
     expect(result.code).toMatchInlineSnapshot(`
       "export function renderOnigiri(_ctx, __instance) {
-      return [0, "div", undefined, [[2, "Hello, World!"]]];
+      return [0, "div", undefined, "Hello, World!"];
       }"
     `);
   });

@@ -16,12 +16,7 @@ describe("serializeComponent with render fn + setup", () => {
 
     const { ast: result } = await serializeComponent(C, { msg: "hi" });
 
-    expect(result).toEqual([
-      VServerComponentType.Element,
-      "div",
-      { class: "x" },
-      [[VServerComponentType.Text, "hi:7"]],
-    ]);
+    expect(result).toEqual([VServerComponentType.Element, "div", { class: "x" }, "hi:7"]);
   });
 
   it("options-style render() with setup() returning state is invoked", async () => {
@@ -37,12 +32,7 @@ describe("serializeComponent with render fn + setup", () => {
 
     const { ast: result } = await serializeComponent(C, { msg: "hello" });
 
-    expect(result).toEqual([
-      VServerComponentType.Element,
-      "span",
-      { id: "y" },
-      [[VServerComponentType.Text, "hello-42"]],
-    ]);
+    expect(result).toEqual([VServerComponentType.Element, "span", { id: "y" }, "hello-42"]);
   });
 
   it("async setup + render function awaits before rendering", async () => {
@@ -55,11 +45,6 @@ describe("serializeComponent with render fn + setup", () => {
 
     const { ast: result } = await serializeComponent(C);
 
-    expect(result).toEqual([
-      VServerComponentType.Element,
-      "p",
-      undefined,
-      [[VServerComponentType.Text, "async!"]],
-    ]);
+    expect(result).toEqual([VServerComponentType.Element, "p", undefined, "async!"]);
   });
 });

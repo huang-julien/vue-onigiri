@@ -511,12 +511,11 @@ export function serializeVNode(
   if (isVNode(vnode)) {
     if (vnode.shapeFlag & ShapeFlags.ELEMENT) {
       const props = vnode.dirs ? applySSRDirectives(vnode, vnode.props, vnode.dirs) : vnode.props;
-      return [
-        VServerComponentType.Element,
-        vnode.type as string,
-        filterProps(props),
-        serializeChildren(vnode.children, parentInstance),
-      ];
+      const children =
+        typeof vnode.children === "string"
+          ? vnode.children
+          : serializeChildren(vnode.children, parentInstance);
+      return [VServerComponentType.Element, vnode.type as string, filterProps(props), children];
     } else if (vnode.shapeFlag & ShapeFlags.COMPONENT) {
       const componentType = vnode.type as Component & {
         __onigiriRender?: (ctx: any, slots: any) => VServerComponentBuffered;

@@ -37,8 +37,8 @@ export function renderOnigiri(_ctx, __instance) {
           "select",
           undefined,
           [
-            [0, "option", { value: "a" }, [[2, "A"]]],
-            [0, "option", { value: "b" }, [[2, "B"]]],
+            [0, "option", { value: "a" }, "A"],
+            [0, "option", { value: "b" }, "B"],
           ],
         ],
         { value: _ctx.picked },

@@ -8,7 +8,7 @@ import {
 import { genImport, genString } from "knitwork";
 import { VServerComponentType } from "../../runtime/shared";
 import type { CodegenContext } from "./context";
-import { genNode } from "./vnode";
+import { genNode, TEXT_CALL } from "./vnode";
 import { genExpressionAsValue } from "./expressions";
 
 function pushDisplayString(context: CodegenContext, genExpr: () => void): void {
@@ -18,26 +18,62 @@ function pushDisplayString(context: CodegenContext, genExpr: () => void): void {
   context.push(")");
 }
 
-export function genText(node: TextNode, context: CodegenContext): void {
+type TextLikeNode = TextNode | InterpolationNode | CompoundExpressionNode;
+
+/** The text-like node behind `node`, unwrapping a TEXT_CALL; undefined for anything else. */
+export function textLikeNode(node: any): TextLikeNode | undefined {
+  const inner = node?.type === TEXT_CALL ? node.content : node;
+  switch (inner?.type) {
+    case NodeTypes.TEXT:
+    case NodeTypes.INTERPOLATION:
+    case NodeTypes.COMPOUND_EXPRESSION: {
+      return inner;
+    }
+    default: {
+      return undefined;
+    }
+  }
+}
+
+/** Emits the string expression of a text-like node without the Text tuple around it. */
+export function genTextContent(node: TextLikeNode, context: CodegenContext): void {
+  switch (node.type) {
+    case NodeTypes.TEXT: {
+      context.push(genString(node.content));
+      break;
+    }
+    case NodeTypes.INTERPOLATION: {
+      pushDisplayString(context, () => genExpressionAsValue(node.content, context));
+      break;
+    }
+    case NodeTypes.COMPOUND_EXPRESSION: {
+      genCompoundContent(node, context);
+      break;
+    }
+  }
+}
+
+function genTextTuple(context: CodegenContext, genContent: () => void): void {
   context.push("[");
   context.push(VServerComponentType.Text.toString());
   context.push(", ");
-  context.push(genString(node.content));
+  genContent();
   context.push("]");
+}
+
+export function genText(node: TextNode, context: CodegenContext): void {
+  genTextTuple(context, () => genTextContent(node, context));
 }
 
 export function genInterpolation(node: InterpolationNode, context: CodegenContext): void {
-  context.push("[");
-  context.push(VServerComponentType.Text.toString());
-  context.push(", ");
-  pushDisplayString(context, () => genExpressionAsValue(node.content, context));
-  context.push("]");
+  genTextTuple(context, () => genTextContent(node, context));
 }
 
 export function genCompoundExpression(node: CompoundExpressionNode, context: CodegenContext): void {
-  context.push("[");
-  context.push(VServerComponentType.Text.toString());
-  context.push(", ");
+  genTextTuple(context, () => genCompoundContent(node, context));
+}
+
+function genCompoundContent(node: CompoundExpressionNode, context: CodegenContext): void {
   context.push("(");
 
   for (const child of node.children) {
@@ -84,7 +120,6 @@ export function genCompoundExpression(node: CompoundExpressionNode, context: Cod
   }
 
   context.push(")");
-  context.push("]");
 }
 
 export function genTextCall(node: any, context: CodegenContext): void {

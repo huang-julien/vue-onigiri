@@ -11,7 +11,7 @@ export function renderOnigiri(_ctx, __instance) {
         __onigiri_resolveDynamicComponent(__instance, _ctx.current),
         { title: _ctx.title },
         __instance,
-        { default: () => [[0, "p", undefined, [[2, "slotted"]]]] },
+        { default: () => [[0, "p", undefined, "slotted"]] },
       ),
       __serializeComponentInContext(Panel, undefined, __instance, undefined),
     ],

@@ -248,12 +248,7 @@ export const vText: ObjectDirective<HTMLElement, string> = {
       any,
     ];
     const textContent = String(binding.value ?? "");
-    return [
-      type,
-      tag,
-      props,
-      textContent ? [[VServerComponentType.Text, textContent]] : undefined,
-    ] as VServerComponent;
+    return [type, tag, props, textContent || undefined] as VServerComponent;
   },
 };
 
@@ -290,6 +285,7 @@ function isChecked(modelValue: any, elementValue: any): boolean {
 
 function getOptionValue(props: Record<string, any> | undefined, children: any): any {
   if (props && "value" in props) return props.value;
+  if (typeof children === "string") return children;
   if (Array.isArray(children) && children[0]?.[0] === VServerComponentType.Text) {
     return children[0][1];
   }

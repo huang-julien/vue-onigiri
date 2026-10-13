@@ -107,6 +107,23 @@ describe("withDirective resolution", () => {
     expect(byText[3][2][2].selected).toBe(true);
   });
 
+  it("vModel reads an option's text when it ships as string children", () => {
+    const select = [
+      T.Element,
+      "select",
+      undefined,
+      [
+        [T.Element, "option", undefined, "a"],
+        [T.Element, "option", undefined, "b"],
+      ],
+    ];
+
+    const result = applyModel(select, "b");
+    expect(result[3][0][2]?.selected).toBeUndefined();
+    expect(result[3][1][2].selected).toBe(true);
+    expect(result[3][1][3]).toBe("b");
+  });
+
   it("vModel handles multiple select and optgroup children", () => {
     const select = [
       T.Element,

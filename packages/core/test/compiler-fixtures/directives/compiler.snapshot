@@ -8,19 +8,12 @@ export function renderOnigiri(_ctx, __instance) {
     "div",
     undefined,
     [
-      _ctx.show ? [0, "p", undefined, [[2, "Visible"]]] : [0, "p", undefined, [[2, "Hidden"]]],
+      _ctx.show ? [0, "p", undefined, "Visible"] : [0, "p", undefined, "Hidden"],
       [
         0,
         "ul",
         undefined,
-        [
-          ..._renderList(_ctx.items, (item) => [
-            0,
-            "li",
-            { key: item },
-            [[2, _toDisplayString(item)]],
-          ]),
-        ],
+        [..._renderList(_ctx.items, (item) => [0, "li", { key: item }, _toDisplayString(item)])],
       ],
       __withDirective("model", [0, "input", undefined], { value: _ctx.text }, __instance),
     ],

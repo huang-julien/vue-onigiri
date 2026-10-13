@@ -42,7 +42,12 @@ export function renderOnigiri(
 
   switch (input[0]) {
     case VServerComponentType.Element: {
-      return createElementVNode(input[1], normalizeProps(input[2]), renderList(input[3], options));
+      const children = input[3];
+      return createElementVNode(
+        input[1],
+        normalizeProps(input[2]),
+        typeof children === "string" ? children : renderList(children, options),
+      );
     }
     case VServerComponentType.Text: {
       return createTextVNode(input[1]);
