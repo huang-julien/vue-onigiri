@@ -21,9 +21,16 @@ const island = (
 ): VServerComponentBuffered => [Component, props, "/x/Island.vue", "default", slots];
 
 describe("unrollServerComponentBufferPromises", () => {
-  it("copies a Promise-free tree unchanged", async () => {
+  it("returns a Promise-free tree as is, without copying", async () => {
     const tree = el("ul", [el("li", [text("a")], { class: "x" }), el("li", [text("b")])]);
-    expect(await unrollServerComponentBufferPromises(tree)).toEqual(tree);
+    expect(await unrollServerComponentBufferPromises(tree)).toBe(tree);
+  });
+
+  it("writes resolved Promises into the buffered tree in place", async () => {
+    const children = [text("a"), Promise.resolve(text("b"))];
+    const tree = el("div", children);
+    expect(await unrollServerComponentBufferPromises(tree)).toBe(tree);
+    expect(children[1]).toEqual(text("b"));
   });
 
   it("keeps undefined entries in a child list", async () => {

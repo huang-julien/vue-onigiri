@@ -443,57 +443,70 @@ export function unrollServerComponentBufferPromises(
   buffer: MaybePromise<VServerComponentBuffered>,
   warned: Set<string> = new Set(),
 ): Promise<VServerComponent> {
-  return Promise.resolve(unroll(buffer, warned) as MaybePromise<VServerComponent>);
+  if (isPromise(buffer)) {
+    return buffer.then((resolved) => unrollServerComponentBufferPromises(resolved, warned));
+  }
+  const pending = Array.isArray(buffer) ? unrollTreeInPlace(buffer, warned) : undefined;
+  const done = buffer as VServerComponent;
+  return pending ? pending.then(() => done) : Promise.resolve(done);
 }
 
-function unroll(node: unknown, warned: Set<string>): MaybePromise<unknown> {
-  if (!Array.isArray(node)) {
-    return isPromise(node) ? node.then((r) => unroll(r, warned)) : node;
-  }
+function unrollTreeInPlace(node: unknown[], warned: Set<string>): Promise<void> | undefined {
   const isComponentTuple = node[0] === VServerComponentType.Component;
 
   if ((typeof __DEV__ === "undefined" || __DEV__) && isComponentTuple) {
-    warnNonSerializableProps(node[2], node[1], warned);
+    warnNonSerializableProps(node[2] as string, node[1] as Record<string, any>, warned);
   }
 
-  return mapMaybe(node, (item, i) => {
-    if (isComponentTuple && i === 4) return unrollSlots(item, warned);
-    return item !== null && typeof item === "object" ? unroll(item, warned) : item;
-  });
-}
-
-function unrollSlots(slots: unknown, warned: Set<string>): MaybePromise<unknown> {
-  if (isPromise(slots)) return slots.then((r) => unrollSlots(r, warned));
-  if (!slots) return slots;
-  const keys = Object.keys(slots);
-  const values = mapMaybe(keys, (key) => unroll((slots as Record<string, unknown>)[key], warned));
-  const toObject = (resolved: unknown[]) =>
-    Object.fromEntries(keys.map((key, i) => [key, resolved[i]]));
-  return Array.isArray(values) ? toObject(values) : values.then(toObject);
-}
-
-function mapMaybe<T>(
-  items: T[],
-  map: (item: T, index: number) => unknown,
-): MaybePromise<unknown[]> {
-  const out: unknown[] = [];
   let pending: Promise<void>[] | undefined;
-  for (let i = 0; i < items.length; i++) {
-    const value = map(items[i]!, i);
-    // most entries are arrays or primitives; skip the thenable probe for them
-    if (value !== null && typeof value === "object" && !Array.isArray(value) && isPromise(value)) {
-      out.push(undefined);
-      (pending ??= []).push(
-        value.then((resolved) => {
-          out[i] = resolved;
-        }),
-      );
-    } else {
-      out.push(value);
-    }
+  for (let i = 0; i < node.length; i++) {
+    const task =
+      isComponentTuple && i === 4
+        ? unrollComponentSlotsInPlace(node, warned)
+        : unrollEntryInPlace(node, i, warned);
+    if (task) (pending ??= []).push(task);
   }
-  return pending ? Promise.all(pending).then(() => out) : out;
+  return pending ? Promise.all(pending).then(noOp) : undefined;
 }
+
+function unrollEntryInPlace(
+  container: Record<PropertyKey, unknown> | unknown[],
+  key: string | number,
+  warned: Set<string>,
+): Promise<void> | undefined {
+  const value = (container as Record<PropertyKey, unknown>)[key];
+  if (value === null || typeof value !== "object") return;
+  if (Array.isArray(value)) return unrollTreeInPlace(value, warned);
+  if (isPromise(value)) {
+    return value.then((resolved) => {
+      (container as Record<PropertyKey, unknown>)[key] = resolved;
+      return unrollEntryInPlace(container, key, warned);
+    });
+  }
+}
+
+function unrollComponentSlotsInPlace(
+  tuple: unknown[],
+  warned: Set<string>,
+): Promise<void> | undefined {
+  const slots = tuple[4];
+  if (isPromise(slots)) {
+    return slots.then((resolved) => {
+      tuple[4] = resolved;
+      return unrollComponentSlotsInPlace(tuple, warned);
+    });
+  }
+  if (slots === null || typeof slots !== "object") return;
+
+  let pending: Promise<void>[] | undefined;
+  for (const key of Object.keys(slots)) {
+    const task = unrollEntryInPlace(slots as Record<string, unknown>, key, warned);
+    if (task) (pending ??= []).push(task);
+  }
+  return pending ? Promise.all(pending).then(noOp) : undefined;
+}
+
+function noOp(): void {}
 
 export async function serializeVNode(
   vnode: VNodeChild,
