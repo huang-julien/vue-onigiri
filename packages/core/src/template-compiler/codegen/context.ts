@@ -20,6 +20,8 @@ export interface CodegenContext {
   localVars: Set<string>;
   /** SFC scoped style ID (e.g., "data-v-xxxxxxx") - added as attribute to all elements */
   scopeId: string | null;
+  /** Runtime directive ancestors require descendants to remain mutable tuples. */
+  staticDisabled: number;
   /**
    * Local identifier to root-relative module path from the SFC's imports;
    * matching v-load-client targets inline the path as a literal.
@@ -71,6 +73,7 @@ export function createCodegenContext(opts: CodegenContextOptions = {}): CodegenC
     components: new Map<string, string>(),
     localVars: new Set<string>(),
     scopeId: opts.scopeId ?? null,
+    staticDisabled: 0,
     importMap: opts.importMap ?? new Map<string, string>(),
     additionalImports: opts.additionalImports ?? new Map<string, AdditionalImport>(),
     isCustomElement: opts.isCustomElement ?? (() => false),

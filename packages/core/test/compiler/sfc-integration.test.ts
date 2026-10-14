@@ -113,10 +113,10 @@ defineProps<{ title: string }>()
       const result = compileOnigiri(template);
 
       expect(result.code).toContain("renderOnigiri");
-      expect(result.code).toContain('"div"');
-      expect(result.code).toContain('"span"');
-      expect(result.code).toContain('"outer"');
-      expect(result.code).toContain('"inner"');
+      expect(result.code).toContain("<div");
+      expect(result.code).toContain("<span>Nested content</span>");
+      expect(result.code).toContain("outer");
+      expect(result.code).toContain("inner");
     });
 
     it("should handle components with v-load-client", () => {

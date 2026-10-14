@@ -7,14 +7,14 @@ describe("onigiri compiler", () => {
       const template = `<div></div>`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"div"');
+      expect(result.code).toContain("<div></div>");
     });
 
     it("should handle whitespace-only content", () => {
       const template = `<div>   </div>`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"div"');
+      expect(result.code).toContain("<div></div>");
     });
 
     it("should handle deeply nested structures", () => {
@@ -43,7 +43,7 @@ describe("onigiri compiler", () => {
       const template = `<div>Hello &amp; goodbye &lt;world&gt;</div>`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"div"');
+      expect(result.code).toContain("<div>Hello &amp; goodbye &lt;world&gt;</div>");
     });
 
     it("should handle numeric literals", () => {

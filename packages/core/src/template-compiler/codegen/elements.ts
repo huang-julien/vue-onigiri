@@ -95,19 +95,25 @@ function genHtmlElement(node: ElementNode, context: CodegenContext): void {
   }
 
   if (!isVoidElement) {
-    context.push(", ");
-    // Comments emit no code. Filter them so a leading or middle comment
-    // doesn't leave a sparse-array hole that JSON turns into a null child.
-    const renderableChildren = withoutRenderlessChildren(children);
-    const soleText =
-      renderableChildren.length === 1 ? textLikeNode(renderableChildren[0]) : undefined;
-    if (renderableChildren.length === 0) {
-      context.push("undefined");
-    } else if (soleText) {
-      // A lone text child ships as the string itself, like Vue's TEXT_CHILDREN.
-      genTextContent(soleText, context);
-    } else {
-      genNodeList(renderableChildren, context);
+    // Directive transforms may inspect and rewrite any descendant tuple.
+    if (wrappedDirectives.length > 0) context.staticDisabled++;
+    try {
+      context.push(", ");
+      // Comments emit no code. Filter them so a leading or middle comment
+      // doesn't leave a sparse-array hole that JSON turns into a null child.
+      const renderableChildren = withoutRenderlessChildren(children);
+      const soleText =
+        renderableChildren.length === 1 ? textLikeNode(renderableChildren[0]) : undefined;
+      if (renderableChildren.length === 0) {
+        context.push("undefined");
+      } else if (soleText) {
+        // A lone text child ships as the string itself, like Vue's TEXT_CHILDREN.
+        genTextContent(soleText, context);
+      } else {
+        genNodeList(renderableChildren, context);
+      }
+    } finally {
+      if (wrappedDirectives.length > 0) context.staticDisabled--;
     }
   }
 

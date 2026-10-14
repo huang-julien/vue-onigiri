@@ -3,8 +3,8 @@ import { toDisplayString as _toDisplayString } from "vue";
 
 export function renderOnigiri(_ctx, __instance) {
   return __serializeComponentInContext(Child, { title: _ctx.title, count: "2" }, __instance, {
-    footer: () => [[0, "span", undefined, "footer"]],
+    footer: () => [[5, "<span>footer</span>", 1]],
     row: ({ item }) => [[2, _toDisplayString(item.id)]],
-    default: () => [[0, "p", undefined, "default content"]],
+    default: () => [[5, "<p>default content</p>", 1]],
   });
 }

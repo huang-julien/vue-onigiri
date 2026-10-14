@@ -5,6 +5,7 @@
 
 import {
   baseParse,
+  parserOptions,
   isFnExpression,
   isMemberExpression,
   NodeTypes,
@@ -132,6 +133,8 @@ export function compileOnigiriInline(
   options: OnigiriCompilerOptions = {},
 ): { expression: string; imports: Set<string>; components: Map<string, string>; ast: RootNode } {
   const ast = baseParse(template, {
+    // Vue DOM parser options supply SVG/MathML namespaces and pre whitespace handling needed by the static stringifier.
+    ...parserOptions,
     ...options,
     isVoidTag,
   });

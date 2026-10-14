@@ -26,7 +26,7 @@ describe("built-in components", () => {
     `);
     // Type 7 = Teleport, target preserved
     expect(result.code).toMatch(/\[7,\s*"body",\s*undefined,\s*\[/);
-    expect(result.code).toContain('"inside"');
+    expect(result.code).toContain('[5, "<div>inside</div>", 1]');
   });
 
   it("KeepAlive passes children through as a fragment", () => {
@@ -36,7 +36,7 @@ describe("built-in components", () => {
       </KeepAlive>
     `);
     expect(result.code).toMatch(/\[3,\s*\[/);
-    expect(result.code).toContain('"cached"');
+    expect(result.code).toContain('[5, "<div>cached</div>", 1]');
   });
 
   it("Transition passes children through as a fragment", () => {
@@ -46,7 +46,7 @@ describe("built-in components", () => {
       </Transition>
     `);
     expect(result.code).toMatch(/\[3,\s*\[/);
-    expect(result.code).toContain('"fading"');
+    expect(result.code).toContain('[5, "<div>fading</div>", 1]');
   });
 
   it("<component :is> compiles with resolveDynamicComponent", () => {

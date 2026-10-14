@@ -11,7 +11,12 @@ import {
   type Component,
   type ObjectDirective,
 } from "vue";
-import { serializeApp } from "../src/runtime/serialize";
+import {
+  serializeApp,
+  serializeChildComponent,
+  unrollServerComponentBufferPromises,
+} from "../src/runtime/serialize";
+import { VServerComponentType } from "../src/runtime/shared";
 import SlotHost from "./fixtures/components/SlotHost.vue";
 import RenderTimeResolve from "./fixtures/components/RenderTimeResolve.vue";
 
@@ -191,6 +196,31 @@ describe("rendering instance inside slot content", () => {
       expect(json).toContain("foo-fallback");
       expect(json).not.toContain('"GlobalFoo"');
     }
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("renders StaticHtml slot content handed to a plain Vue component", async () => {
+    const PlainSlotHost = defineComponent({
+      setup(_, { slots }) {
+        return () => h("section", { class: "plain-static-slot" }, slots.default?.());
+      },
+    });
+
+    const buffered = await serializeChildComponent(PlainSlotHost, undefined, undefined, false, {
+      default: () => [
+        [VServerComponentType.StaticHtml, '<span class="static-slot">Static slot</span>', 1],
+      ],
+    });
+
+    expect(buffered).toBeDefined();
+    const ast = await unrollServerComponentBufferPromises(buffered!);
+
+    expect(ast).toEqual([
+      VServerComponentType.Element,
+      "section",
+      { class: "plain-static-slot" },
+      [[VServerComponentType.StaticHtml, '<span class="static-slot">Static slot</span>', 1]],
+    ]);
     expect(warn).not.toHaveBeenCalled();
   });
 

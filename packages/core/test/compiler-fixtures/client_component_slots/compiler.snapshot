@@ -4,12 +4,6 @@ export function renderOnigiri(_ctx, __instance) {
     { label: "boxed" },
     "/client_component_slots/Widget.vue",
     "default",
-    {
-      footer: [[0, "span", undefined, "footer"]],
-      default: [
-        [0, "p", undefined, "body"],
-        [0, "em", undefined, "more body"],
-      ],
-    },
+    { footer: [[5, "<span>footer</span>", 1]], default: [[5, "<p>body</p><em>more body</em>", 2]] },
   ];
 }

@@ -1,6 +1,7 @@
 import type { SSRContext } from "@vue/server-renderer";
 import {
   createVNode,
+  createStaticVNode,
   isVNode,
   type App,
   type VNode,
@@ -137,6 +138,9 @@ function astToVNode(node: any): VNode | null {
   }
 
   switch (type) {
+    case VServerComponentType.StaticHtml: {
+      return createStaticVNode(node[1], node[2]);
+    }
     case VServerComponentType.Element: {
       const tag = node[1];
       const elProps = node[2];

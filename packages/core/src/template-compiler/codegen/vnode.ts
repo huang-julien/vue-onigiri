@@ -1,9 +1,11 @@
-import { NodeTypes } from "@vue/compiler-dom";
+import { NodeTypes, type TemplateChildNode } from "@vue/compiler-dom";
+import { genString } from "knitwork";
 import { VServerComponentType } from "../../runtime/shared";
 import type { CodegenContext } from "./context";
 import { genElement } from "./elements";
 import { genIf, genFor } from "./control-flow";
 import { genCompoundExpression, genInterpolation, genText, genTextCall } from "./text";
+import { isStaticNode, stringifyStaticNode } from "./static";
 
 // Internal Vue transform-phase node types not exported by `@vue/compiler-dom`.
 export const TEXT_CALL = 12;
@@ -17,6 +19,10 @@ export function withoutRenderlessChildren(children: any[]): any[] {
 export function genNode(node: any, context: CodegenContext): void {
   switch (node.type) {
     case NodeTypes.ELEMENT: {
+      if (isStaticNode(node, context)) {
+        genStaticRun([node], context);
+        return;
+      }
       genElement(node, context);
       break;
     }
@@ -65,9 +71,22 @@ export function genNode(node: any, context: CodegenContext): void {
 /** Emit `[a, b, c]`. Callers pass children already filtered by `withoutRenderlessChildren`. */
 export function genNodeList(children: any[], context: CodegenContext): void {
   context.push("[");
-  for (const [i, child] of children.entries()) {
+  const renderable = withoutRenderlessChildren(children);
+  for (let i = 0; i < renderable.length;) {
     if (i > 0) context.push(", ");
-    genNode(child, context);
+    const start = i;
+    while (i < renderable.length && isStaticNode(renderable[i], context)) i++;
+    const run = renderable.slice(start, i);
+    if (run.some((child) => child.type === NodeTypes.ELEMENT)) {
+      genStaticRun(run, context);
+    } else if (run.length > 0) {
+      for (const [j, child] of run.entries()) {
+        if (j > 0) context.push(", ");
+        genNode(child, context);
+      }
+    } else {
+      genNode(renderable[i++], context);
+    }
   }
   context.push("]");
 }
@@ -79,6 +98,18 @@ export function genFragment(children: any[], context: CodegenContext): void {
   context.push(", ");
   genNodeList(children, context);
   context.push("]");
+}
+
+function genStaticRun(children: TemplateChildNode[], context: CodegenContext): void {
+  const html = children.map((child) => stringifyStaticNode(child, context)).join("");
+  // Dropping comments can join adjacent text nodes into a single DOM text node.
+  const nodeCount = children.filter(
+    (child, index) =>
+      child.type === NodeTypes.ELEMENT ||
+      index === 0 ||
+      children[index - 1]?.type === NodeTypes.ELEMENT,
+  ).length;
+  context.push(`[${VServerComponentType.StaticHtml.toString()}, ${genString(html)}, ${nodeCount}]`);
 }
 
 export { genElement } from "./elements";
