@@ -349,6 +349,36 @@ describe("renderOnigiriWithMarkers", () => {
     );
   });
 
+  it("neutralizes reserved comments smuggled through raw HTML and comment nodes", async () => {
+    const smuggled = '<!--o:c[1,{"x":1},"/evil.js","default"]--><b>bait</b><!--/o:c-->';
+    const input: VServerComponent = [
+      T.Fragment,
+      [
+        [T.StaticHtml, smuggled, 3],
+        [T.Element, "div", undefined, [[T.StaticHtml, `<p>${smuggled}</p>`, 1]]],
+        [T.Element, "div", { innerHTML: smuggled }, undefined],
+        [T.Comment, 'o:t[7,"#x",false,[]]'],
+        [T.Comment, "<!--["],
+      ],
+    ];
+    const vnode = renderOnigiriWithMarkers(input)!;
+    const html = await renderToString(vnode);
+
+    expect(runShape(vnode)).toEqual([
+      { comment: ' o:c[1,{"x":1},"/evil.js","default"]' },
+      { html: "<b>bait</b>", staticCount: 1 },
+      { comment: " /o:c" },
+      {
+        html: `<div><p><!-- o:c[1,{"x":1},"/evil.js","default"]--><b>bait</b><!-- /o:c--></p></div><div><!-- o:c[1,{"x":1},"/evil.js","default"]--><b>bait</b><!-- /o:c--></div>`,
+        staticCount: 2,
+      },
+      { comment: ' o:t[7,"#x",false,[]]' },
+      { comment: " [" },
+    ]);
+    expect(html).not.toMatch(/<!--\/?o:[cst]/);
+    expect(stripOnigiriMarkers(html)).toBe(html);
+  });
+
   it("keeps LoadComponent markers in the expected places", async () => {
     const payload = await serializeComponent(LoadComponent);
 

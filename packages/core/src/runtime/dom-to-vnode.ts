@@ -42,6 +42,7 @@ const SHOW_COMMENT = 128;
 const TELEPORT_END = "teleport end";
 const TELEPORT_START = "teleport start";
 const TEXT_NODE = 3;
+const VNODE_RESERVED_ATTRIBUTES = new Set(["key", "ref", "ref_for", "ref_key"]);
 let STATIC_RUN_ID = 0;
 
 interface WalkContext {
@@ -203,9 +204,11 @@ function walkMarkerAncestorElement(element: Element, context: WalkContext): VNod
 
 function handleMarkerComment(comment: Comment, context: WalkContext): MarkerResult {
   const data = comment.data;
+  const plain: MarkerResult = { next: comment.nextSibling, vnodes: [createCommentVNode(data)] };
 
   if (hasMarkerPrefix(data, MARKER_COMPONENT)) {
-    const tuple = decodeMarker<VServerComponentComponent>(data.slice(MARKER_COMPONENT.length));
+    const tuple = tryDecodeMarker<VServerComponentComponent>(data.slice(MARKER_COMPONENT.length));
+    if (!tuple) return plain;
     return {
       next: findClosingMarker(comment, MARKER_COMPONENT, MARKER_COMPONENT_END).nextSibling,
       vnodes: [
@@ -217,7 +220,8 @@ function handleMarkerComment(comment: Comment, context: WalkContext): MarkerResu
   }
 
   if (hasMarkerPrefix(data, MARKER_TELEPORT)) {
-    const tuple = decodeMarker<VServerComponent>(data.slice(MARKER_TELEPORT.length));
+    const tuple = tryDecodeMarker<VServerComponent>(data.slice(MARKER_TELEPORT.length));
+    if (!tuple) return plain;
     const teleportVNode = renderOnigiri(tuple, context.options);
     return {
       next: findTeleportEnd(comment).nextSibling,
@@ -228,9 +232,10 @@ function handleMarkerComment(comment: Comment, context: WalkContext): MarkerResu
   }
 
   if (hasMarkerPrefix(data, MARKER_SUSPENSE)) {
-    const tuple = decodeMarker<[number, null, VServerComponent[] | undefined]>(
+    const tuple = tryDecodeMarker<[number, null, VServerComponent[] | undefined]>(
       data.slice(MARKER_SUSPENSE.length),
     );
+    if (!tuple) return plain;
     const fragmentStart = requireImmediateFragmentStart(comment);
     const fragmentEnd = findFragmentEnd(fragmentStart);
     const children = walkSiblings(fragmentStart.nextSibling, fragmentEnd, context);
@@ -244,7 +249,15 @@ function handleMarkerComment(comment: Comment, context: WalkContext): MarkerResu
     };
   }
 
-  return { next: comment.nextSibling, vnodes: [createCommentVNode(data)] };
+  return plain;
+}
+
+function tryDecodeMarker<T>(json: string): T | undefined {
+  try {
+    return decodeMarker<T>(json);
+  } catch {
+    return;
+  }
 }
 
 function findClosingMarker(start: Comment, openMarker: string, closeMarker: string): Comment {
@@ -338,11 +351,11 @@ function serializeStaticNode(node: Node): string {
 }
 
 function readAttributes(element: Element): Record<string, string> | undefined {
-  const names = element.getAttributeNames();
-  if (names.length === 0) return;
-
-  const props: Record<string, string> = {};
-  for (const name of names) props[name] = element.getAttribute(name) ?? "";
+  let props: Record<string, string> | undefined;
+  for (const name of element.getAttributeNames()) {
+    if (VNODE_RESERVED_ATTRIBUTES.has(name)) continue;
+    (props ??= {})[name] = element.getAttribute(name) ?? "";
+  }
   return props;
 }
 

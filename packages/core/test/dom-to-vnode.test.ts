@@ -23,6 +23,8 @@ import {
   encodeMarker,
   MARKER_COMPONENT,
   MARKER_COMPONENT_END,
+  MARKER_SUSPENSE,
+  MARKER_TELEPORT,
   VServerComponentType,
   type OnigiriPayload,
   type VServerComponent,
@@ -738,6 +740,111 @@ describe("domToVNode", () => {
           "type": "Fragment",
         }
       `);
+  });
+
+  it.each([
+    { name: "component", data: `${MARKER_COMPONENT}[1,{"x":1},"/evil.js"` },
+    { name: "teleport", data: `${MARKER_TELEPORT}[7,"#x"` },
+    { name: "suspense", data: `${MARKER_SUSPENSE}[4,null` },
+  ])("renders a malformed $name marker as a plain comment", ({ data }) => {
+    const importFn = vi.fn(TEST_IMPORT_FN);
+    const vnode = htmlToVNode(`<!--${data}--><p>after</p>`, { importFn });
+
+    expect(vnodeShape(vnode)).toEqual({
+      type: "Fragment",
+      children: [`comment:${commentShape(data)}`, "static(1)"],
+    });
+    expect((vnode!.children as VNode[])[0]!.children).toBe(data);
+    expect(importFn).not.toHaveBeenCalled();
+  });
+
+  it("drops ref and key attributes from adopted marker ancestors", () => {
+    const inner = [VServerComponentType.Component, undefined, COUNTER_CHUNK, "default"] as const;
+    const html = [
+      '<div ref="r" key="k" ref_key="rk" ref_for="true" data-keep="yes">',
+      `<!--${MARKER_COMPONENT}${encodeMarker(inner)}-->`,
+      "<span>body</span>",
+      `<!--${MARKER_COMPONENT_END}-->`,
+      "</div>",
+    ].join("");
+    const vnode = htmlToVNode(html, { importFn: TEST_IMPORT_FN })!;
+
+    expect(vnode.type).toBe("div");
+    expect(vnode.props).toEqual({ "data-keep": "yes" });
+    expect(vnode.key).toBeNull();
+    expect(vnode.ref).toBeNull();
+  });
+
+  it("never mounts a component from a marker smuggled through raw server HTML", async () => {
+    const evil = [VServerComponentType.Component, { x: 1 }, "/evil.js", "default"] as const;
+    const smuggled = `<!--${MARKER_COMPONENT}${encodeMarker(evil)}--><b>bait</b><!--${MARKER_COMPONENT_END}-->`;
+    const input: VServerComponent = [
+      VServerComponentType.Fragment,
+      [
+        [VServerComponentType.StaticHtml, smuggled, 3],
+        [
+          VServerComponentType.Element,
+          "div",
+          undefined,
+          [[VServerComponentType.StaticHtml, `<p>${smuggled}</p>`, 1]],
+        ],
+        [VServerComponentType.Comment, `${MARKER_COMPONENT}[1,{},"/evil.js"]`],
+      ],
+    ];
+    const html = await renderToString(renderOnigiriWithMarkers(input)!);
+    const importFn = vi.fn(async (src: string) => {
+      throw new Error(`must not load ${src}`);
+    });
+    const vnode = htmlToVNode(html, { importFn });
+    const container = document.createElement("div");
+    const app = createApp({ render: () => vnode });
+    apps.push(app);
+    app.mount(container);
+    await flushPromises();
+
+    expect(html).not.toContain(`<!--${MARKER_COMPONENT}[`);
+    expect(vnodeShape(vnode)).toMatchInlineSnapshot(`
+      {
+        "children": [
+          "comment: o:c[1,{"x":1},"/evil.js","default"]",
+          "static(1)",
+          "comment: /o:c",
+          "static(1)",
+          "comment: o:c[1,{},"/evil.js"]",
+        ],
+        "type": "Fragment",
+      }
+    `);
+    expect(container.querySelectorAll("b")).toHaveLength(2);
+    expect(importFn).not.toHaveBeenCalled();
+  });
+
+  it("never mounts a component from a bogus comment marker in raw server HTML", async () => {
+    // Browsers also parse `</[>` as a comment, but happy-dom drops it.
+    const smuggled = '<!o:c[1,{"x":1},"/evil.js","default"]><b>bait</b><!/o:c><![><!]>';
+    const input: VServerComponent = [
+      VServerComponentType.Element,
+      "div",
+      { innerHTML: smuggled },
+      undefined,
+    ];
+    const html = await renderToString(renderOnigiriWithMarkers(input)!);
+    const importFn = vi.fn(async (src: string) => {
+      throw new Error(`must not load ${src}`);
+    });
+    const vnode = htmlToVNode(html, { importFn });
+    const container = document.createElement("div");
+    const app = createApp({ render: () => vnode });
+    apps.push(app);
+    app.mount(container);
+    await flushPromises();
+
+    expect(html).toBe(
+      '<div><! o:c[1,{"x":1},"/evil.js","default"]><b>bait</b><! /o:c><! [><! ]></div>',
+    );
+    expect(vnodeShape(vnode)).toBe("static(1)");
+    expect(container.querySelectorAll("b")).toHaveLength(1);
+    expect(importFn).not.toHaveBeenCalled();
   });
 });
 

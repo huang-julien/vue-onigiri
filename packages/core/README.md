@@ -89,8 +89,6 @@ import { domToVNode, htmlToVNode } from "vue-onigiri/runtime/dom-to-vnode";
 
 For refetched HTML strings, use `htmlToVNode(html, { previous: currentTree })`. Unchanged static runs reuse their previous VNode by identity; fresh runs receive unique keys so Vue replaces them in production too. Without `previous`, every static run is replaced on each render, matching legacy Nuxt island refetch behavior. The previous-tree scan visits element and fragment children, without entering component or suspense boundaries.
 
-Markers use comment data prefixes `o:c`, `o:t`, and `o:s`, immediately followed by a JSON tuple's `[`. Component and suspense regions close with `/o:c` and `/o:s`; teleports retain Vue's own anchors. Marker JSON escapes `<` and `--` so it cannot close the comment; decoding uses `JSON.parse`. These marker prefixes and Vue's exact `[` / `]` comment data are reserved and must not be used as ordinary comments in raw HTML.
-
 Nested fragments and suspense without fallback are flattened. Root fragments, multi-node roots, and marked suspense defaults retain fragment anchors so the client can locate their boundaries. Component bodies and teleport contents retain Vue's normal rendering. These anchor differences mean the two transports can produce different comments around otherwise identical HTML.
 
 ## Vite Plugins

@@ -16,7 +16,12 @@ import {
   resolveOnigiriInput,
   type RenderOnigiriOptions,
 } from "./deserialize";
-import { countHtmlRootNodes, splitHtmlRootComments } from "./html";
+import {
+  countHtmlRootNodes,
+  neutralizeCommentData,
+  neutralizeHtmlComments,
+  splitHtmlRootComments,
+} from "./html";
 import {
   encodeMarker,
   MARKER_COMPONENT,
@@ -65,7 +70,7 @@ function renderHtml(node: HtmlNode): string {
       const open = `<${tag}${props ? ssrRenderAttrs(props, tag) : ""}>`;
       if (isVoidTag(tag)) return open;
       const content = props?.innerHTML
-        ? props.innerHTML
+        ? neutralizeHtmlComments(props.innerHTML)
         : props?.textContent
           ? escapeHtml(props.textContent)
           : tag === "textarea" && props?.value
@@ -78,9 +83,9 @@ function renderHtml(node: HtmlNode): string {
     case VServerComponentType.Text:
       return escapeHtml(tuple[1]);
     case VServerComponentType.StaticHtml:
-      return tuple[1];
+      return neutralizeHtmlComments(tuple[1]);
     case VServerComponentType.Comment:
-      return `<!--${escapeHtmlComment(tuple[1])}-->`;
+      return `<!--${safeCommentData(tuple[1])}-->`;
     case VServerComponentType.Fragment:
       return tuple[1] ? renderHtml(tuple[1]) : "";
     case VServerComponentType.Suspense:
@@ -93,6 +98,10 @@ function renderHtml(node: HtmlNode): string {
         `[vue-onigiri] astToHtml cannot render ${VServerComponentType[tuple[0]]}; use renderOnigiriWithMarkers.`,
       );
   }
+}
+
+function safeCommentData(data: string): string {
+  return neutralizeCommentData(escapeHtmlComment(data));
 }
 
 function flatten(node: HtmlNode, result: (VServerComponent | string | null | undefined)[]): void {
@@ -170,7 +179,7 @@ function buildChildren(node: HtmlNode, options?: RenderOnigiriOptions): VNode[] 
   for (const child of nodes) {
     if (child == null || (Array.isArray(child) && child[0] === VServerComponentType.Comment)) {
       flush();
-      children.push(createCommentVNode(child?.[1] ?? ""));
+      children.push(createCommentVNode(safeCommentData(child?.[1] ?? "")));
     } else if (typeof child !== "string" && hasMarkers(child)) {
       flush();
       switch (child[0]) {
@@ -206,13 +215,14 @@ function buildChildren(node: HtmlNode, options?: RenderOnigiriOptions): VNode[] 
       }
     } else {
       if (typeof child !== "string" && child[0] === VServerComponentType.StaticHtml) {
-        const parts: [string, boolean][] = child[1].includes("<!--")
-          ? splitHtmlRootComments(child[1])
-          : [[child[1], false]];
+        const raw = neutralizeHtmlComments(child[1]);
+        const parts: [string, boolean][] = raw.includes("<!--")
+          ? splitHtmlRootComments(raw)
+          : [[raw, false]];
         for (const [content, isComment] of parts) {
           if (isComment) {
             flush();
-            children.push(createCommentVNode(content));
+            children.push(createCommentVNode(safeCommentData(content)));
           } else {
             append(content, "static", parts.length === 1 ? child[2] : countHtmlRootNodes(content));
           }

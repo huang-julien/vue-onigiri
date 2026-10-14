@@ -17,12 +17,35 @@ const VOID_HTML_ELEMENTS = new Set([
 
 const RAWTEXT_ELEMENTS = new Set(["script", "style", "textarea", "title"]);
 
+/** Comment data the marker transport acts on: onigiri prefixes and Vue's fragment anchors. */
+const RESERVED_COMMENT_DATA = /^(?:o:[cts]\[|\/o:[cs]$|\[$|\]$)/;
+// Browsers also build comment nodes from bogus openers: `<!x>` and `</` + non-letter.
+const RESERVED_HTML_COMMENT =
+  /<(?:!--(?=o:[cts]\[|(?:\/o:[cs]|\[|\])--!?>)|!(?!--)(?=o:[cts]\[|(?:\/o:[cs]|\[|\])>)|\/(?=[[\]]>))/g;
+
 /**
  * Count the number of root nodes in an HTML string.
  * Use for StaticVNode to determine how many nodes will be hydrated on the client.
  */
 export function countHtmlRootNodes(html: string): number {
   return scanHtmlRootNodes(html);
+}
+
+/** True when comment data would be read as an onigiri marker or a Vue fragment anchor. */
+export function isReservedCommentData(data: string): boolean {
+  return RESERVED_COMMENT_DATA.test(data);
+}
+
+/** Prefix reserved comment data with a space so the client walker treats it as a plain comment. */
+export function neutralizeCommentData(data: string): string {
+  return isReservedCommentData(data) ? ` ${data}` : data;
+}
+
+/** Rewrite every comment in raw HTML, at any depth, whose data collides with reserved marker data. */
+export function neutralizeHtmlComments(html: string): string {
+  return html.includes("<!") || html.includes("</[") || html.includes("</]")
+    ? html.replace(RESERVED_HTML_COMMENT, "$& ")
+    : html;
 }
 
 /** Split raw HTML at root comments so static runs never adopt a comment first. */
