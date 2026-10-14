@@ -6,6 +6,8 @@ export interface GeneratedCase {
   payload: unknown;
   vueHtml: string;
   onigiriHtml: string;
+  /** Server HTML carrying the metadata needed for DOM hydration. */
+  onigiriMarkedHtml: string;
 }
 
 /** Row counts drive every bench; `Tree.vue` emits about five VNodes per row. */

@@ -2,6 +2,7 @@ import { bench, describe } from "vitest";
 import { createApp, createSSRApp } from "vue";
 import Tree from "../fixtures/Tree.vue";
 import { renderOnigiri } from "../../src/runtime/deserialize";
+import { domToVNode } from "../../src/runtime/dom-to-vnode";
 import type { OnigiriPayload } from "../../src/runtime/shared";
 import { CLIENT_ROW_COUNTS, RENDER_MODES, type GeneratedCase, type RenderMode } from "../shared";
 import case1000 from "./generated/1000.json";
@@ -51,6 +52,20 @@ for (const mode of RENDER_MODES) {
         },
         BENCH_OPTIONS,
       );
+
+      if (mode === "hydrate") {
+        bench(
+          "onigiri-dom",
+          () => {
+            const el = container(mode, data.onigiriMarkedHtml);
+            const app = create({ render: () => domToVNode(el.firstChild!) });
+            app.mount(el);
+            app.unmount();
+            el.remove();
+          },
+          BENCH_OPTIONS,
+        );
+      }
     });
   }
 }

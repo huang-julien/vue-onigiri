@@ -6,6 +6,7 @@ import { createSSRApp } from "vue";
 import { renderToString } from "@vue/server-renderer";
 import { serializeComponent } from "../../src/runtime/serialize";
 import { renderOnigiri } from "../../src/runtime/deserialize";
+import { renderOnigiriWithMarkers } from "../../src/runtime/ast-to-html";
 import Tree from "../fixtures/Tree.vue";
 import { ROW_COUNTS, type GeneratedCase } from "../shared";
 
@@ -15,6 +16,10 @@ interface SizeRow {
   htmlGzipBytes: number;
   payloadBytes: number;
   payloadGzipBytes: number;
+  /** Uncompressed HTML-first transport size. */
+  markedHtmlBytes: number;
+  /** Compressed HTML-first transport size. */
+  markedHtmlGzipBytes: number;
 }
 
 const GENERATED_DIR = fileURLToPath(new URL("../client/generated/", import.meta.url));
@@ -31,6 +36,9 @@ it("measures payload sizes and writes client fixtures", async () => {
     const onigiriHtml = await renderToString(
       createSSRApp({ render: () => renderOnigiri(payload) }),
     );
+    const onigiriMarkedHtml = await renderToString(
+      createSSRApp({ render: () => renderOnigiriWithMarkers(payload) }),
+    );
     const payloadJson = JSON.stringify(payload);
 
     sizes.push({
@@ -39,9 +47,11 @@ it("measures payload sizes and writes client fixtures", async () => {
       htmlGzipBytes: gzipSync(vueHtml).byteLength,
       payloadBytes: Buffer.byteLength(payloadJson),
       payloadGzipBytes: gzipSync(payloadJson).byteLength,
+      markedHtmlBytes: Buffer.byteLength(onigiriMarkedHtml),
+      markedHtmlGzipBytes: gzipSync(onigiriMarkedHtml).byteLength,
     });
 
-    const generated: GeneratedCase = { rows, payload, vueHtml, onigiriHtml };
+    const generated: GeneratedCase = { rows, payload, vueHtml, onigiriHtml, onigiriMarkedHtml };
     writeFileSync(`${GENERATED_DIR}${rows}.json`, JSON.stringify(generated));
   }
 
