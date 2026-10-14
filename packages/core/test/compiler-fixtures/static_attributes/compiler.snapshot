@@ -5,18 +5,10 @@ export function renderOnigiri(_ctx, __instance) {
     { action: "/submit", method: "post", novalidate: true },
     [
       [
-        0,
-        "input",
-        {
-          type: "text",
-          name: "title",
-          required: true,
-          disabled: true,
-          "data-testid": "title-input",
-          "aria-label": "Title",
-        },
+        5,
+        '<input type="text" name="title" required disabled data-testid="title-input" aria-label="Title"><button type="submit" class="btn primary" id="submit-btn">Send</button>',
+        2,
       ],
-      [0, "button", { type: "submit", class: "btn primary", id: "submit-btn" }, "Send"],
     ],
   ];
 }

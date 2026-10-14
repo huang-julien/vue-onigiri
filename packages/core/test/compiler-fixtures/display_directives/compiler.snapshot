@@ -11,7 +11,7 @@ export function renderOnigiri(_ctx, __instance) {
       __withDirective("html", [0, "div", undefined, undefined], { value: _ctx.html }, __instance),
       __withDirective("text", [0, "span", undefined, undefined], { value: _ctx.label }, __instance),
       [0, "span", {}, _toDisplayString(_ctx.frozen)],
-      [0, "span", undefined, "{{ raw }}"],
+      [5, "<span>{{ raw }}</span>", 1],
     ],
   ];
 }

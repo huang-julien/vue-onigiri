@@ -22,7 +22,7 @@ export enum VServerComponentType {
   Text,
   Fragment,
   Suspense,
-  /** Raw HTML string - rendered using createStaticVNode */
+  /** Raw HTML from v-html or Static vnodes at serialize time, or compiler static subtrees. */
   StaticHtml,
   /** Comment vnode - rendered using createCommentVNode */
   Comment,
@@ -66,7 +66,7 @@ type VServerComponentTeleport = [
 
 /**
  * Static HTML content - rendered as raw HTML using createStaticVNode.
- * Used by v-html directive.
+ * Produced by v-html and Static vnodes at serialize time, and by the compiler for static subtrees.
  * Format: [type, htmlString, nodeCount]
  * nodeCount is needed by Vue's createStaticVNode for hydration.
  */

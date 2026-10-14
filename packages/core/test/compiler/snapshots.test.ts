@@ -19,7 +19,14 @@ describe("onigiri compiler", () => {
         expect(result.code).toMatchSnapshot();
       });
 
-      it("self-closing elements", () => {
+      it("self-closing elements with dynamic props", () => {
+        const result = compileOnigiri(
+          `<input :value="value" type="text" placeholder="Enter text" />`,
+        );
+        expect(result.code).toMatchSnapshot();
+      });
+
+      it("static self-closing element", () => {
         const result = compileOnigiri(`<input type="text" placeholder="Enter text" />`);
         expect(result.code).toMatchSnapshot();
       });

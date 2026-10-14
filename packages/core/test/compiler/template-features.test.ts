@@ -68,8 +68,8 @@ describe("onigiri compiler", () => {
       const result = compileOnigiri(template);
 
       // Static content should be preserved as-is
-      expect(result.code).toContain('"div"');
-      expect(result.code).toContain('"static"');
+      expect(result.code).toContain("<div");
+      expect(result.code).toContain("static");
       expect(result.code).toContain("Static text");
     });
 
@@ -86,7 +86,7 @@ describe("onigiri compiler", () => {
       const template = `<input disabled readonly />`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"input"');
+      expect(result.code).toContain("<input");
       expect(result.code).toContain("disabled");
       expect(result.code).toContain("readonly");
     });
@@ -97,7 +97,7 @@ describe("onigiri compiler", () => {
       const template = `<div class="foo bar">Content</div>`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"foo bar"');
+      expect(result.code).toContain('class=\\"foo bar\\"');
     });
 
     it("should handle dynamic class binding", () => {
@@ -138,23 +138,23 @@ describe("onigiri compiler", () => {
       const result = compileOnigiri(template);
 
       expect(result.code).toContain("show");
-      expect(result.code).toContain('"div"');
+      expect(result.code).toContain("<div>Conditional</div>");
     });
 
     it("should handle self-closing elements", () => {
       const template = `<img src="test.png" /><br /><hr />`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"img"');
-      expect(result.code).toContain('"br"');
-      expect(result.code).toContain('"hr"');
+      expect(result.code).toContain("<img");
+      expect(result.code).toContain("<br>");
+      expect(result.code).toContain("<hr>");
     });
 
     it("should handle HTML comments (skip them)", () => {
       const template = `<div><!-- This is a comment -->Content</div>`;
       const result = compileOnigiri(template);
 
-      expect(result.code).toContain('"div"');
+      expect(result.code).toContain("<div>Content</div>");
       expect(result.code).toContain("Content");
       // Comments should not appear in output
       expect(result.code).not.toContain("This is a comment");

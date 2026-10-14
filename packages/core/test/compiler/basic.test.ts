@@ -41,8 +41,8 @@ describe("onigiri compiler", () => {
 
       // Fragment type is 3
       expect(result.expression).toMatch(/^\[3,/);
-      expect(result.expression).toContain('"div"');
-      expect(result.expression).toContain('"span"');
+      expect(result.expression).toContain("<div>A</div><span>B</span>");
+      expect(result.expression).toContain(", 2]");
     });
 
     it("should return null for empty template", () => {
@@ -71,12 +71,19 @@ describe("onigiri compiler", () => {
       expect(result.code).toContain("export function renderOnigiri");
     });
 
-    it("should return VServerComponent array structure", () => {
-      const template = `<div class="test">Hello</div>`;
+    it("should return VServerComponent element array structure for dynamic roots", () => {
+      const template = `<div :class="className">Hello</div>`;
       const result = compileOnigiri(template);
 
       // Should return array starting with type (0 = Element)
       expect(result.code).toMatch(/return \[0,/);
+    });
+
+    it("should return StaticHtml array structure for static roots", () => {
+      const template = `<div class="test">Hello</div>`;
+      const result = compileOnigiri(template);
+
+      expect(result.code).toContain('return [5, "<div class=\\"test\\">Hello</div>", 1];');
     });
   });
 });

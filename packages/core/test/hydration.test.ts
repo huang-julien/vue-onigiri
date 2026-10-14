@@ -6,7 +6,14 @@ import { createSSRApp, h, nextTick, Suspense } from "vue";
 import { renderToString } from "@vue/server-renderer";
 import { serializeComponent } from "../src/runtime/serialize";
 import { renderOnigiri } from "../src/runtime/deserialize";
+import { VServerComponentType } from "../src/runtime/shared";
 import LoadComponent from "./fixtures/components/LoadComponent.vue";
+import StaticChrome from "./fixtures/components/StaticChrome.vue";
+import { removeCommentsFromHtml } from "./utils";
+
+function normalizeHydrationHtml(html: string): string {
+  return removeCommentsFromHtml(html).replaceAll(/\r?\n| |=""/g, "");
+}
 
 describe("hydration over server-rendered HTML", () => {
   afterEach(() => {
@@ -41,6 +48,42 @@ describe("hydration over server-rendered HTML", () => {
     expect(complaints).toEqual([]);
 
     // Interactivity proves the island actually hydrated instead of re-rendering.
+    expect(container.innerHTML).toContain("counter : 0");
+    container.querySelector("button")!.click();
+    await nextTick();
+    expect(container.innerHTML).toContain("counter : 1");
+  });
+
+  it("hydrates static HTML chunks around a client-loaded island", async () => {
+    const payload = await serializeComponent(StaticChrome);
+
+    expect(JSON.stringify(payload.ast)).toContain(`[${VServerComponentType.StaticHtml},`);
+
+    const makeOnigiriApp = () =>
+      createSSRApp({
+        setup: () => () => h(Suspense, null, { default: () => renderOnigiri(payload) }),
+      });
+
+    const onigiriHtml = await renderToString(makeOnigiriApp());
+    const vueHtml = await renderToString(h(StaticChrome));
+    expect(normalizeHydrationHtml(onigiriHtml)).toBe(normalizeHydrationHtml(vueHtml));
+
+    const container = document.createElement("div");
+    container.innerHTML = onigiriHtml;
+    document.body.append(container);
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    makeOnigiriApp().mount(container);
+    await flushPromises();
+    await nextTick();
+
+    const complaints = [...warn.mock.calls, ...error.mock.calls]
+      .map((c) => String(c[0]))
+      .filter((m) => /hydrat|mismatch/i.test(m));
+    expect(complaints).toEqual([]);
+
     expect(container.innerHTML).toContain("counter : 0");
     container.querySelector("button")!.click();
     await nextTick();

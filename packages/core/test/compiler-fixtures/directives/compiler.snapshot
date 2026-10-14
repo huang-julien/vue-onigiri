@@ -8,7 +8,7 @@ export function renderOnigiri(_ctx, __instance) {
     "div",
     undefined,
     [
-      _ctx.show ? [0, "p", undefined, "Visible"] : [0, "p", undefined, "Hidden"],
+      _ctx.show ? [5, "<p>Visible</p>", 1] : [5, "<p>Hidden</p>", 1],
       [
         0,
         "ul",

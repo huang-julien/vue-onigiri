@@ -46,16 +46,9 @@ describe("serialize/deserialize", () => {
           undefined,
           [
             [
-              0,
-              "div",
-              undefined,
-              "1",
-            ],
-            [
-              0,
-              "div",
-              undefined,
-              "2",
+              5,
+              "<div>1</div><div>2</div>",
+              2,
             ],
             [
               0,
@@ -98,16 +91,9 @@ describe("serialize/deserialize", () => {
             undefined,
             [
               [
-                0,
-                "div",
-                undefined,
-                "1",
-              ],
-              [
-                0,
-                "div",
-                undefined,
-                "2",
+                5,
+                "<div>1</div><div>2</div>",
+                2,
               ],
               [
                 1,
@@ -312,17 +298,9 @@ describe("slots", () => {
               {
                 "default": [
                   [
-                    0,
-                    "div",
-                    undefined,
-                    [
-                      [
-                        0,
-                        "p",
-                        undefined,
-                        "Slot content (static)",
-                      ],
-                    ],
+                    5,
+                    "<div><p>Slot content (static)</p></div>",
+                    1,
                   ],
                 ],
               },

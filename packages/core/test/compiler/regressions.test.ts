@@ -59,7 +59,7 @@ describe("onigiri compiler", () => {
     it("Teleport keeps its target instead of flattening into a fragment", () => {
       const result = compileOnigiri(`<Teleport to="#modal"><p>x</p></Teleport>`);
       expectParses(result.code);
-      expect(result.code).toContain('return [7, "#modal", undefined, [[0, "p", undefined, "x"]]];');
+      expect(result.code).toContain('return [7, "#modal", undefined, [[5, "<p>x</p>", 1]]];');
     });
 
     it("Teleport supports dynamic target and disabled", () => {
@@ -75,7 +75,7 @@ describe("onigiri compiler", () => {
         `<Suspense><template #default><Content /></template><template #fallback><p>loading</p></template></Suspense>`,
       );
       expectParses(result.code);
-      expect(result.code).toMatch(/return \[4, \[.+\], \[\[0, "p", undefined, "loading"\]\]\];/);
+      expect(result.code).toMatch(/return \[4, \[.+\], \[\[5, "<p>loading<\/p>", 1\]\]\];/);
     });
 
     it("Suspense without a fallback keeps the two-element tuple", () => {
@@ -100,10 +100,10 @@ describe("onigiri compiler", () => {
     });
 
     it("comment between element children leaves no sparse-array hole", () => {
-      const result = compileOnigiri(`<div><!-- c --><span>a</span></div>`);
+      const result = compileOnigiri(`<div :id="id"><!-- c --><span :title="title">a</span></div>`);
       expectParses(result.code);
       expect(result.code).not.toContain("[, ");
-      expect(result.code).toContain('[[0, "span", undefined, "a"]]');
+      expect(result.code).toContain('[[0, "span", {"title": _ctx.title}, "a"]]');
     });
 
     it("comment-only template emits null", () => {
@@ -174,7 +174,7 @@ describe("onigiri compiler", () => {
     });
 
     it("leaves lone static or lone dynamic class untouched", () => {
-      const staticOnly = compileOnigiri(`<div class="a">x</div>`);
+      const staticOnly = compileOnigiri(`<div :id="id" class="a">x</div>`);
       expectParses(staticOnly.code);
       expect(staticOnly.code).toContain('"class": "a"');
       expect(staticOnly.code).not.toContain("_normalizeClass");
@@ -300,7 +300,7 @@ describe("onigiri compiler", () => {
         importMap,
       });
       expectParses(single.code);
-      expect(single.code).toContain('{ "default": [[0, "span", undefined, "a"]] }');
+      expect(single.code).toContain('{ "default": [[5, "<span>a</span>", 1]] }');
     });
   });
 });
