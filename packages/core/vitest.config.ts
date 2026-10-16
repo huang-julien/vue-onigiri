@@ -31,6 +31,8 @@ export default defineProject({
       // our local source so tests can run without a build step.
       "vue-onigiri/runtime/serialize": srcUrl("runtime/serialize.ts"),
       "vue-onigiri/runtime/deserialize": srcUrl("runtime/deserialize.ts"),
+      "vue-onigiri/runtime/ast-to-html": srcUrl("runtime/ast-to-html.ts"),
+      "vue-onigiri/runtime/dom-to-vnode": srcUrl("runtime/dom-to-vnode.ts"),
       "vue-onigiri/runtime/shared": srcUrl("runtime/shared.ts"),
       "vue-onigiri/runtime/utils": srcUrl("runtime/utils.ts"),
       "vue-onigiri/runtime/with-directive": srcUrl("runtime/with-directive.ts"),

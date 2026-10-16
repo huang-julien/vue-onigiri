@@ -1,5 +1,16 @@
 import type { InjectionKey } from "vue";
 
+/** Component metadata comment prefix. */
+export const MARKER_COMPONENT = "o:c";
+/** Component region closing comment. */
+export const MARKER_COMPONENT_END = "/o:c";
+/** Teleport metadata comment prefix. */
+export const MARKER_TELEPORT = "o:t";
+/** Suspense fallback metadata comment prefix. */
+export const MARKER_SUSPENSE = "o:s";
+/** Suspense region closing comment. */
+export const MARKER_SUSPENSE_END = "/o:s";
+
 /**
  * Symbol used to signal that we're in onigiri render mode.
  * When this symbol is provided, setup should return the onigiri render function
@@ -150,4 +161,14 @@ export interface OnigiriComponent {
   setup?: (...args: any[]) => any;
   props?: any;
   [key: string]: any;
+}
+
+/** Encode a tuple without allowing HTML comment delimiters. */
+export function encodeMarker(value: unknown): string {
+  return JSON.stringify(value).replaceAll("--", "-\\u002D").replaceAll("<", "\\u003C");
+}
+
+/** Decode the JSON portion of a metadata comment. */
+export function decodeMarker<T = VServerComponent>(value: string): T {
+  return JSON.parse(value) as T;
 }
