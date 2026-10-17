@@ -1,6 +1,8 @@
 import {
   createVNode,
   defineComponent,
+  popScopeId,
+  pushScopeId,
   ssrContextKey,
   type Component,
   type ComponentInternalInstance,
@@ -60,7 +62,8 @@ export function provideMarkerNonce<T extends Record<string, any>>(
 /**
  * Render a `v-load-client` component with Vue's SSR renderer and wrap its
  * output in island markers. The SSR transform emits this in place of
- * `ssrRenderComponent`; the returned buffer is pushed like any component.
+ * `ssrRenderComponent`, same shape plus `when`; Vue appends the slot scope id last.
+ * Outside an island render (no nonce in the SSR context) it is Vue's own call.
  */
 export function ssrRenderClientComponent(
   is: Component | string,
@@ -68,24 +71,27 @@ export function ssrRenderClientComponent(
   slots: SSRSlots | null | undefined,
   parent: ComponentInternalInstance,
   when?: unknown,
+  slotScopeId?: string,
 ): SSRBuffer | Promise<SSRBuffer> {
-  if (when === false || typeof is === "string") {
+  if (typeof is === "string") {
     const buffer: SSRBuffer = [];
-    ssrRenderVNode((item) => buffer.push(item), createVNode(is as Component, props, slots), parent);
+    ssrRenderVNode((item) => buffer.push(item), createVNode(is, props, slots), parent, slotScopeId);
     return buffer;
   }
 
-  const markers = markersOf(parent);
-  const { chunk, exportName } = describeComponent(is);
+  const markers = when === false ? undefined : markersOf(parent);
   const captured: Record<string, SSRBuffer> = {};
-  const rendered = unroll(
-    ssrRenderComponent(
-      is,
-      props,
-      captureSlots(slots, captured, parent) as Parameters<typeof ssrRenderComponent>[2],
-      parent,
-    ) as SSRBuffer,
+  const buffer = renderComponent(
+    is,
+    props,
+    markers ? captureSlots(slots, captured, parent) : slots,
+    parent,
+    slotScopeId,
   );
+  if (!markers) return buffer;
+
+  const { chunk, exportName } = describeComponent(is);
+  const rendered = unroll(buffer as SSRBuffer);
   const finish = (html: string): MaybePromise<SSRBuffer> => {
     const slotHtml = unrollRecord(captured);
     const marker = (resolvedSlots: Record<string, string> | undefined): SSRBuffer => {
@@ -108,29 +114,84 @@ export function ssrRenderClientComponent(
 }
 
 /**
+ * Statement form of `ssrRenderClientComponent` with the shape of Vue's
+ * `ssrRenderVNode` call site, for dynamic components: `_push` first, `when`
+ * after `_parent`, and Vue's appended slot scope id last.
+ */
+export function ssrRenderClientVNode(
+  push: PushFn,
+  is: Component | string,
+  props: Record<string, any> | null | undefined,
+  slots: SSRSlots | null | undefined,
+  parent: ComponentInternalInstance,
+  when?: unknown,
+  slotScopeId?: string,
+): void {
+  push(ssrRenderClientComponent(is, props, slots, parent, when, slotScopeId));
+}
+
+/**
  * Component form of `ssrRenderClientComponent` for Vue's vnode slot branch,
  * taken when a non-compiled child renders the slot that holds the component.
  */
 export const OnigiriClientBoundary = defineComponent({
   name: "OnigiriClientBoundary",
   props: ["is", "props", "when"],
-  ssrRender(_ctx: unknown, push: PushFn, instance: ComponentInternalInstance) {
+  ssrRender(
+    _ctx: unknown,
+    push: PushFn,
+    instance: ComponentInternalInstance,
+    attrs: Record<string, unknown> | undefined,
+  ) {
     const { is, props, when } = instance.props as unknown as ClientBoundaryProps;
-    push(ssrRenderClientComponent(is, props, instance.slots as SSRSlots, instance, when));
+    // Every real prop is declared, so Vue's attrs here are scope ids only: this vnode's own,
+    // which belongs on the child's root, and slot scope ids, which Vue applies to the whole subtree.
+    const rootScopeId = instance.vnode.scopeId;
+    const slotScopeIds = attrs
+      ? Object.keys(attrs)
+          .filter((id) => id !== rootScopeId)
+          .join(" ")
+      : "";
+    if (rootScopeId) pushScopeId(rootScopeId);
+    try {
+      push(
+        ssrRenderClientComponent(
+          is,
+          props,
+          instance.slots as SSRSlots,
+          instance,
+          when,
+          slotScopeIds || undefined,
+        ),
+      );
+    } finally {
+      if (rootScopeId) popScopeId();
+    }
   },
 });
 
-function markersOf(parent: ComponentInternalInstance): MarkerSet {
+function renderComponent(
+  is: Component,
+  props: Record<string, any> | null | undefined,
+  slots: SSRSlots | null | undefined,
+  parent: ComponentInternalInstance,
+  slotScopeId: string | undefined,
+): SSRBuffer | Promise<SSRBuffer> {
+  return ssrRenderComponent(
+    is,
+    props,
+    slots as Parameters<typeof ssrRenderComponent>[2],
+    parent,
+    slotScopeId,
+  ) as SSRBuffer | Promise<SSRBuffer>;
+}
+
+function markersOf(parent: ComponentInternalInstance): MarkerSet | undefined {
   // `provides` is internal but is where `renderToString` leaves the SSR context for every instance.
   const { provides } = parent as unknown as { provides: Record<symbol, any> };
   const context = provides[ssrContextKey];
   const nonce = context?.[ONIGIRI_NONCE_KEY] as string | undefined;
-  if (!nonce) {
-    throw new Error(
-      "[vue-onigiri] v-load-client under Vue SSR needs a marker nonce: " +
-        "call provideMarkerNonce(context) before renderToString(app, context).",
-    );
-  }
+  if (!nonce) return;
   if (nonce !== lastNonce) {
     lastNonce = nonce;
     lastMarkers = createMarkerSet(nonce);

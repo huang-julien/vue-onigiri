@@ -17,11 +17,7 @@ import {
 } from "vue";
 import { afterEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import { domToVNode } from "../src/runtime/dom-to-vnode";
-import {
-  createMarkerSet,
-  decodeMarker,
-  type VServerComponentComponent,
-} from "@vue-onigiri/shared";
+import { createMarkerSet, decodeMarker, type VServerComponentComponent } from "@vue-onigiri/shared";
 import * as boundaryModule from "../src/runtime/ssr-boundary";
 import { provideMarkerNonce } from "../src/runtime/ssr-boundary";
 import { ssrLoadClientTransform } from "../src/vite/compiler/ssr-load-client";
@@ -52,16 +48,40 @@ const TEST_IMPORT_FN: ImportFn = async (src) => {
   throw new Error(`Unexpected chunk ${src}`);
 };
 
-/** Compile a template as Vue SSR with the onigiri transform and evaluate it against local deps. */
-function compileSsr(source: string): (...args: any[]) => void {
+const Wrapper = defineComponent({
+  name: "Wrapper",
+  setup(_props, { slots }) {
+    return () => h("section", { "data-wrapper": "" }, slots.default?.());
+  },
+});
+
+interface CompileOptions {
+  /** Compile without the onigiri transform, as plain Vue would. */
+  plain?: boolean;
+  scoped?: boolean;
+  /** Scope id suffix, `data-v-<id>` when scoped. */
+  id?: string;
+  /** @default true */
+  ssr?: boolean;
+}
+
+/** Compile a template with Vue's SFC compiler, with the onigiri transform unless `plain`. */
+function compileCode(source: string, options: CompileOptions = {}): string {
   const { code, errors } = compileTemplate({
     source,
     filename: "Island.vue",
-    id: "island",
-    ssr: true,
-    compilerOptions: { nodeTransforms: [ssrLoadClientTransform] },
+    id: options.id ?? "island",
+    ssr: options.ssr ?? true,
+    scoped: options.scoped,
+    compilerOptions: { nodeTransforms: options.plain ? [] : [ssrLoadClientTransform] },
   });
   expect(errors).toEqual([]);
+  return code;
+}
+
+/** Compile a template as Vue SSR and evaluate it against local deps. */
+function compileSsr(source: string, options: CompileOptions = {}): (...args: any[]) => void {
+  const code = compileCode(source, options);
   const deps: Record<string, unknown> = {
     vue: Vue,
     "vue/server-renderer": serverRenderer,
@@ -75,12 +95,37 @@ function compileSsr(source: string): (...args: any[]) => void {
   return new Function("__deps", body)(deps);
 }
 
-function islandComponent(template: string, state: () => Record<string, unknown>): Component {
+/** Template-compiled scoped parent: its slot content gets Vue's `_scopeId` (`data-v-wrap-s`). */
+const ScopedWrap = defineComponent({
+  name: "ScopedWrap",
+  __scopeId: "data-v-wrap",
+  ssrRender: compileSsr(`<section class="w"><slot /></section>`, {
+    plain: true,
+    scoped: true,
+    id: "wrap",
+  }),
+});
+
+function islandComponent(
+  template: string,
+  state: () => Record<string, unknown>,
+  options: CompileOptions = {},
+): Component {
   return defineComponent({
-    components: { Badge, Counter },
+    __scopeId: options.scoped ? "data-v-island" : undefined,
+    components: { Badge, Counter, Wrapper, ScopedWrap },
     setup: state,
-    ssrRender: compileSsr(template),
+    ssrRender: compileSsr(template, options),
   });
+}
+
+/** The same template as plain Vue sees it, directive removed. */
+function plainTemplate(template: string): string {
+  return template.replace(/ v-load-client(?:="[^"]*")?/g, "");
+}
+
+function stripMarkers(html: string): string {
+  return html.replace(new RegExp(`<!--/?o:[cts]:${NONCE}[\\s\\S]*?-->`, "g"), "");
 }
 
 function markerTuples(html: string): VServerComponentComponent[] {
@@ -221,26 +266,34 @@ describe("html-first SSR markers", () => {
     expect(html).toContain('data-badge="inline"');
   });
 
-  it("refuses to render without a nonce in the SSR context", async () => {
-    const island = islandComponent(`<div><Badge v-load-client label="x" /></div>`, () => ({}));
-    await expect(renderToString(createSSRApp(island), {})).rejects.toThrow(/marker nonce/);
+  it("compiles a dynamic component to the statement twin, not a wrapper", () => {
+    const ssr = compileCode(
+      `<component :is="which" v-load-client="flag" label="x"><b>s</b></component>`,
+    );
+    expect(ssr).toContain(
+      "_onigiriRenderClientVNode(_push, _resolveDynamicComponent(_ctx.which), ",
+    );
+    expect(ssr).toContain(", _parent, _ctx.flag)");
+    expect(ssr).not.toContain("_createVNode(_onigiriClientBoundary");
+  });
+
+  it("keeps Vue's slot scope id as the last argument, after an always-present when", () => {
+    const ssr = compileCode(
+      `<ScopedWrap><Badge v-load-client label="x" /><component :is="which" v-load-client /></ScopedWrap>`,
+      { scoped: true },
+    );
+    expect(ssr).toContain(
+      '_push(_onigiriRenderClient(_component_Badge, { label: "x" }, null, _parent, undefined, _scopeId))',
+    );
+    expect(ssr).toContain(
+      "_onigiriRenderClientVNode(_push, _resolveDynamicComponent(_ctx.which), null, null, _parent, undefined, _scopeId)",
+    );
   });
 
   it("only touches SSR compiles", () => {
     const source = `<Badge v-load-client="flag" label="x" />`;
-    const ssr = compileTemplate({
-      source,
-      filename: "Island.vue",
-      id: "island",
-      ssr: true,
-      compilerOptions: { nodeTransforms: [ssrLoadClientTransform] },
-    }).code;
-    const client = compileTemplate({
-      source,
-      filename: "Island.vue",
-      id: "island",
-      compilerOptions: { nodeTransforms: [ssrLoadClientTransform] },
-    }).code;
+    const ssr = compileCode(source);
+    const client = compileCode(source, { ssr: false });
     expect(ssr).toContain("from '@vue-onigiri/core/runtime/ssr-boundary'");
     expect(ssr).toContain(
       '_onigiriRenderClient(_component_Badge, _mergeProps({ label: "x" }, _attrs), null, _parent, _ctx.flag)',
@@ -249,4 +302,60 @@ describe("html-first SSR markers", () => {
     expect(client).toContain('_resolveDirective("load-client")');
     expect(client).not.toContain("ssr-boundary");
   });
+});
+
+/** Each case covers one codegen path the transform rewrites; `Wrapper` forces Vue's vnode slot branch. */
+const PARITY_CASES: [name: string, template: string][] = [
+  ["static component", `<div><Badge v-load-client label="x" :count="two" /></div>`],
+  [
+    "dynamic component with a slot",
+    `<div><component :is="which" v-load-client><b>slot {{ label }}</b></component></div>`,
+  ],
+  [
+    "component in a render-function child's slot",
+    `<div><Wrapper><Badge v-load-client label="in-slot" /></Wrapper></div>`,
+  ],
+  [
+    "dynamic component in a render-function child's slot",
+    `<div><Wrapper><component :is="which" v-load-client><i>deep</i></component></Wrapper></div>`,
+  ],
+  [
+    "component in a scoped compiled parent's slot",
+    `<div><ScopedWrap><Badge v-load-client label="x" /></ScopedWrap></div>`,
+  ],
+  [
+    "dynamic component in a scoped compiled parent's slot",
+    `<div><ScopedWrap><component :is="which" v-load-client><i>deep</i></component></ScopedWrap></div>`,
+  ],
+];
+
+const PARITY_STATE = () => ({ two: 2, which: Counter, label: "text" });
+
+describe.each(PARITY_CASES)("parity with plain Vue SSR: %s", (_name, template) => {
+  for (const scoped of [false, true]) {
+    const suffix = scoped ? " (scoped)" : "";
+
+    it(`is Vue's own output without a nonce${suffix}`, async () => {
+      const island = islandComponent(template, PARITY_STATE, { scoped });
+      const plain = islandComponent(plainTemplate(template), PARITY_STATE, { scoped, plain: true });
+      const html = await renderToString(createSSRApp(island), {});
+      expect(html).toBe(await renderToString(createSSRApp(plain), {}));
+      expect(html).not.toContain("<!--o:c");
+      if (scoped) expect(html).toContain("data-v-island");
+    });
+
+    it(`is Vue's own output plus markers with a nonce${suffix}`, async () => {
+      const island = islandComponent(template, PARITY_STATE, { scoped });
+      const plain = islandComponent(plainTemplate(template), PARITY_STATE, { scoped, plain: true });
+      const html = await renderToString(
+        createSSRApp(island),
+        provideMarkerNonce({ onigiriNonce: NONCE }),
+      );
+      const tuples = markerTuples(html);
+      expect(tuples).toHaveLength(1);
+      // Scope ids are a rendering detail; the marker describes the component's props only.
+      expect(JSON.stringify(tuples[0]![1] ?? {})).not.toContain("data-v-");
+      expect(stripMarkers(html)).toBe(await renderToString(createSSRApp(plain), {}));
+    });
+  }
 });

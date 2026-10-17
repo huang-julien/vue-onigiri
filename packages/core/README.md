@@ -93,7 +93,7 @@ Nested fragments and suspense without fallback are flattened. Root fragments, mu
 
 #### Markers from Vue's own SSR render (prototype)
 
-The same markers can come straight out of Vue's SSR renderer, with no AST in between. Add `ssrLoadClientTransform` to the template compiler options of the server build; it rewrites each `v-load-client` component into `OnigiriClientBoundary`, which renders the component with `@vue/server-renderer` and writes the markers around its output. Markers are bound to a per-render nonce so raw HTML cannot forge one; the walker then recognizes only markers carrying the nonce it was given.
+The same markers can come straight out of Vue's SSR renderer, with no AST in between. Add `ssrLoadClientTransform` to the template compiler options of the server build; it rewrites each `v-load-client` component call into `ssrRenderClientComponent`, which renders the component with `@vue/server-renderer` and writes the markers around its output. Markers are bound to a per-render nonce so raw HTML cannot forge one; the walker then recognizes only markers carrying the nonce it was given. The transform is safe to apply to the whole server build: when the SSR context carries no nonce, the helper is Vue's own `ssrRenderComponent` call and the output is byte for byte what plain Vue renders, so a component used both inside islands and in regular pages compiles once.
 
 ```ts
 import { ssrLoadClientTransform } from "@vue-onigiri/core";

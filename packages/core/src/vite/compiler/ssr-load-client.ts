@@ -27,16 +27,20 @@ type TaggedDirective = DirectiveNode & { __onigiriSsr?: true };
 
 const BOUNDARY_IDENTIFIER = "_onigiriClientBoundary";
 const RENDER_IDENTIFIER = "_onigiriRenderClient";
+const RENDER_VNODE_IDENTIFIER = "_onigiriRenderClientVNode";
 const BOUNDARY_MODULE = "@vue-onigiri/core/runtime/ssr-boundary";
 const DIRECTIVE_NAME = "load-client";
+/** `when` is always emitted so Vue's appended `_scopeId` lands in a fixed position. */
+const NO_BINDING = "undefined";
 
 /** Pending wraps per (sub)compilation root. */
 const PENDING = new WeakMap<RootNode, PendingBoundary[]>();
 
 /**
  * Vue SSR node transform: a component carrying `v-load-client` renders through
- * `OnigiriClientBoundary`, which writes island markers around Vue's own output.
- * Pass it in `compilerOptions.nodeTransforms`; it is inert in client compiles.
+ * `ssrRenderClientComponent`, which writes island markers around Vue's own output
+ * when the SSR context carries a nonce and is Vue's own call otherwise.
+ * Safe to pass globally in `compilerOptions.nodeTransforms`; inert in client compiles.
  */
 export const ssrLoadClientTransform: NodeTransform = (node, context) => {
   if (node.type === NodeTypes.ROOT) {
@@ -82,7 +86,7 @@ function wrapPending(pending: PendingBoundary[], context: TransformContext): voi
   if (wrapped && !context.imports.some((item) => item.path === BOUNDARY_MODULE)) {
     context.imports.push({
       exp: createSimpleExpression(
-        `{ OnigiriClientBoundary as ${BOUNDARY_IDENTIFIER}, ssrRenderClientComponent as ${RENDER_IDENTIFIER} }`,
+        `{ OnigiriClientBoundary as ${BOUNDARY_IDENTIFIER}, ssrRenderClientComponent as ${RENDER_IDENTIFIER}, ssrRenderClientVNode as ${RENDER_VNODE_IDENTIFIER} }`,
         false,
       ),
       path: BOUNDARY_MODULE,
@@ -94,20 +98,17 @@ function wrapSsrCall({ node, when }: PendingBoundary): boolean {
   const call = node.ssrCodegenNode;
   if (!call || call.type !== NodeTypes.JS_CALL_EXPRESSION) return false;
   const callee = typeof call.callee === "symbol" ? helperNameMap[call.callee] : call.callee;
-  // `_ssrRenderComponent(comp, props, slots, _parent)` becomes a direct helper call, no extra instance.
+  // `_ssrRenderComponent(comp, props, slots, _parent)` becomes the same-shaped helper call.
   if (callee === "ssrRenderComponent") {
-    const [component, props, slots] = call.arguments as [JSChildNode, JSChildNode, JSChildNode];
     call.callee = RENDER_IDENTIFIER;
-    call.arguments = when
-      ? [component, props, slots, "_parent", when]
-      : [component, props, slots, "_parent"];
+    call.arguments.push(when ?? NO_BINDING);
     return true;
   }
-  // `_ssrRenderVNode(_push, _createVNode(_resolveDynamicComponent(x), props, slots), _parent)`
+  // `_ssrRenderVNode(_push, _createVNode(comp, props, slots), _parent)` becomes the statement twin.
   if (callee === "ssrRenderVNode") {
-    const vnode = call.arguments[1] as CallExpression;
-    const [component, props, slots] = vnode.arguments as [JSChildNode, JSChildNode, JSChildNode];
-    vnode.arguments = [BOUNDARY_IDENTIFIER, boundaryProps(component, props, when), slots];
+    const [push, vnode] = call.arguments as [string, CallExpression];
+    call.callee = RENDER_VNODE_IDENTIFIER;
+    call.arguments = [push, ...vnode.arguments, "_parent", when ?? NO_BINDING];
     return true;
   }
   return false;
