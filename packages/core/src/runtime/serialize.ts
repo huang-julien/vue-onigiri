@@ -34,7 +34,7 @@ import {
   type OnigiriPayload,
   ONIGIRI_PAYLOAD_VERSION,
   ONIGIRI_RENDER_SYMBOL,
-} from "./shared";
+} from "@vue-onigiri/shared";
 
 declare global {
   interface ImportMeta {

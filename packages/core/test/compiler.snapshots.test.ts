@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse, compileScript } from "@vue/compiler-sfc";
 import { format } from "oxfmt";
-import { compileOnigiri } from "../src/template-compiler";
+import { compileOnigiri } from "@vue-onigiri/compiler";
 import { buildImportMap } from "../src/vite/compiler/imports";
 
 const FIXTURES_DIR = fileURLToPath(new URL("compiler-fixtures", import.meta.url));

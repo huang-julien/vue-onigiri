@@ -16,7 +16,7 @@ import {
   serializeChildComponent,
   unrollServerComponentBufferPromises,
 } from "../src/runtime/serialize";
-import { VServerComponentType } from "../src/runtime/shared";
+import { VServerComponentType } from "@vue-onigiri/shared";
 import SlotHost from "./fixtures/components/SlotHost.vue";
 import RenderTimeResolve from "./fixtures/components/RenderTimeResolve.vue";
 

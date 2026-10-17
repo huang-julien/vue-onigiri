@@ -1,4 +1,4 @@
-import { renderSlot as __renderSlot } from "vue-onigiri/runtime/render-slot";
+import { renderSlot as __renderSlot } from "@vue-onigiri/core/runtime/render-slot";
 
 export function renderOnigiri(_ctx, __instance) {
   return [

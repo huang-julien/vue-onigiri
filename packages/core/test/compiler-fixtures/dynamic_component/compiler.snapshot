@@ -1,5 +1,5 @@
-import { resolveDynamicComponentInInstance as __onigiri_resolveDynamicComponent } from "vue-onigiri/runtime/resolve-component";
-import { serializeComponentInContext as __serializeComponentInContext } from "vue-onigiri/runtime/serialize";
+import { resolveDynamicComponentInInstance as __onigiri_resolveDynamicComponent } from "@vue-onigiri/core/runtime/resolve-component";
+import { serializeComponentInContext as __serializeComponentInContext } from "@vue-onigiri/core/runtime/serialize";
 
 export function renderOnigiri(_ctx, __instance) {
   return [

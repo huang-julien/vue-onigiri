@@ -22,7 +22,7 @@ const srcUrl = (rel: string) => fileURLToPath(new URL(`../src/${rel}`, import.me
 /** Compiled onigiri code imports the published runtime ids; point them at source. */
 const RUNTIME_ALIASES = Object.fromEntries(
   ["serialize", "shared", "utils", "with-directive", "render-slot", "resolve-component"].map(
-    (mod) => [`vue-onigiri/runtime/${mod}`, srcUrl(`runtime/${mod}.ts`)],
+    (mod) => [`@vue-onigiri/core/runtime/${mod}`, srcUrl(`runtime/${mod}.ts`)],
   ),
 );
 

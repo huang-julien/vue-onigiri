@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, defineComponent, h, Suspense, watch, type VNode } from "vue";
-import { serializeComponent } from "vue-onigiri/runtime/serialize";
-import { renderOnigiri } from "vue-onigiri/runtime/deserialize";
+import { serializeComponent } from "@vue-onigiri/core/runtime/serialize";
+import { renderOnigiri } from "@vue-onigiri/core/runtime/deserialize";
 import AstViewer from "./components/AstViewer.vue";
 import Counter from "./components/Counter.vue";
 import LoadComponent from "./components/LoadComponent.vue";

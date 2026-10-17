@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { defineComponent, h, nextTick, shallowRef, Suspense } from "vue";
 import { renderOnigiri } from "../src/runtime/deserialize";
-import { VServerComponentType, type VServerComponent } from "../src/runtime/shared";
+import { VServerComponentType, type VServerComponent } from "@vue-onigiri/shared";
 
 const IslandA = defineComponent({
   name: "IslandA",

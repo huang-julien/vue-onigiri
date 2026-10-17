@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parse, compileScript } from "@vue/compiler-sfc";
-import { compileOnigiri } from "../../src/template-compiler";
+import { compileOnigiri } from "../src";
 
 describe("onigiri compiler", () => {
   describe("script + template integration", () => {

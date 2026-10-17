@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compileOnigiri, type OnigiriCompilerOptions } from "../../src/template-compiler";
+import { compileOnigiri, type OnigiriCompilerOptions } from "../src";
 
 describe("static subtree compilation", () => {
   it.each<{ name: string; input: string; expected: string; options?: OnigiriCompilerOptions }>([

@@ -6,7 +6,7 @@ import {
   NodeTypes,
 } from "@vue/compiler-dom";
 import { genImport, genString } from "knitwork";
-import { VServerComponentType } from "../../runtime/shared";
+import { VServerComponentType } from "@vue-onigiri/shared";
 import type { CodegenContext } from "./context";
 import { genNode, TEXT_CALL } from "./vnode";
 import { genExpressionAsValue } from "./expressions";

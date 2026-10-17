@@ -28,7 +28,7 @@ import {
   VServerComponentType,
   type OnigiriPayload,
   type VServerComponent,
-} from "../src/runtime/shared";
+} from "@vue-onigiri/shared";
 import type { ImportFn } from "../src/runtime/utils";
 import Counter from "./fixtures/components/Counter.vue";
 import ElementsOnly from "./fixtures/components/ElementsOnly.vue";

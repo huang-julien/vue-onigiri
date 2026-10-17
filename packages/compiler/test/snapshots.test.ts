@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compileOnigiri, compileOnigiriInline } from "../../src/template-compiler";
+import { compileOnigiri, compileOnigiriInline } from "../src";
 
 describe("onigiri compiler", () => {
   describe("snapshots", () => {

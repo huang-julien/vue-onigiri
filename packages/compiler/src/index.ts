@@ -19,7 +19,7 @@ import {
 import { genString } from "knitwork";
 import type { AdditionalImport } from "./codegen/context";
 import { isVoidTag } from "@vue/shared";
-import { VServerComponentType } from "../runtime/shared";
+import { VServerComponentType } from "@vue-onigiri/shared";
 import { createCodegenContext, withoutRenderlessChildren, genFragment, genNode } from "./codegen";
 
 // Get Vue's default transforms (includes v-if, v-for, etc.)
@@ -179,3 +179,5 @@ export function compileOnigiriInline(
 }
 
 export * from "./codegen";
+export type { AdditionalImport } from "./codegen/context";
+export { tagCasings } from "./codegen/tag-casings";

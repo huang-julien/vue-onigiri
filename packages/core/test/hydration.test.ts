@@ -6,7 +6,7 @@ import { createSSRApp, h, nextTick, Suspense } from "vue";
 import { renderToString } from "@vue/server-renderer";
 import { serializeComponent } from "../src/runtime/serialize";
 import { renderOnigiri } from "../src/runtime/deserialize";
-import { VServerComponentType } from "../src/runtime/shared";
+import { VServerComponentType } from "@vue-onigiri/shared";
 import LoadComponent from "./fixtures/components/LoadComponent.vue";
 import StaticChrome from "./fixtures/components/StaticChrome.vue";
 import { removeCommentsFromHtml } from "./utils";

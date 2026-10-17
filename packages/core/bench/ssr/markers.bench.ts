@@ -5,8 +5,10 @@ import { serializeComponent } from "../../src/runtime/serialize";
 import { renderOnigiri } from "../../src/runtime/deserialize";
 import { astToHtml, renderOnigiriWithMarkers } from "../../src/runtime/ast-to-html";
 import { countHtmlRootNodes, neutralizeHtmlComments } from "../../src/runtime/html";
+import { provideMarkerNonce } from "../../src/runtime/ssr-boundary";
 import Tree from "../fixtures/Tree.vue";
 import Island from "../fixtures/Island.vue";
+import IslandHtmlFirst from "../fixtures/Island.html-first.vue";
 import Counter from "../fixtures/Counter.vue";
 import { ISLAND_CASES, ROW_COUNTS, withLoadClient } from "../shared";
 
@@ -76,10 +78,31 @@ for (const { rows, every } of ISLAND_CASES) {
       BENCH_OPTIONS,
     );
 
+    // Single pass: Vue's own SSR render, `v-load-client` writes the markers.
+    bench(
+      "vue renderToString(v-load-client markers)",
+      async () => {
+        await renderToString(createSSRApp(IslandHtmlFirst, props), provideMarkerNonce({}));
+      },
+      BENCH_OPTIONS,
+    );
+
     bench(
       "onigiri serializeComponent",
       async () => {
         await serializeComponent(Island, props);
+      },
+      BENCH_OPTIONS,
+    );
+
+    // The two-pass HTML-first path as a whole: serialize, then project the AST.
+    bench(
+      "onigiri serialize + renderToString(renderOnigiriWithMarkers)",
+      async () => {
+        const fresh = await serializeComponent(Island, props);
+        await renderToString(
+          createSSRApp({ render: () => renderOnigiriWithMarkers(fresh, OPTIONS) }),
+        );
       },
       BENCH_OPTIONS,
     );

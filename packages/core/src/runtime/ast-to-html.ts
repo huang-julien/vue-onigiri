@@ -32,7 +32,7 @@ import {
   VServerComponentType,
   type OnigiriPayload,
   type VServerComponent,
-} from "./shared";
+} from "@vue-onigiri/shared";
 
 type HtmlNode = VServerComponent | HtmlNode[] | string | null | undefined;
 

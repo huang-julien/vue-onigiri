@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { compileScript, parse } from "@vue/compiler-sfc";
-import { compileOnigiri, type OnigiriCompilerOptions } from "../../src/template-compiler";
+import { compileOnigiri, type OnigiriCompilerOptions } from "@vue-onigiri/compiler";
 import { buildImportMap } from "../../src/vite/compiler/imports";
 
 const fixturesDir = fileURLToPath(new URL("../../test/compiler-fixtures/", import.meta.url));

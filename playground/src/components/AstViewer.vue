@@ -12,9 +12,9 @@ import {
   unrollServerComponentBufferPromises,
   serializeApp,
   serializeComponent,
-} from "vue-onigiri/runtime/serialize";
-import type { VServerComponentBuffered } from "vue-onigiri/runtime/shared";
-import { loadClientDirective } from "vue-onigiri/runtime/utils";
+} from "@vue-onigiri/core/runtime/serialize";
+import type { VServerComponentBuffered } from "@vue-onigiri/core/runtime/shared";
+import { loadClientDirective } from "@vue-onigiri/core/runtime/utils";
 import LoadComponent from "./LoadComponent.vue";
 const props = defineProps<{
   vnode?: VNode;

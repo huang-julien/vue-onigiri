@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { prefixIdentifiers } from "../src/template-compiler/codegen/expressions";
+import { prefixIdentifiers } from "../src/codegen/expressions";
 
 describe("prefixIdentifiers", () => {
   it("expands shorthand object properties while prefixing references", () => {

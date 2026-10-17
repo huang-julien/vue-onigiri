@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderToSerializedVNode } from "../src/runtime/serialize";
-import { ONIGIRI_RENDER_SYMBOL, VServerComponentType } from "../src/runtime/shared";
+import { ONIGIRI_RENDER_SYMBOL, VServerComponentType } from "@vue-onigiri/shared";
 import { ref, defineComponent, inject, h } from "vue";
 
 describe("renderToSerializedVNode", () => {

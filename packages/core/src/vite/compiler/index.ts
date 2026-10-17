@@ -154,7 +154,7 @@ export function onigiriCompilerPlugin(options: OnigiriCompilerOptions = {}): Plu
     config(userConfig, env) {
       return {
         optimizeDeps: {
-          exclude: ["vue-onigiri"],
+          exclude: ["@vue-onigiri/core"],
         },
         define:
           userConfig.define?.__DEV__ === undefined

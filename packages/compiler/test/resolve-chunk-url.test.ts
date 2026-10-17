@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { compileOnigiri } from "../src/template-compiler";
+import { compileOnigiri } from "../src";
 
 const TEMPLATE = `<Counter v-load-client />`;
 const importMap = new Map([["Counter", "/components/Counter.vue"]]);

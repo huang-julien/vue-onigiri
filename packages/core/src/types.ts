@@ -1,4 +1,4 @@
-import type { VServerComponent } from "./runtime/shared";
+import type { VServerComponent } from "@vue-onigiri/shared";
 import type { ObjectDirectiveBinding } from "./runtime/with-directive";
 
 declare module "vue" {

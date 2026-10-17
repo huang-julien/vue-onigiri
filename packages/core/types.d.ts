@@ -5,7 +5,7 @@ declare module "virtual:vsc:*" {
 }
 
 declare module "virtual:onigiri/manifest" {
-  import type { ImportFn } from "vue-onigiri/runtime/utils";
+  import type { ImportFn } from "@vue-onigiri/core/runtime/utils";
   /** Raw glob map: source path → lazy-loaded module. */
   export const manifest: Record<string, () => Promise<unknown>>;
   /**

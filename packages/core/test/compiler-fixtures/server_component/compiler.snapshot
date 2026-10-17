@@ -1,4 +1,4 @@
-import { serializeComponentInContext as __serializeComponentInContext } from "vue-onigiri/runtime/serialize";
+import { serializeComponentInContext as __serializeComponentInContext } from "@vue-onigiri/core/runtime/serialize";
 import { toDisplayString as _toDisplayString } from "vue";
 
 export function renderOnigiri(_ctx, __instance) {

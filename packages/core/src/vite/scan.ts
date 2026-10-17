@@ -7,8 +7,7 @@ import {
   NodeTypes,
   parse as parseTemplate,
 } from "@vue/compiler-dom";
-import type { AdditionalImport } from "../template-compiler/codegen/context";
-import { tagCasings } from "../template-compiler/codegen/tag-casings";
+import { type AdditionalImport, tagCasings } from "@vue-onigiri/compiler";
 import { type ScriptImports, buildImportMap } from "./compiler/imports";
 import { toRootRelative } from "./compiler/paths";
 

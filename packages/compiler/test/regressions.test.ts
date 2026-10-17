@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compileOnigiri } from "../../src/template-compiler";
+import { compileOnigiri } from "../src";
 import { expectParses } from "./utils";
 
 describe("onigiri compiler", () => {

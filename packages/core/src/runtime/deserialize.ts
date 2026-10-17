@@ -18,7 +18,7 @@ import {
   type OnigiriPayload,
   type VServerComponent,
   type VServerComponentComponent,
-} from "./shared";
+} from "@vue-onigiri/shared";
 import loader from "./loader";
 import type { ImportFn } from "./utils";
 
@@ -26,6 +26,8 @@ import type { ImportFn } from "./utils";
 export interface RenderOnigiriOptions {
   /** Resolve a client component from its serialized descriptor. */
   importFn?: ImportFn;
+  /** Nonce the server bound its markers to; without it only legacy, nonce-free markers are recognized. */
+  nonce?: string;
 }
 
 /** Reconstruct a Vue tree from an AST or versioned payload. */
@@ -124,7 +126,13 @@ export function renderClientComponent(
   data: VServerComponentComponent,
   options?: RenderOnigiriOptions,
 ): VNode {
-  return h(Suspense, {}, { default: () => h(loader, { data, importFn: options?.importFn }) });
+  return h(
+    Suspense,
+    {},
+    {
+      default: () => h(loader, { data, importFn: options?.importFn, nonce: options?.nonce }),
+    },
+  );
 }
 
 /** Give a marked suspense region deterministic fragment anchors. */

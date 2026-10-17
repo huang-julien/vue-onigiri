@@ -1,5 +1,5 @@
 import { genString } from "knitwork";
-import { compileOnigiriInline } from "../../template-compiler";
+import { compileOnigiriInline } from "@vue-onigiri/compiler";
 import { type OnigiriCompileOptions, analyzeSfc, parseSfcFile } from "./analyze-sfc";
 import { parseOnigiriId } from "./constants";
 import { genScriptImports } from "./imports";

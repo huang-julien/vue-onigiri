@@ -1,5 +1,5 @@
 import type { Rollup } from "vite";
-import type { AdditionalImport } from "../../template-compiler/codegen/context";
+import type { AdditionalImport } from "@vue-onigiri/compiler";
 import { toRootRelative } from "./paths";
 
 export type AdditionalImportInput = string | AdditionalImport;

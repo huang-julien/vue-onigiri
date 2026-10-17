@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeMarker, encodeMarker } from "../src/runtime/shared";
+import { createMarkerSet, decodeMarker, encodeMarker } from "@vue-onigiri/shared";
 
 const CASES: { name: string; value: unknown }[] = [
   {
@@ -23,6 +23,30 @@ const CASES: { name: string; value: unknown }[] = [
     value: [1, { text: "雪だるま ☃️" }, "/x.vue"],
   },
 ];
+
+describe("marker set", () => {
+  it("binds every prefix to the nonce and keeps the legacy set without one", () => {
+    expect(createMarkerSet()).toEqual({
+      component: "o:c",
+      componentEnd: "/o:c",
+      teleport: "o:t",
+      suspense: "o:s",
+      suspenseEnd: "/o:s",
+    });
+    expect(createMarkerSet("abc123")).toEqual({
+      component: "o:c:abc123",
+      componentEnd: "/o:c:abc123",
+      teleport: "o:t:abc123",
+      suspense: "o:s:abc123",
+      suspenseEnd: "/o:s:abc123",
+    });
+  });
+
+  it("rejects a nonce that could reshape the comment", () => {
+    expect(() => createMarkerSet("a[b")).toThrow(/alphanumeric/);
+    expect(() => createMarkerSet("a--b")).toThrow(/alphanumeric/);
+  });
+});
 
 describe("marker encoding", () => {
   it.each(CASES)("round-trips $name without raw comment delimiters", ({ value }) => {

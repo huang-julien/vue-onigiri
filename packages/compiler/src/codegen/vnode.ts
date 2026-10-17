@@ -1,6 +1,6 @@
 import { NodeTypes, type TemplateChildNode } from "@vue/compiler-dom";
 import { genString } from "knitwork";
-import { VServerComponentType } from "../../runtime/shared";
+import { VServerComponentType } from "@vue-onigiri/shared";
 import type { CodegenContext } from "./context";
 import { genElement } from "./elements";
 import { genIf, genFor } from "./control-flow";

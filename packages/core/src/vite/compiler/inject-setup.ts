@@ -1,7 +1,7 @@
 import type { BindingMetadata } from "@vue/compiler-sfc";
 import { genImport } from "knitwork";
 import MagicString from "magic-string";
-import { compileOnigiriInline } from "../../template-compiler";
+import { compileOnigiriInline } from "@vue-onigiri/compiler";
 import { type OnigiriCompileOptions, analyzeSfc, parseSfcFile } from "./analyze-sfc";
 
 /**
@@ -111,7 +111,7 @@ export async function injectIntoSetupAsync(
         { name: "getCurrentInstance", as: "__getCurrentInstance" },
         { name: "unref", as: "__onigiri_unref" },
       ]),
-      genImport("vue-onigiri/runtime/shared", [
+      genImport("@vue-onigiri/core/runtime/shared", [
         { name: "ONIGIRI_RENDER_SYMBOL", as: "__ONIGIRI_SYMBOL" },
       ]),
     ].join("\n") + "\n";

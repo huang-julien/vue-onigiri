@@ -7,8 +7,8 @@ import {
 } from "vue";
 import { isPromise } from "@vue/shared";
 import { allMaybe, serializeVNode } from "./serialize";
-import { VServerComponentType } from "./shared";
-import type { VServerComponentBuffered } from "./shared";
+import { VServerComponentType } from "@vue-onigiri/shared";
+import type { VServerComponentBuffered } from "@vue-onigiri/shared";
 
 const {
   setCurrentRenderingInstance,

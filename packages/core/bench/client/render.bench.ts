@@ -3,7 +3,7 @@ import { createApp, createSSRApp } from "vue";
 import Tree from "../fixtures/Tree.vue";
 import { renderOnigiri } from "../../src/runtime/deserialize";
 import { domToVNode } from "../../src/runtime/dom-to-vnode";
-import type { OnigiriPayload } from "../../src/runtime/shared";
+import type { OnigiriPayload } from "@vue-onigiri/shared";
 import { CLIENT_ROW_COUNTS, RENDER_MODES, type GeneratedCase, type RenderMode } from "../shared";
 import case1000 from "./generated/1000.json";
 import case10000 from "./generated/10000.json";

@@ -29,7 +29,7 @@ import ForVariants from "./fixtures/components/ForVariants.vue";
 import DisplayValues from "./fixtures/components/DisplayValues.vue";
 import AliasLoad from "./fixtures/components/AliasLoad.vue";
 import { removeCommentsFromHtml } from "./utils";
-import { VServerComponentType, type VServerComponent } from "../src/runtime/shared";
+import { VServerComponentType, type VServerComponent } from "@vue-onigiri/shared";
 import { renderToString } from "@vue/server-renderer";
 
 describe("serialize/deserialize", () => {

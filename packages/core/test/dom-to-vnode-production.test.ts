@@ -74,6 +74,8 @@ describe("domToVNode production bundle", () => {
 async function buildProductionTransport(): Promise<ProductionTransport> {
   const result = (await build({
     configFile: false,
+    // Resolve "vue" from this package, not from wherever vitest was launched.
+    root: fileURLToPath(new NodeURL("..", import.meta.url)),
     mode: "production",
     define: { "process.env.NODE_ENV": JSON.stringify("production"), __DEV__: "false" },
     logLevel: "silent",

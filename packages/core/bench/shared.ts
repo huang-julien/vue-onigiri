@@ -19,9 +19,14 @@ export interface GeneratedIslandCase {
   payload: unknown;
   vueHtml: string;
   onigiriMarkedHtml: string;
+  /** Vue SSR in one pass, markers written by `v-load-client` and bound to `htmlFirstNonce`. */
+  htmlFirstHtml: string;
+  htmlFirstNonce: string;
   nextPayload: unknown;
   nextVueHtml: string;
   nextMarkedHtml: string;
+  nextHtmlFirstHtml: string;
+  nextHtmlFirstNonce: string;
 }
 
 /** Row counts drive every bench; `Tree.vue` emits about five VNodes per row. */

@@ -42,7 +42,7 @@ describe("generated manifest module: extraEntries", () => {
     );
 
     // Resolution lives in runtime/manifest-runtime; the module only supplies the tables.
-    expect(code).toContain(`from "vue-onigiri/runtime/manifest-runtime"`);
+    expect(code).toContain(`from "@vue-onigiri/core/runtime/manifest-runtime"`);
     expect(code).toContain("export const importFn = __createImportFn(__glob, __extra)");
     expect(code).toContain("export const manifest = __glob");
   });

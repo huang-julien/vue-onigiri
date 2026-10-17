@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { defineComponent, h, inject, provide, Suspense } from "vue";
 import { renderToString } from "@vue/server-renderer";
-import { compileOnigiri } from "../src/template-compiler";
+import { compileOnigiri } from "@vue-onigiri/compiler";
 import { serializeComponent } from "../src/runtime/serialize";
 import { renderOnigiri } from "../src/runtime/deserialize";
 

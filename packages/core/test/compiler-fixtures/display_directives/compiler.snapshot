@@ -1,4 +1,4 @@
-import { withDirective as __withDirective } from "vue-onigiri/runtime/with-directive";
+import { withDirective as __withDirective } from "@vue-onigiri/core/runtime/with-directive";
 import { toDisplayString as _toDisplayString } from "vue";
 
 export function renderOnigiri(_ctx, __instance) {

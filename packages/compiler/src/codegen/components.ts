@@ -6,7 +6,7 @@ import {
   NodeTypes,
 } from "@vue/compiler-dom";
 import { genImport, genString } from "knitwork";
-import { VServerComponentType } from "../../runtime/shared";
+import { VServerComponentType } from "@vue-onigiri/shared";
 import type { CodegenContext } from "./context";
 import { withoutRenderlessChildren, genFragment, genNodeList } from "./vnode";
 import { genExpressionAsValue } from "./expressions";
@@ -56,7 +56,7 @@ export function getComponentRef(tag: string, context: CodegenContext): string {
   if (!context.components.has(tag)) {
     context.components.set(tag, varName);
     context.imports.add(
-      genImport("vue-onigiri/runtime/resolve-component", [
+      genImport("@vue-onigiri/core/runtime/resolve-component", [
         { name: "resolveComponentInInstance", as: "__onigiri_resolveComponent" },
       ]),
     );
@@ -212,7 +212,7 @@ function genDynamicComponent(node: ElementNode, context: CodegenContext): void {
     context.push(getComponentRef(isAttr.value.content, context));
   } else if (isAttr?.type === NodeTypes.DIRECTIVE && isAttr.exp) {
     context.imports.add(
-      genImport("vue-onigiri/runtime/resolve-component", [
+      genImport("@vue-onigiri/core/runtime/resolve-component", [
         { name: "resolveDynamicComponentInInstance", as: "__onigiri_resolveDynamicComponent" },
       ]),
     );
@@ -225,7 +225,7 @@ function genDynamicComponent(node: ElementNode, context: CodegenContext): void {
   context.push(", ");
 
   context.imports.add(
-    genImport("vue-onigiri/runtime/serialize", [
+    genImport("@vue-onigiri/core/runtime/serialize", [
       { name: "serializeComponentInContext", as: "__serializeComponentInContext" },
     ]),
   );
@@ -339,7 +339,7 @@ function genServerRenderedComponent(
   const componentRef = getComponentRef(tag, context);
 
   context.imports.add(
-    genImport("vue-onigiri/runtime/serialize", [
+    genImport("@vue-onigiri/core/runtime/serialize", [
       { name: "serializeComponentInContext", as: "__serializeComponentInContext" },
     ]),
   );
@@ -375,7 +375,7 @@ function genDynamicLoadClientComponent(
   const chunkPath = context.resolveChunkUrl?.(sourcePath) ?? sourcePath;
 
   context.imports.add(
-    genImport("vue-onigiri/runtime/serialize", [
+    genImport("@vue-onigiri/core/runtime/serialize", [
       { name: "serializeChildComponent", as: "__serializeChildComponent" },
     ]),
   );

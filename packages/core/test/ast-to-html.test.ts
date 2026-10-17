@@ -4,7 +4,7 @@ import { renderToString } from "@vue/server-renderer";
 import { astToHtml, renderOnigiriWithMarkers } from "../src/runtime/ast-to-html";
 import { renderOnigiri } from "../src/runtime/deserialize";
 import { serializeComponent } from "../src/runtime/serialize";
-import { VServerComponentType, type VServerComponent } from "../src/runtime/shared";
+import { VServerComponentType, type VServerComponent } from "@vue-onigiri/shared";
 import ElementsOnly from "./fixtures/components/ElementsOnly.vue";
 import IslandSlotChildren from "./fixtures/components/IslandSlotChildren.vue";
 import LoadComponent from "./fixtures/components/LoadComponent.vue";

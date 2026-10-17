@@ -16,21 +16,18 @@ import {
   type RenderOnigiriOptions,
 } from "./deserialize";
 import {
+  createMarkerSet,
   decodeMarker,
-  MARKER_COMPONENT,
-  MARKER_COMPONENT_END,
-  MARKER_SUSPENSE,
-  MARKER_SUSPENSE_END,
-  MARKER_TELEPORT,
+  type MarkerSet,
   type VServerComponent,
   type VServerComponentComponent,
-} from "./shared";
+} from "@vue-onigiri/shared";
 
 /** Options for rebuilding an island VNode tree from existing HTML. */
 export interface DomToVNodeOptions extends RenderOnigiriOptions {
   /** Static runs adopt the live DOM (empty children string). Set false when the DOM is detached, e.g. parsed from a fetched HTML string. */
   adopt?: boolean;
-  /** Tree currently rendered for this island; reuse unchanged static runs by identity. Without it, every run is replaced. */
+  /** Tree currently rendered for this island; static runs whose DOM is unchanged keep their VNode. Without it, every run is replaced. */
   previous?: VNode;
 }
 
@@ -48,8 +45,12 @@ let STATIC_RUN_ID = 0;
 interface WalkContext {
   adopt: boolean;
   markerAncestors: Set<Node>;
+  /** Only comments carrying these prefixes are markers; with a nonce, legacy prefixes are plain comments. */
+  markers: MarkerSet;
   options: DomToVNodeOptions;
   previousRuns?: Map<string, VNode[]>;
+  /** Static runs carry their HTML instead of parsed nodes to clone. */
+  serialize?: boolean;
 }
 
 interface MarkerResult {
@@ -66,18 +67,31 @@ export function domToVNode(start: Node, options: DomToVNodeOptions = {}): VNode 
 
 /** Parse marked HTML for updates; pass the currently rendered tree to preserve unchanged static runs. */
 export function htmlToVNode(html: string, options: DomToVNodeOptions = {}): VNode | undefined {
-  const template = document.createElement("template");
-  template.innerHTML = html;
-  const childNodes = template.content.childNodes;
-  const parsedOptions = { ...options, adopt: false };
-
-  if (childNodes.length === 0) return;
-  if (childNodes.length === 1 && childNodes[0]) return domToVNode(childNodes[0], parsedOptions);
-
-  const context = createWalkContextForScope(template.content, template.content, parsedOptions);
-  const children = walkSiblings(template.content.firstChild, null, context);
+  const { content } = parseHtml(html);
+  if (!content.firstChild) return;
+  const context = createWalkContextForScope(content, content, { ...options, adopt: false });
+  if (content.childNodes.length === 1) return wrapRoot(walkRootNode(content.firstChild, context));
+  const children = walkSiblings(content.firstChild, null, context);
   if (children.length === 1 && children[0]?.type === Fragment) return children[0];
   return createElementVNode(Fragment, null, children);
+}
+
+/**
+ * Parse marked HTML into sibling VNodes for slot content: the parent renders the anchors,
+ * and each static run carries its HTML so one VNode can hydrate or mount, then be cloned.
+ */
+export function htmlToVNodes(html: string, options: DomToVNodeOptions = {}): VNode[] {
+  const { content } = parseHtml(html);
+  if (!content.firstChild) return [];
+  const context = createWalkContextForScope(content, content, { ...options, adopt: false });
+  context.serialize = true;
+  return walkSiblings(content.firstChild, null, context);
+}
+
+function parseHtml(html: string): HTMLTemplateElement {
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  return template;
 }
 
 function createWalkContext(start: Node, options: DomToVNodeOptions): WalkContext {
@@ -95,22 +109,28 @@ function createWalkContextForScope(
   islandParent: Node | null,
   options: DomToVNodeOptions,
 ): WalkContext {
+  const markers = createMarkerSet(options.nonce);
   return {
     adopt: options.adopt ?? true,
-    markerAncestors: collectMarkerAncestors(scopeRoot, islandParent),
+    markerAncestors: collectMarkerAncestors(scopeRoot, islandParent, markers),
+    markers,
     options,
     previousRuns:
       options.adopt === false && options.previous ? collectStaticRuns(options.previous) : undefined,
   };
 }
 
-function collectMarkerAncestors(scopeRoot: Node, islandParent: Node | null): Set<Node> {
+function collectMarkerAncestors(
+  scopeRoot: Node,
+  islandParent: Node | null,
+  markers: MarkerSet,
+): Set<Node> {
   const ancestors = new Set<Node>();
   const ownerDocument = scopeRoot.ownerDocument ?? document;
   const treeWalker = ownerDocument.createTreeWalker(scopeRoot, SHOW_COMMENT);
 
   for (let current = treeWalker.nextNode(); current; current = treeWalker.nextNode()) {
-    if (!isMarkerComment(current)) continue;
+    if (!isMarkerComment(current, markers)) continue;
 
     for (let ancestor = current.parentNode; ancestor && ancestor !== islandParent;) {
       if (ancestor.nodeType === ELEMENT_NODE) ancestors.add(ancestor);
@@ -128,7 +148,9 @@ function walkRootNode(start: Node, context: WalkContext): VNode[] {
     return [createElementVNode(Fragment, null, children)];
   }
 
-  if (isMarkerComment(start)) return handleMarkerComment(start as Comment, context).vnodes;
+  if (isMarkerComment(start, context.markers)) {
+    return handleMarkerComment(start as Comment, context).vnodes;
+  }
 
   if (start.nodeType === COMMENT_NODE) return [createCommentVNode((start as Comment).data)];
   if (start.nodeType === ELEMENT_NODE && context.markerAncestors.has(start)) {
@@ -159,7 +181,7 @@ function walkSiblings(first: ChildNode | null, stop: Node | null, context: WalkC
       continue;
     }
 
-    if (isMarkerComment(current)) {
+    if (isMarkerComment(current, context.markers)) {
       flushStaticRun();
       const result = handleMarkerComment(current as Comment, context);
       vnodes.push(...result.vnodes);
@@ -204,23 +226,24 @@ function walkMarkerAncestorElement(element: Element, context: WalkContext): VNod
 
 function handleMarkerComment(comment: Comment, context: WalkContext): MarkerResult {
   const data = comment.data;
+  const markers = context.markers;
   const plain: MarkerResult = { next: comment.nextSibling, vnodes: [createCommentVNode(data)] };
 
-  if (hasMarkerPrefix(data, MARKER_COMPONENT)) {
-    const tuple = tryDecodeMarker<VServerComponentComponent>(data.slice(MARKER_COMPONENT.length));
+  if (hasMarkerPrefix(data, markers.component)) {
+    const tuple = tryDecodeMarker<VServerComponentComponent>(data.slice(markers.component.length));
     if (!tuple) return plain;
     return {
-      next: findClosingMarker(comment, MARKER_COMPONENT, MARKER_COMPONENT_END).nextSibling,
+      next: findClosingMarker(comment, markers.component, markers.componentEnd).nextSibling,
       vnodes: [
         createCommentVNode(data),
         renderClientComponent(tuple, context.options),
-        createCommentVNode(MARKER_COMPONENT_END),
+        createCommentVNode(markers.componentEnd),
       ],
     };
   }
 
-  if (hasMarkerPrefix(data, MARKER_TELEPORT)) {
-    const tuple = tryDecodeMarker<VServerComponent>(data.slice(MARKER_TELEPORT.length));
+  if (hasMarkerPrefix(data, markers.teleport)) {
+    const tuple = tryDecodeMarker<VServerComponent>(data.slice(markers.teleport.length));
     if (!tuple) return plain;
     const teleportVNode = renderOnigiri(tuple, context.options);
     return {
@@ -231,20 +254,20 @@ function handleMarkerComment(comment: Comment, context: WalkContext): MarkerResu
     };
   }
 
-  if (hasMarkerPrefix(data, MARKER_SUSPENSE)) {
+  if (hasMarkerPrefix(data, markers.suspense)) {
     const tuple = tryDecodeMarker<[number, null, VServerComponent[] | undefined]>(
-      data.slice(MARKER_SUSPENSE.length),
+      data.slice(markers.suspense.length),
     );
     if (!tuple) return plain;
     const fragmentStart = requireImmediateFragmentStart(comment);
     const fragmentEnd = findFragmentEnd(fragmentStart);
     const children = walkSiblings(fragmentStart.nextSibling, fragmentEnd, context);
     return {
-      next: findClosingMarker(comment, MARKER_SUSPENSE, MARKER_SUSPENSE_END).nextSibling,
+      next: findClosingMarker(comment, markers.suspense, markers.suspenseEnd).nextSibling,
       vnodes: [
         createCommentVNode(data),
         renderMarkedSuspense(children, tuple[2], context.options),
-        createCommentVNode(MARKER_SUSPENSE_END),
+        createCommentVNode(markers.suspenseEnd),
       ],
     };
   }
@@ -315,10 +338,15 @@ function collectStaticRuns(previous: VNode): Map<string, VNode[]> {
   const runs = new Map<string, VNode[]>();
   const visit = (vnode: VNode): void => {
     if (vnode.type === Static) {
-      const html = vnode.children as string;
-      const matches = runs.get(html);
+      // A run that was never mounted or hydrated has no DOM to compare against.
+      if (!vnode.el) return;
+      const key = staticRunKey(
+        vnode.el as Node,
+        (vnode as VNode & { staticCount: number }).staticCount,
+      );
+      const matches = runs.get(key);
       if (matches) matches.push(vnode);
-      else runs.set(html, [vnode]);
+      else runs.set(key, [vnode]);
     } else if (
       (vnode.type === Fragment || typeof vnode.type === "string") &&
       Array.isArray(vnode.children)
@@ -333,14 +361,21 @@ function collectStaticRuns(previous: VNode): Map<string, VNode[]> {
 }
 
 function createStaticRun(nodes: Node[], context: WalkContext): VNode {
-  const html = context.adopt ? "" : nodes.map(serializeStaticNode).join("");
-  const previous = context.adopt ? undefined : context.previousRuns?.get(html)?.shift();
+  const previous = context.previousRuns ? findPreviousRun(nodes, context.previousRuns) : undefined;
   if (previous) return previous;
-  const vnode = createStaticVNode(html, nodes.length);
+  const vnode = createStaticVNode("", nodes.length);
   // Production Vue never transfers DOM anchors between distinct Static vnodes.
   vnode.key = ++STATIC_RUN_ID;
   // Vue clones mounted children and reconstructs their keys from props.
   vnode.props = { key: vnode.key };
+  if (context.serialize) {
+    // Carrying the HTML lets the same VNode mount or hydrate once and be cloned on later renders.
+    vnode.children = nodes.map(serializeStaticNode).join("");
+  } else if (!context.adopt) {
+    // With anchors set, Vue clones the parsed nodes at mount instead of parsing the HTML again.
+    vnode.el = nodes[0]!;
+    vnode.anchor = nodes[nodes.length - 1]!;
+  }
   return vnode;
 }
 
@@ -348,6 +383,27 @@ function serializeStaticNode(node: Node): string {
   if (node.nodeType === ELEMENT_NODE) return (node as Element).outerHTML;
   if (node.nodeType === TEXT_NODE) return escapeHtml((node as Text).data);
   return "";
+}
+
+function findPreviousRun(nodes: Node[], runs: Map<string, VNode[]>): VNode | undefined {
+  const candidates = runs.get(staticRunKey(nodes[0]!, nodes.length));
+  if (!candidates) return;
+  const index = candidates.findIndex((run) => sameStaticRun(nodes, run.el as Node));
+  if (index === -1) return;
+  return candidates.splice(index, 1)[0];
+}
+
+function sameStaticRun(nodes: Node[], first: Node): boolean {
+  let current: Node | null = first;
+  for (const node of nodes) {
+    if (!current || !node.isEqualNode(current)) return false;
+    current = current.nextSibling;
+  }
+  return true;
+}
+
+function staticRunKey(first: Node, count: number): string {
+  return `${count}:${first.nodeName}`;
 }
 
 function readAttributes(element: Element): Record<string, string> | undefined {
@@ -359,13 +415,13 @@ function readAttributes(element: Element): Record<string, string> | undefined {
   return props;
 }
 
-function isMarkerComment(node: Node): boolean {
+function isMarkerComment(node: Node, markers: MarkerSet): boolean {
   if (node.nodeType !== COMMENT_NODE) return false;
   const data = (node as Comment).data;
   return (
-    hasMarkerPrefix(data, MARKER_COMPONENT) ||
-    hasMarkerPrefix(data, MARKER_TELEPORT) ||
-    hasMarkerPrefix(data, MARKER_SUSPENSE)
+    hasMarkerPrefix(data, markers.component) ||
+    hasMarkerPrefix(data, markers.teleport) ||
+    hasMarkerPrefix(data, markers.suspense)
   );
 }
 

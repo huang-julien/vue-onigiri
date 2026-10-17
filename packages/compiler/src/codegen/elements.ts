@@ -1,6 +1,6 @@
 import type { ElementNode } from "@vue/compiler-dom";
 import { genImport, genString } from "knitwork";
-import { VServerComponentType } from "../../runtime/shared";
+import { VServerComponentType } from "@vue-onigiri/shared";
 import type { CodegenContext } from "./context";
 import { withoutRenderlessChildren, genNodeList } from "./vnode";
 import { genComponent } from "./components";
@@ -63,7 +63,7 @@ function genHtmlElement(node: ElementNode, context: CodegenContext): void {
 
   if (wrappedDirectives.length > 0) {
     context.imports.add(
-      genImport("vue-onigiri/runtime/with-directive", [
+      genImport("@vue-onigiri/core/runtime/with-directive", [
         { name: "withDirective", as: "__withDirective" },
       ]),
     );

@@ -30,18 +30,19 @@ jobs:
           node-version: 22
           cache: "pnpm"
       - run: pnpm install
+      - run: pnpm build:libs
 
       - name: Payload sizes and client fixtures
-        run: pnpm --filter vue-onigiri bench:size
+        run: pnpm --filter @vue-onigiri/core bench:size
       - name: Install Playwright Chromium
         if: env.RUN_CLIENT == 'true'
-        run: pnpm --filter vue-onigiri exec playwright install --with-deps chromium
+        run: pnpm --filter @vue-onigiri/core exec playwright install --with-deps chromium
       - name: Client bench (vitest browser mode)
         if: env.RUN_CLIENT == 'true'
-        run: pnpm --filter vue-onigiri bench:client
+        run: pnpm --filter @vue-onigiri/core bench:client
       - name: Render report
         if: always()
-        run: pnpm --filter vue-onigiri bench:report
+        run: pnpm --filter @vue-onigiri/core bench:report
         env:
           BENCH_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
 

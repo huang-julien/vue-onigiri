@@ -2,8 +2,8 @@
 
 <!-- automd:badges color=yellow -->
 
-[![npm version](https://img.shields.io/npm/v/vue-onigiri?color=yellow)](https://npmjs.com/package/vue-onigiri)
-[![npm downloads](https://img.shields.io/npm/dm/vue-onigiri?color=yellow)](https://npm.chart.dev/vue-onigiri)
+[![npm version](https://img.shields.io/npm/v/@vue-onigiri/core?color=yellow)](https://npmjs.com/package/@vue-onigiri/core)
+[![npm downloads](https://img.shields.io/npm/dm/@vue-onigiri/core?color=yellow)](https://npm.chart.dev/@vue-onigiri/core)
 
 <!-- /automd -->
 
@@ -12,8 +12,8 @@ Vue Onigiri brings React Server Components-style rendering to Vue. Components re
 ## Installation
 
 ```sh
-npm install vue-onigiri
-# or: pnpm add vue-onigiri / yarn add vue-onigiri / bun add vue-onigiri
+npm install @vue-onigiri/core
+# or: pnpm add @vue-onigiri/core / yarn add @vue-onigiri/core / bun add @vue-onigiri/core
 ```
 
 ## Quick Start
@@ -24,7 +24,7 @@ npm install vue-onigiri
 // vite.config.js
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
-import { onigiriPlugins } from "vue-onigiri";
+import { onigiriPlugins } from "@vue-onigiri/core";
 
 export default defineConfig({
   plugins: [vue(), onigiriPlugins()],
@@ -53,7 +53,7 @@ The compiler reads the import and inlines `/components/Counter.vue` into the ser
 ### 3. Serialize on the server
 
 ```js
-import { serializeApp } from "vue-onigiri/runtime/serialize";
+import { serializeApp } from "@vue-onigiri/core/runtime/serialize";
 import { createSSRApp } from "vue";
 import App from "./App.vue";
 
@@ -65,7 +65,7 @@ const data = await serializeApp(app, undefined, { url: req.url });
 ### 4. Render on the client
 
 ```js
-import { renderOnigiri } from "vue-onigiri/runtime/deserialize";
+import { renderOnigiri } from "@vue-onigiri/core/runtime/deserialize";
 import { createApp } from "vue";
 
 const app = createApp({
@@ -81,15 +81,37 @@ Wrap the mount point in `<Suspense>` if your tree contains `v-load-client` compo
 Hosts that already render islands inside a Vue SSR tree can send marker-augmented HTML instead of inlining the AST for hydration:
 
 ```js
-import { renderOnigiriWithMarkers } from "vue-onigiri/runtime/ast-to-html";
-import { domToVNode, htmlToVNode } from "vue-onigiri/runtime/dom-to-vnode";
+import { renderOnigiriWithMarkers } from "@vue-onigiri/core/runtime/ast-to-html";
+import { domToVNode, htmlToVNode } from "@vue-onigiri/core/runtime/dom-to-vnode";
 ```
 
 `renderOnigiriWithMarkers(payload)` returns a VNode tree for the server; its entry point is server-only. `astToHtml(ast)` from the same entry point renders marker-free AST content to a string. Marker-free regions render as static HTML, while client components, teleports, and suspense fallbacks are wrapped with small comment markers. On the client, call `domToVNode(instance.vnode.el)` to build the matching VNode tree from the existing DOM.
 
-For refetched HTML strings, use `htmlToVNode(html, { previous: currentTree })`. Unchanged static runs reuse their previous VNode by identity; fresh runs receive unique keys so Vue replaces them in production too. Without `previous`, every static run is replaced on each render, matching legacy Nuxt island refetch behavior. The previous-tree scan visits element and fragment children, without entering component or suspense boundaries.
+For refetched HTML strings, use `htmlToVNode(html, { previous: currentTree })`. Static runs whose parsed DOM equals the one on screen keep their previous VNode; fresh runs hand Vue their parsed nodes to clone at mount and receive unique keys so Vue replaces them in production too. Without `previous`, every static run is replaced on each render, matching legacy Nuxt island refetch behavior. The previous-tree scan visits element and fragment children, without entering component or suspense boundaries.
 
 Nested fragments and suspense without fallback are flattened. Root fragments, multi-node roots, and marked suspense defaults retain fragment anchors so the client can locate their boundaries. Component bodies and teleport contents retain Vue's normal rendering. These anchor differences mean the two transports can produce different comments around otherwise identical HTML.
+
+#### Markers from Vue's own SSR render (prototype)
+
+The same markers can come straight out of Vue's SSR renderer, with no AST in between. Add `ssrLoadClientTransform` to the template compiler options of the server build; it rewrites each `v-load-client` component into `OnigiriClientBoundary`, which renders the component with `@vue/server-renderer` and writes the markers around its output. Markers are bound to a per-render nonce so raw HTML cannot forge one; the walker then recognizes only markers carrying the nonce it was given.
+
+```ts
+import { ssrLoadClientTransform } from "@vue-onigiri/core";
+import { provideMarkerNonce } from "@vue-onigiri/core/runtime/ssr-boundary";
+
+// vite.config.ts, server build
+vue({ template: { compilerOptions: { nodeTransforms: [ssrLoadClientTransform] } } });
+
+// server
+const context = provideMarkerNonce({});
+const html = await renderToString(createSSRApp(Island, props), context);
+// ship `html` and `context.onigiriNonce`
+
+// client
+domToVNode(instance.vnode.el, { nonce });
+```
+
+Slots travel inside the marker as pre-rendered HTML strings, rendered on the client through `htmlToVNodes`, so nested `v-load-client` components inside slot content keep working. A slot is captured on its first invocation, so scoped slot props vary per call only on the server. Teleports and suspense fallbacks are not marked on this path yet.
 
 ## Vite Plugins
 
@@ -311,12 +333,15 @@ Client: AST → deserialize → VNode tree (lazy chunks resolved via importFn)
 
 ```sh
 pnpm install
+pnpm build:libs   # build @vue-onigiri/shared and @vue-onigiri/compiler (needed before tests)
 pnpm dev          # interactive playground
 pnpm test         # vitest
-pnpm build        # build the library
-pnpm lint         # eslint
+pnpm build        # build every package
+pnpm lint         # oxlint + oxfmt
 pnpm lint:fix
 ```
+
+The Vite plugins load `@vue-onigiri/compiler` from its `dist`, so rebuild it with `pnpm build:libs` after editing the compiler or shared package.
 
 ## License
 

@@ -7,8 +7,10 @@ import { renderToString } from "@vue/server-renderer";
 import { serializeComponent } from "../../src/runtime/serialize";
 import { renderOnigiri } from "../../src/runtime/deserialize";
 import { renderOnigiriWithMarkers } from "../../src/runtime/ast-to-html";
+import { provideMarkerNonce } from "../../src/runtime/ssr-boundary";
 import Tree from "../fixtures/Tree.vue";
 import Island from "../fixtures/Island.vue";
+import IslandHtmlFirst from "../fixtures/Island.html-first.vue";
 import Counter from "../fixtures/Counter.vue";
 import {
   ISLAND_CASES,
@@ -28,6 +30,9 @@ interface SizeRow {
   markedHtmlBytes: number;
   /** Compressed HTML-first transport size. */
   markedHtmlGzipBytes: number;
+  /** Single-pass Vue SSR with markers, uncompressed; islands only. */
+  htmlFirstBytes?: number;
+  htmlFirstGzipBytes?: number;
 }
 
 interface IslandSizeRow extends Omit<SizeRow, "rows"> {
@@ -66,7 +71,13 @@ it("measures payload sizes and writes client fixtures", async () => {
     const current = await renderIsland({ count: rows, every });
     const next = await renderIsland({ count: rows, every, label: "next" });
 
-    islandSizes.push({ rows, every, ...measure(current.vueHtml, current.payload, current.marked) });
+    islandSizes.push({
+      rows,
+      every,
+      ...measure(current.vueHtml, current.payload, current.marked),
+      htmlFirstBytes: Buffer.byteLength(current.htmlFirst),
+      htmlFirstGzipBytes: gzipSync(current.htmlFirst).byteLength,
+    });
 
     const generated: GeneratedIslandCase = {
       rows,
@@ -74,9 +85,13 @@ it("measures payload sizes and writes client fixtures", async () => {
       payload: current.payload,
       vueHtml: current.vueHtml,
       onigiriMarkedHtml: current.marked,
+      htmlFirstHtml: current.htmlFirst,
+      htmlFirstNonce: current.nonce,
       nextPayload: next.payload,
       nextVueHtml: next.vueHtml,
       nextMarkedHtml: next.marked,
+      nextHtmlFirstHtml: next.htmlFirst,
+      nextHtmlFirstNonce: next.nonce,
     };
     writeFileSync(`${GENERATED_DIR}island-${rows}.json`, JSON.stringify(generated));
   }
@@ -93,7 +108,9 @@ async function renderIsland(props: { count: number; every: number; label?: strin
   const marked = await renderToString(
     createSSRApp({ render: () => renderOnigiriWithMarkers(payload, OPTIONS) }),
   );
-  return { vueHtml, payload, marked };
+  const context = provideMarkerNonce({});
+  const htmlFirst = await renderToString(createSSRApp(IslandHtmlFirst, props), context);
+  return { vueHtml, payload, marked, htmlFirst, nonce: context.onigiriNonce };
 }
 
 function measure(vueHtml: string, payload: unknown, markedHtml: string): Omit<SizeRow, "rows"> {

@@ -7,7 +7,7 @@ import { renderOnigiri, type RenderOnigiriOptions } from "../src/runtime/deseria
 import { onigiriPlugin } from "../src/runtime/plugin";
 import { importFn as defaultImportFn } from "../src/runtime/manifest-default";
 import { onigiriManifestPlugin } from "../src/vite/manifest";
-import { VServerComponentType, type VServerComponent } from "../src/runtime/shared";
+import { VServerComponentType, type VServerComponent } from "@vue-onigiri/shared";
 
 const Island = defineComponent({
   name: "Island",
@@ -91,12 +91,17 @@ describe("onigiriManifestPlugin manifest-default redirect", () => {
       RESOLVED,
     );
     expect(
-      resolveId("./manifest-default.js", "/app/node_modules/vue-onigiri/dist/runtime/loader.js"),
+      resolveId(
+        "./manifest-default.js",
+        "/app/node_modules/@vue-onigiri/core/dist/runtime/loader.js",
+      ),
     ).toBe(RESOLVED);
   });
 
   it("redirects the bare specifier from anywhere", () => {
-    expect(resolveId("vue-onigiri/runtime/manifest-default", "/app/src/main.ts")).toBe(RESOLVED);
+    expect(resolveId("@vue-onigiri/core/runtime/manifest-default", "/app/src/main.ts")).toBe(
+      RESOLVED,
+    );
   });
 
   it("does not hijack user modules named manifest-default", () => {
@@ -109,7 +114,7 @@ describe("onigiriManifestPlugin manifest-default redirect", () => {
   it("redirects when the dev importer carries a version query", () => {
     // optimizeDeps.exclude serves loader.js as `…/loader.js?v=<hash>`; the
     // redirect must still fire or the browser keeps the throwing stub.
-    const importer = "/x/node_modules/vue-onigiri/dist/runtime/loader.js?v=abc123";
+    const importer = "/x/node_modules/@vue-onigiri/core/dist/runtime/loader.js?v=abc123";
     expect(resolveId("./manifest-default.js", importer)).toBe(RESOLVED);
     expect(resolveId("./manifest-default.js", importer.split("?")[0])).toBe(RESOLVED);
     expect(resolveId("./manifest-default.js", "/x/runtime/loader.js#frag")).toBe(RESOLVED);

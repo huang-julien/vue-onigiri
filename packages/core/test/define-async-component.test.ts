@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { defineAsyncComponent, defineComponent, h } from "vue";
 import { serializeComponent } from "../src/runtime/serialize";
-import { VServerComponentType } from "../src/runtime/shared";
+import { VServerComponentType } from "@vue-onigiri/shared";
 
 describe("serializeComponent with defineAsyncComponent", () => {
   it("resolves and serializes a defineAsyncComponent loader", async () => {

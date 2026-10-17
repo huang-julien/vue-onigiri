@@ -9,9 +9,11 @@ import {
   watch,
   type FunctionalComponent,
   type PropType,
+  type VNode,
 } from "vue";
-import type { VServerComponent, VServerComponentComponent } from "./shared";
+import type { VServerComponent, VServerComponentComponent } from "@vue-onigiri/shared";
 import { renderChildren } from "./deserialize";
+import { htmlToVNodes } from "./dom-to-vnode";
 import type { ImportFn } from "./utils";
 import { importFn as defaultImportFn } from "./manifest-default";
 import { ONIGIRI_IMPORT_FN } from "./plugin";
@@ -27,6 +29,11 @@ export default defineComponent({
     },
     importFn: {
       type: Function as PropType<ImportFn>,
+      required: false,
+      default: undefined,
+    },
+    nonce: {
+      type: String,
       required: false,
       default: undefined,
     },
@@ -56,6 +63,17 @@ export default defineComponent({
       if (id === loadId) Loaded.value = component;
     });
 
+    // Same VNodes across renders keep hydrated static DOM; a new slot string gets a fresh parse.
+    const htmlSlots = new Map<string, VNode[]>();
+    const renderHtmlSlot = (html: string): VNode[] => {
+      let vnodes = htmlSlots.get(html);
+      if (!vnodes) {
+        vnodes = htmlToVNodes(html, { importFn: props.importFn, nonce: props.nonce });
+        htmlSlots.set(html, vnodes);
+      }
+      return vnodes;
+    };
+
     const buildSlots = () =>
       Object.fromEntries(
         Object.entries(props.data[4] || {}).map(([key, value]) => {
@@ -63,11 +81,12 @@ export default defineComponent({
             key,
             () => {
               if (!value) return undefined;
+              if (typeof value === "string") return renderHtmlSlot(value);
               const asArr =
                 Array.isArray(value) && typeof value[0] === "number"
                   ? [value as unknown as VServerComponent]
                   : (value as VServerComponent[]);
-              return renderChildren(asArr, { importFn: props.importFn });
+              return renderChildren(asArr, { importFn: props.importFn, nonce: props.nonce });
             },
           ];
         }),

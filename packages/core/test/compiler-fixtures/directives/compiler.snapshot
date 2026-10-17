@@ -1,6 +1,6 @@
 import { renderList as _renderList } from "vue";
 import { toDisplayString as _toDisplayString } from "vue";
-import { withDirective as __withDirective } from "vue-onigiri/runtime/with-directive";
+import { withDirective as __withDirective } from "@vue-onigiri/core/runtime/with-directive";
 
 export function renderOnigiri(_ctx, __instance) {
   return [

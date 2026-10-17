@@ -1,5 +1,5 @@
 import "./assets/main.css";
-import { loadClientDirective } from "vue-onigiri/runtime/utils";
+import { loadClientDirective } from "@vue-onigiri/core/runtime/utils";
 import { createApp, Suspense, h } from "vue";
 import App from "./App.vue";
 

@@ -16,7 +16,7 @@ const srcUrl = (rel: string) => fileURLToPath(new NodeURL(`../src/${rel}`, impor
 /** Compiled onigiri code imports the published runtime ids; point them at source. */
 const RUNTIME_ALIASES = Object.fromEntries(
   ["shared", "utils", "with-directive", "render-slot", "resolve-component"].map((mod) => [
-    `vue-onigiri/runtime/${mod}`,
+    `@vue-onigiri/core/runtime/${mod}`,
     srcUrl(`runtime/${mod}.ts`),
   ]),
 );

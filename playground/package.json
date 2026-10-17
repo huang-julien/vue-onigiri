@@ -19,12 +19,12 @@
     "@tsconfig/node22": "^22.0.1",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-vue": "^6.0.6",
+    "@vue-onigiri/core": "workspace:*",
     "@vue/tsconfig": "^0.9.0",
     "@vueuse/core": "^14.3.0",
     "typescript": "^6.0.3",
     "vite": "catalog:",
     "vite-plugin-vue-devtools": "^8.1.1",
-    "vue-onigiri": "workspace:*",
     "vue-tsc": "^3.2.8"
   }
 }

@@ -1,9 +1,13 @@
 {
-  "name": "vue-onigiri",
+  "name": "@vue-onigiri/core",
   "version": "0.7.0",
   "description": "Serialize and deserialize Vue component trees (VNodes) for Vue Server Components and cross-application component sharing",
   "license": "MIT",
-  "repository": "vue-onigiri",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/huang-julien/vue-onigiri.git",
+    "directory": "packages/core"
+  },
   "files": [
     "dist"
   ],
@@ -40,7 +44,8 @@
     "bench:codspeed": "vitest bench --run --config vitest.bench.config.ts bench/ssr bench/compiler"
   },
   "dependencies": {
-    "@babel/parser": "^7.29.3",
+    "@vue-onigiri/compiler": "workspace:^",
+    "@vue-onigiri/shared": "workspace:^",
     "@vue/compiler-dom": "^3.5.33",
     "@vue/compiler-sfc": "^3.5.33",
     "@vue/shared": "^3.5.33",

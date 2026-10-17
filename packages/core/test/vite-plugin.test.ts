@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { parse, compileScript } from "@vue/compiler-sfc";
 import type { Plugin, ResolvedConfig } from "vite";
-import { compileOnigiriInline } from "../src/template-compiler";
+import { compileOnigiriInline } from "@vue-onigiri/compiler";
 import { injectIntoSetupAsync } from "../src/vite/compiler/inject-setup";
 import { onigiriCompilerPlugin } from "../src/vite/compiler";
 import { parseOnigiriId, toOnigiriId } from "../src/vite/compiler/constants";
@@ -77,7 +77,7 @@ describe("Vite plugin code generation", () => {
       // Add imports
       s.prepend(`
 import { inject as __inject } from "vue";
-import { ONIGIRI_RENDER_SYMBOL as __ONIGIRI_SYMBOL } from "vue-onigiri/runtime/shared";
+import { ONIGIRI_RENDER_SYMBOL as __ONIGIRI_SYMBOL } from "@vue-onigiri/core/runtime/shared";
 `);
 
       return s.toString();

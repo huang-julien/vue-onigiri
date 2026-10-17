@@ -12,7 +12,7 @@ import Island from "../fixtures/Island.vue";
 import Counter from "../fixtures/Counter.vue";
 import { renderOnigiri } from "../../src/runtime/deserialize";
 import { domToVNode, htmlToVNode } from "../../src/runtime/dom-to-vnode";
-import type { OnigiriPayload } from "../../src/runtime/shared";
+import type { OnigiriPayload } from "@vue-onigiri/shared";
 import { withLoadClient, type GeneratedIslandCase } from "../shared";
 import case1000 from "./generated/island-1000.json";
 import case10000 from "./generated/island-10000.json";
@@ -28,6 +28,43 @@ function hydrateContainer(html: string): HTMLElement {
   el.innerHTML = html;
   document.body.append(el);
   return el;
+}
+
+/**
+ * Production Vue hides mismatches, so prove adoption instead: every row element
+ * must survive hydration by identity and every counter must be interactive.
+ */
+function assertAdopted(label: string, html: string, nonce: string | undefined, rows: number) {
+  const el = hydrateContainer(html);
+  const before = [...el.querySelectorAll("li")];
+  const app = createSSRApp({ render: () => domToVNode(el.firstChild!, { ...OPTIONS, nonce }) });
+  app.mount(el);
+  return new Promise<void>((resolve, reject) => {
+    // The loader resolves its import in a microtask; buttons exist once Suspense settles.
+    setTimeout(() => {
+      try {
+        const after = [...el.querySelectorAll("li")];
+        if (before.length !== rows || after.length !== rows) {
+          throw new Error(`${label}: expected ${rows} rows, got ${before.length}/${after.length}`);
+        }
+        for (let i = 0; i < rows; i++) {
+          if (before[i] !== after[i]) throw new Error(`${label}: row ${i} was replaced`);
+        }
+        const buttons = [...el.querySelectorAll("button")];
+        for (const button of buttons) button.click();
+        app.unmount();
+        el.remove();
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    }, 50);
+  });
+}
+
+for (const data of CASES) {
+  await assertAdopted("onigiri-dom", data.onigiriMarkedHtml, undefined, data.rows);
+  await assertAdopted("onigiri-dom html-first", data.htmlFirstHtml, data.htmlFirstNonce, data.rows);
 }
 
 for (const data of CASES) {
@@ -65,6 +102,20 @@ for (const data of CASES) {
       () => {
         const el = hydrateContainer(data.onigiriMarkedHtml);
         const app = createSSRApp({ render: () => domToVNode(el.firstChild!, OPTIONS) });
+        app.mount(el);
+        app.unmount();
+        el.remove();
+      },
+      BENCH_OPTIONS,
+    );
+
+    bench(
+      "onigiri-dom html-first",
+      () => {
+        const el = hydrateContainer(data.htmlFirstHtml);
+        const app = createSSRApp({
+          render: () => domToVNode(el.firstChild!, { ...OPTIONS, nonce: data.htmlFirstNonce }),
+        });
         app.mount(el);
         app.unmount();
         el.remove();
@@ -110,6 +161,20 @@ for (const data of CASES) {
         flip = !flip;
         current.value = htmlToVNode(flip ? data.nextMarkedHtml : data.onigiriMarkedHtml, {
           ...OPTIONS,
+          previous: current.value,
+        });
+        await nextTick();
+      },
+      BENCH_OPTIONS,
+    );
+
+    bench(
+      "onigiri htmlToVNode html-first",
+      async () => {
+        flip = !flip;
+        current.value = htmlToVNode(flip ? data.nextHtmlFirstHtml : data.htmlFirstHtml, {
+          ...OPTIONS,
+          nonce: flip ? data.nextHtmlFirstNonce : data.htmlFirstNonce,
           previous: current.value,
         });
         await nextTick();

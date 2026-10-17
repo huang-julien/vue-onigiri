@@ -8,7 +8,7 @@
     "@vue-onigiri/test-ui-dep": "workspace:*"
   },
   "devDependencies": {
-    "vue-onigiri": "workspace:*"
+    "@vue-onigiri/core": "workspace:*"
   },
   "peerDependencies": {
     "vue": "^3.5.0"

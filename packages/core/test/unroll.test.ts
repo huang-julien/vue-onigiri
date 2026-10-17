@@ -12,7 +12,7 @@ import {
   type BufferedChildren,
   type MaybePromise,
   type VServerComponentBuffered,
-} from "../src/runtime/shared";
+} from "@vue-onigiri/shared";
 
 const { Element, Text, Fragment, Component } = VServerComponentType;
 

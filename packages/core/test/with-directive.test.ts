@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ObjectDirective } from "vue";
 import { serializeApp } from "../src/runtime/serialize";
 import { vModel, withDirective } from "../src/runtime/with-directive";
-import { VServerComponentType, type VServerComponentBuffered } from "../src/runtime/shared";
+import { VServerComponentType, type VServerComponentBuffered } from "@vue-onigiri/shared";
 import DirectiveUse from "./fixtures/components/DirectiveUse.vue";
 
 const T = VServerComponentType;

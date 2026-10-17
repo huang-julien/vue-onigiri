@@ -4,7 +4,7 @@ import {
   unrollServerComponentBufferPromises,
 } from "../src/runtime/serialize";
 import { createImportFn } from "../src/runtime/manifest-runtime";
-import { VServerComponentType, type OnigiriPayload } from "../src/runtime/shared";
+import { VServerComponentType, type OnigiriPayload } from "@vue-onigiri/shared";
 
 describe("serializePayloadForInline", () => {
   it("escapes script-context breakouts while staying JSON.parse-compatible", () => {

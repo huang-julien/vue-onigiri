@@ -26,6 +26,7 @@ interface SizeRow {
   payloadGzipBytes: number;
   markedHtmlBytes: number;
   markedHtmlGzipBytes: number;
+  htmlFirstGzipBytes?: number;
 }
 
 interface SizeReport {
@@ -98,12 +99,12 @@ function islandSection(report: VitestBenchReport | undefined): string {
   if (!report) return "";
 
   const hydrate = [
-    "| rows | vue | onigiri | ratio | onigiri-dom | ratio |",
-    "|---|---:|---:|---:|---:|---:|",
+    "| rows | vue | onigiri | ratio | onigiri-dom | ratio | onigiri-dom html-first | ratio |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|",
   ];
   const refresh = [
-    "| rows | vue static | renderOnigiri | ratio | htmlToVNode | ratio |",
-    "|---|---:|---:|---:|---:|---:|",
+    "| rows | vue static | renderOnigiri | ratio | htmlToVNode | ratio | htmlToVNode html-first | ratio |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|",
   ];
   for (const group of groups(report)) {
     const m = group.fullName.match(/island (\w+) rows=(\d+)/);
@@ -112,18 +113,28 @@ function islandSection(report: VitestBenchReport | undefined): string {
     if (m[1] === "hydrate") {
       const vue = byName.get("vue");
       hydrate.push(
-        `| ${m[2]} | ${cell(vue)} | ${cell(byName.get("onigiri"))} | ${ratio(byName.get("onigiri"), vue)} | ${cell(byName.get("onigiri-dom"))} | ${ratio(byName.get("onigiri-dom"), vue)} |`,
+        `| ${m[2]} | ${cell(vue)} | ${cells(byName, vue, ["onigiri", "onigiri-dom", "onigiri-dom html-first"])} |`,
       );
     } else if (m[1] === "refresh") {
       const vue = byName.get("vue static");
       refresh.push(
-        `| ${m[2]} | ${cell(vue)} | ${cell(byName.get("onigiri renderOnigiri"))} | ${ratio(byName.get("onigiri renderOnigiri"), vue)} | ${cell(byName.get("onigiri htmlToVNode"))} | ${ratio(byName.get("onigiri htmlToVNode"), vue)} |`,
+        `| ${m[2]} | ${cell(vue)} | ${cells(byName, vue, ["onigiri renderOnigiri", "onigiri htmlToVNode", "onigiri htmlToVNode html-first"])} |`,
       );
     }
   }
   if (hydrate.length === 2 && refresh.length === 2) return "";
 
-  return `### Island with client components (Chromium)\n\n\`Island.vue\`: one \`v-load-client\` counter every 100 rows.\n\nHydrate, mean per \`mount()\` plus unmount:\n\n${hydrate.join("\n")}\n\nRefresh, mean per tree swap plus patch. \`vue static\` replaces the island HTML like legacy islands do.\n\n${refresh.join("\n")}\n`;
+  return `### Island with client components (Chromium)\n\n\`Island.vue\`: one \`v-load-client\` counter every 100 rows. \`html-first\` is Vue's own SSR output with markers written by \`v-load-client\`, no AST.\n\nHydrate, mean per \`mount()\` plus unmount:\n\n${hydrate.join("\n")}\n\nRefresh, mean per tree swap plus patch. \`vue static\` replaces the island HTML like legacy islands do.\n\n${refresh.join("\n")}\n`;
+}
+
+function cells(
+  byName: Map<string, VitestBenchmark>,
+  base: VitestBenchmark | undefined,
+  names: string[],
+): string {
+  return names
+    .map((name) => `${cell(byName.get(name))} | ${ratio(byName.get(name), base)}`)
+    .join(" | ");
 }
 
 function sizeSection(report: SizeReport | undefined): string {
@@ -137,8 +148,13 @@ function sizeSection(report: SizeReport | undefined): string {
     `| ${s.rows} | ${formatBytes(s.htmlGzipBytes)} | ${formatBytes(s.payloadGzipBytes)} | ${(s.payloadGzipBytes / s.htmlGzipBytes).toFixed(2)}x | ${formatBytes(s.markedHtmlGzipBytes)} | ${(s.markedHtmlGzipBytes / s.htmlGzipBytes).toFixed(2)}x |`;
 
   const tree = [...header, ...report.sizes.map(sizeLine)];
+  const islandHeader = [`${header[0]} html-first gzip | ratio |`, `${header[1]}---:|---:|`];
+  const islandLine = (s: SizeRow): string =>
+    s.htmlFirstGzipBytes === undefined
+      ? sizeLine(s)
+      : `${sizeLine(s)} ${formatBytes(s.htmlFirstGzipBytes)} | ${(s.htmlFirstGzipBytes / s.htmlGzipBytes).toFixed(2)}x |`;
   const island = report.islandSizes?.length
-    ? `\nSame for \`Island.vue\`:\n\n${[...header, ...report.islandSizes.map(sizeLine)].join("\n")}\n`
+    ? `\nSame for \`Island.vue\`:\n\n${[...islandHeader, ...report.islandSizes.map(islandLine)].join("\n")}\n`
     : "";
 
   return `### Wire size\n\nVue SSR HTML vs the onigiri JSON payload vs the marked HTML for the same tree, gzipped.\n\n${tree.join("\n")}\n${island}`;

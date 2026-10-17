@@ -39,7 +39,7 @@ const RUNTIME_ALIASES = Object.fromEntries(
     "loader",
     "plugin",
     "manifest-runtime",
-  ].map((mod) => [`vue-onigiri/runtime/${mod}`, srcUrl(`runtime/${mod}.ts`)]),
+  ].map((mod) => [`@vue-onigiri/core/runtime/${mod}`, srcUrl(`runtime/${mod}.ts`)]),
 );
 
 function fixtureConfig(): InlineConfig {

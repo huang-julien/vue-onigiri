@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import { vHtml } from "../src/runtime/with-directive";
-import { VServerComponentType } from "../src/runtime/shared";
+import { VServerComponentType } from "@vue-onigiri/shared";
 
 /** Count via the public vHtml transform: it emits [StaticHtml, html, count]. */
 const count = (html: string): number => {

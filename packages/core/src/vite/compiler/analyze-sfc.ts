@@ -7,7 +7,7 @@ import {
   parse,
 } from "@vue/compiler-sfc";
 import type { ResolvedConfig } from "vite";
-import type { AdditionalImport } from "../../template-compiler/codegen/context";
+import type { AdditionalImport } from "@vue-onigiri/compiler";
 import { type ScriptImports, buildImportMap } from "./imports";
 import { type ComponentIdGenerator, generateScopeId } from "./scope-id";
 import { getCapturedSource } from "./source-capture";

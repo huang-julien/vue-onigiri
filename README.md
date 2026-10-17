@@ -2,8 +2,8 @@
 
 <!-- automd:badges color=yellow -->
 
-[![npm version](https://img.shields.io/npm/v/vue-onigiri?color=yellow)](https://npmjs.com/package/vue-onigiri)
-[![npm downloads](https://img.shields.io/npm/dm/vue-onigiri?color=yellow)](https://npm.chart.dev/vue-onigiri)
+[![npm version](https://img.shields.io/npm/v/@vue-onigiri/core?color=yellow)](https://npmjs.com/package/@vue-onigiri/core)
+[![npm downloads](https://img.shields.io/npm/dm/@vue-onigiri/core?color=yellow)](https://npm.chart.dev/@vue-onigiri/core)
 
 <!-- /automd -->
 
@@ -57,6 +57,14 @@ flowchart TB
 This lead to different perf issue and maintainability issues.
 
 Vue onigiri aims to fix theses issues by moving Static HTML to AST. Every VNode that can be described is serialized into AST and deserialized back into VNode.
+
+## Packages
+
+| Package                                      | Description                                                   |
+| -------------------------------------------- | ------------------------------------------------------------- |
+| [`@vue-onigiri/core`](packages/core)         | Runtime (serialize, deserialize, loader) and the Vite plugins |
+| [`@vue-onigiri/compiler`](packages/compiler) | Template compiler emitting onigiri render functions           |
+| [`@vue-onigiri/shared`](packages/shared)     | AST types, marker constants and encoding helpers              |
 
 ## License
 

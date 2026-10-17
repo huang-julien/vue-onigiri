@@ -1,4 +1,4 @@
-import { serializeComponent } from "vue-onigiri/runtime/serialize";
+import { serializeComponent } from "@vue-onigiri/core/runtime/serialize";
 
 import App from "./App.vue";
 

@@ -57,7 +57,7 @@ interface ResolvedInclude {
   patterns: string[];
 }
 
-const MANIFEST_RUNTIME_ID = "vue-onigiri/runtime/manifest-runtime";
+const MANIFEST_RUNTIME_ID = "@vue-onigiri/core/runtime/manifest-runtime";
 
 /**
  * Emit the `virtual:onigiri/manifest` module exporting `manifest` and
@@ -122,7 +122,7 @@ export function onigiriManifestPlugin(options: OnigiriManifestPluginOptions = {}
 
         const bareImporterPath = importer?.replace(/[?#].*$/, "");
         if (
-          id === "vue-onigiri/runtime/manifest-default" ||
+          id === "@vue-onigiri/core/runtime/manifest-default" ||
           (/(^|[\\/])manifest-default(\.\w+)?$/.test(id) &&
             !!bareImporterPath &&
             /[\\/]runtime[\\/]loader\.\w+$/.test(bareImporterPath))

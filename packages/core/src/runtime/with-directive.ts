@@ -1,7 +1,7 @@
 import { mergeProps, type ComponentInternalInstance, type ObjectDirective } from "vue";
 import { isPromise, looseEqual, looseIndexOf } from "@vue/shared";
-import type { VServerComponentBuffered, VServerComponent } from "./shared";
-import { VServerComponentType } from "./shared";
+import type { VServerComponentBuffered, VServerComponent } from "@vue-onigiri/shared";
+import { VServerComponentType } from "@vue-onigiri/shared";
 import { countHtmlRootNodes } from "./html";
 
 export interface ObjectDirectiveBinding<V = any> {

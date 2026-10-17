@@ -127,7 +127,9 @@ export function genSlotOutlet(node: ElementNode, context: CodegenContext): void 
   const { props, children } = node;
 
   context.imports.add(
-    genImport("vue-onigiri/runtime/render-slot", [{ name: "renderSlot", as: "__renderSlot" }]),
+    genImport("@vue-onigiri/core/runtime/render-slot", [
+      { name: "renderSlot", as: "__renderSlot" },
+    ]),
   );
 
   let slotName: string | null = null;

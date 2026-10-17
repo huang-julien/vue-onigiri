@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { defineComponent, h, ref } from "vue";
 import { serializeComponent } from "../src/runtime/serialize";
-import { VServerComponentType } from "../src/runtime/shared";
+import { VServerComponentType } from "@vue-onigiri/shared";
 
 describe("serializeComponent with render fn + setup", () => {
   it("setup returning a render function is invoked", async () => {
