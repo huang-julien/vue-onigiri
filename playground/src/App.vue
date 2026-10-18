@@ -1,97 +1,22 @@
 <script setup lang="ts">
-import { ref, computed, defineComponent, h, Suspense, watch, type VNode } from "vue";
-import { serializeComponent } from "@vue-onigiri/core/runtime/serialize";
-import { renderOnigiri } from "@vue-onigiri/core/runtime/deserialize";
-import AstViewer from "./components/AstViewer.vue";
-import Counter from "./components/Counter.vue";
 import LoadComponent from "./components/LoadComponent.vue";
-
-const vnode = ref();
-const activeTab = ref<"live" | "compiled" | "onigiri">("live");
-
-// Serialize → renderOnigiri round trip: v-load-client chunks resolve
-// through the manifest importFn (glob + extraEntries) in the browser.
-const onigiriAst = ref<any>(null);
-watch(activeTab, async (tab) => {
-  if (tab === "onigiri" && !onigiriAst.value) {
-    onigiriAst.value = await serializeComponent(LoadComponent);
-  }
-});
-
-const OnigiriPreview = defineComponent({
-  props: { ast: { type: Object, required: true } },
-  setup(props) {
-    return () => h(Suspense, null, { default: () => renderOnigiri(props.ast as any) });
-  },
-});
-
-function onVnodeUpdated(_vnode: VNode) {
-  vnode.value = _vnode;
-}
-
-// Access the compile-time onigiri render attached by the plugin
-const compiledAst = computed(() => {
-  const onigiriRender = (LoadComponent as any).__onigiriRender;
-  if (onigiriRender) {
-    return onigiriRender({}, {});
-  }
-  return null;
-});
 </script>
 
 <template>
   <div class="app">
     <header class="header">
       <h1>🍙 Vue Onigiri Playground</h1>
-      <p>Vue Server Components - VNode Serialization</p>
+      <p>HTML-first Vue islands</p>
     </header>
 
-    <nav class="tabs">
-      <button :class="{ active: activeTab === 'live' }" @click="activeTab = 'live'">
-        Live + Runtime AST
-      </button>
-      <button :class="{ active: activeTab === 'compiled' }" @click="activeTab = 'compiled'">
-        Compiled AST
-      </button>
-      <button :class="{ active: activeTab === 'onigiri' }" @click="activeTab = 'onigiri'">
-        Onigiri Render
-      </button>
-    </nav>
-
     <main class="content">
-      <div v-if="activeTab === 'live'" class="panel-grid">
-        <div class="panel">
-          <h2>Live Component</h2>
-          <LoadComponent
-            ref="counterRef"
-            @vue:mounted="onVnodeUpdated"
-            @vue:updated="onVnodeUpdated"
-          />
-        </div>
-        <div class="panel">
-          <h2>Runtime VNode AST</h2>
-          <AstViewer ref="astViewerRef" :vnode="vnode" />
-        </div>
-      </div>
-
-      <div v-else-if="activeTab === 'compiled'" class="panel">
-        <h2>Compile-time Serialized AST</h2>
+      <div class="panel">
+        <h2>Live Component</h2>
         <p class="description">
-          Pre-compiled via <code>LoadComponent.__onigiriRender()</code> - automatically attached by
-          the Vite plugin
+          In a client build <code>v-load-client</code> is dropped by the compiler transform, so the
+          island renders as a plain component. Server builds mark it for <code>domToVNode</code>.
         </p>
-        <pre class="ast">{{ JSON.stringify(compiledAst, null, 2) }}</pre>
-      </div>
-
-      <div v-else-if="activeTab === 'onigiri'" class="panel">
-        <h2>Serialized → renderOnigiri</h2>
-        <p class="description">
-          The AST below was produced by <code>serializeComponent</code> and rendered with
-          <code>renderOnigiri</code>; <code>v-load-client</code> chunks (including the
-          <code>@vue-onigiri/test-ui-lib</code> package button) load through the manifest.
-        </p>
-        <OnigiriPreview v-if="onigiriAst" :ast="onigiriAst" />
-        <p v-else>Serializing…</p>
+        <LoadComponent />
       </div>
     </main>
   </div>
@@ -113,35 +38,8 @@ const compiledAst = computed(() => {
   margin: 0;
   opacity: 0.7;
 }
-.tabs {
-  display: flex;
-  gap: 8px;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--color-border);
-}
-.tabs button {
-  padding: 8px 16px;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text);
-  cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.2s;
-}
-.tabs button:hover {
-  background: var(--color-background-soft);
-}
-.tabs button.active {
-  background: var(--color-background-mute);
-  border-color: var(--vt-c-green);
-}
 .content {
   padding: 24px;
-}
-.panel-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
 }
 .panel {
   background: var(--color-background-soft);
@@ -161,14 +59,5 @@ const compiledAst = computed(() => {
   background: var(--color-background-mute);
   padding: 2px 6px;
   border-radius: 4px;
-}
-.ast {
-  background: var(--color-background-mute);
-  padding: 16px;
-  border-radius: 8px;
-  overflow: auto;
-  max-height: 600px;
-  font-size: 12px;
-  line-height: 1.5;
 }
 </style>

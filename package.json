@@ -7,11 +7,10 @@
   "type": "module",
   "scripts": {
     "build": "pnpm --filter \"./packages/*\" build",
-    "build:libs": "pnpm --filter @vue-onigiri/shared --filter @vue-onigiri/compiler build",
     "dev": "pnpm --filter playground dev",
     "lint": "oxlint && oxfmt --check",
-    "lint:fix": "pnpm --filter @vue-onigiri/core exec automd && oxlint --fix && oxfmt",
-    "test": "pnpm build:libs && pnpm --filter @vue-onigiri/core test && pnpm --filter @vue-onigiri/compiler test",
+    "lint:fix": "pnpm --filter vue-onigiri exec automd && oxlint --fix && oxfmt",
+    "test": "pnpm --filter vue-onigiri test",
     "test:types": "pnpm -r test:types",
     "publish:all": "pnpm -r publish --access public",
     "release": "node --experimental-strip-types scripts/release.ts"

@@ -2,14 +2,14 @@
 
 <!-- automd:badges color=yellow -->
 
-[![npm version](https://img.shields.io/npm/v/@vue-onigiri/core?color=yellow)](https://npmjs.com/package/@vue-onigiri/core)
-[![npm downloads](https://img.shields.io/npm/dm/@vue-onigiri/core?color=yellow)](https://npm.chart.dev/@vue-onigiri/core)
+[![npm version](https://img.shields.io/npm/v/vue-onigiri?color=yellow)](https://npmjs.com/package/vue-onigiri)
+[![npm downloads](https://img.shields.io/npm/dm/vue-onigiri?color=yellow)](https://npm.chart.dev/vue-onigiri)
 
 <!-- /automd -->
 
 [![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/huang-julien/vue-onigiri?utm_source=badge)
 
-Vue Onigiri brings React Server Components-style rendering to Vue. Components render on the server into a transferable AST; the client deserializes that AST back into VNodes, and only components marked with `v-load-client` ship their JS to the browser.
+Vue Onigiri brings React Server Components-style rendering to Vue. An island renders once with Vue's own SSR renderer, components marked with `v-load-client` get nonce-bound comment markers, and the client rebuilds VNodes from the DOM. Only the marked components ship their JS to the browser.
 
 ## Motivation
 
@@ -39,32 +39,30 @@ flowchart TB
 
 Every step leans on how Vue's renderer, `<Teleport>` and static VNodes happen to behave, and each Vue release is a chance for one of them to break.
 
-vue-onigiri removes the problem instead of patching it: the server ships a **VNode AST**, not HTML. Slots and `v-load-client` components are ordinary nodes in that tree.
+vue-onigiri removes the problem instead of patching it: slots and `v-load-client` components travel inside the HTML as comment markers, and the client turns that HTML into an ordinary VNode tree.
 
 ```mermaid
 flowchart TB
   subgraph server [Server]
-    A[Render component] --> B["Serialize VNode tree to AST<br/>slots and v-load-client markers are plain nodes"]
+    A["Vue SSR render, once"] --> B["v-load-client components and teleports<br/>wrapped in nonce-bound comment markers"]
   end
   subgraph client [Client]
-    C[Deserialize AST to VNodes] --> D[Render like any component]
+    C["domToVNode / htmlToVNode"] --> D[Render like any component]
     D --> E{Re-render?}
     E -- yes --> D
   end
   B --> C
 ```
 
-This lead to different perf issue and maintainability issues.
+## Entry points
 
-Vue onigiri aims to fix theses issues by moving Static HTML to AST. Every VNode that can be described is serialized into AST and deserialized back into VNode.
+One package, [`vue-onigiri`](packages/vue-onigiri), split by where the code runs:
 
-## Packages
-
-| Package                                      | Description                                                   |
-| -------------------------------------------- | ------------------------------------------------------------- |
-| [`@vue-onigiri/core`](packages/core)         | Runtime (serialize, deserialize, loader) and the Vite plugins |
-| [`@vue-onigiri/compiler`](packages/compiler) | Template compiler emitting onigiri render functions           |
-| [`@vue-onigiri/shared`](packages/shared)     | AST types, marker constants and encoding helpers              |
+| Import               | Runs in    | Description                                                 |
+| -------------------- | ---------- | ----------------------------------------------------------- |
+| `vue-onigiri`        | Browser    | DOM to VNode walker, loader plugin, marker contract         |
+| `vue-onigiri/server` | SSR        | Nonce setup and the marker-writing render helpers           |
+| `vue-onigiri/vite`   | Build time | Vite plugins and the `v-load-client` SSR template transform |
 
 ## License
 

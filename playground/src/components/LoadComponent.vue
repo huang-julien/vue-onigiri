@@ -8,9 +8,6 @@
 </template>
 
 <script setup lang="ts">
-import { loadClientDirective } from "@vue-onigiri/core/runtime/utils";
 import Counter from "./Counter.vue";
-import UiButton from "@vue-onigiri/test-ui-lib/Button.vue";
-import TsSlot from "./TsSlot";
-const vLoadClient = loadClientDirective;
+import UiButton from "vue-onigiri-test-ui-lib/Button.vue";
 </script>
