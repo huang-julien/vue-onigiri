@@ -27,7 +27,7 @@ export function attachDescriptor(
   }
 
   const varExportMatch = code.match(
-    /export\s+default\s+(_sfc_main|__default__|_sfc_component)\s*;?\s*$/m,
+    /export\s+default\s+(_sfc_main|__default__|_sfc_component)\s*(?:;\s*)?$/m,
   );
   if (varExportMatch?.[1] && varExportMatch.index !== undefined) {
     s.appendLeft(varExportMatch.index, assignment(varExportMatch[1]));

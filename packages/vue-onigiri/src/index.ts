@@ -13,5 +13,6 @@ export {
   createMarkerSet,
   decodeMarker,
   encodeMarker,
+  isMarkerNonce,
 } from "./shared/markers";
 export type { MarkerSet, OnigiriComponentMarker, OnigiriTeleportMarker } from "./shared/markers";

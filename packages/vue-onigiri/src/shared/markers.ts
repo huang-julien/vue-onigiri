@@ -45,6 +45,18 @@ const MARKER_NONCE_MIN_LENGTH = 16;
 const MARKER_NONCE_RE = /^[A-Za-z0-9]+$/;
 
 /**
+ * Whether a value can bind markers: a string of 16 or more alphanumeric characters.
+ * Hosts check a nonce read from a response with it before building anything from it.
+ */
+export function isMarkerNonce(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length >= MARKER_NONCE_MIN_LENGTH &&
+    MARKER_NONCE_RE.test(value)
+  );
+}
+
+/**
  * Build the marker set of a render; the nonce keeps raw HTML from forging a marker.
  */
 export function createMarkerSet(nonce: string): MarkerSet {

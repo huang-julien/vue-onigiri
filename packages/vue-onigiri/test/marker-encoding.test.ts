@@ -4,6 +4,7 @@ import {
   createMarkerSet,
   decodeMarker,
   encodeMarker,
+  isMarkerNonce,
 } from "../src/shared/markers";
 
 const CASES: { name: string; value: unknown }[] = [
@@ -48,6 +49,15 @@ describe("marker set", () => {
     expect(() => createMarkerSet("a[b")).toThrow(/alphanumeric/);
     expect(() => createMarkerSet("a--b")).toThrow(/alphanumeric/);
     expect(() => createMarkerSet("")).toThrow(/alphanumeric/);
+  });
+
+  it("tells a usable nonce from anything else", () => {
+    expect(isMarkerNonce(createMarkerNonce())).toBe(true);
+    expect(isMarkerNonce("a".repeat(16))).toBe(true);
+    expect(isMarkerNonce("a".repeat(15))).toBe(false);
+    expect(isMarkerNonce("abcdefghijklmnop-")).toBe(false);
+    expect(isMarkerNonce(undefined)).toBe(false);
+    expect(isMarkerNonce(1234567890123456)).toBe(false);
   });
 
   it("rejects a nonce shorter than 16 characters", () => {

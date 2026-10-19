@@ -180,10 +180,14 @@ function collectMarkerAncestors(
  * Walk one node into its VNodes and return the sibling to continue from.
  */
 function walkNode(node: ChildNode, context: WalkContext): WalkResult {
-  if (isFragmentStart(node)) {
-    const end = findFragmentEnd(node);
-    const children = walkSiblings(node.nextSibling, end, context);
-    return { next: end.nextSibling, vnodes: [createElementVNode(Fragment, null, children)] };
+  // Structural comments carry no nonce, so an unmatched one (raw HTML) stays a plain comment.
+  const fragmentEnd = isFragmentStart(node) ? findFragmentEnd(node) : undefined;
+  if (fragmentEnd) {
+    const children = walkSiblings(node.nextSibling, fragmentEnd, context);
+    return {
+      next: fragmentEnd.nextSibling,
+      vnodes: [createElementVNode(Fragment, null, children)],
+    };
   }
 
   if (node.nodeType === COMMENT_NODE) {
@@ -247,8 +251,10 @@ function handleMarkerComment(
   context: WalkContext,
 ): WalkResult | undefined {
   if (marker.kind === "component") {
+    const closing = findClosingMarker(comment, context);
+    if (!closing) return;
     return {
-      next: findClosingMarker(comment, context).nextSibling,
+      next: closing.nextSibling,
       vnodes: [
         createCommentVNode(comment.data),
         renderClientComponent(marker.tuple, context.options),
@@ -260,6 +266,7 @@ function handleMarkerComment(
   const start = comment.nextSibling;
   if (!start || !isTeleportStart(start)) return;
   const end = findTeleportEnd(start);
+  if (!end) return;
   const [to, disabled, html] = marker.tuple;
   // Disabled content sits inline; otherwise it lives in the target and travels in the marker.
   const children = disabled
@@ -336,7 +343,7 @@ function isString(value: unknown): value is string {
 /**
  * Closing comment of a component marker; only valid open markers count as nested.
  */
-function findClosingMarker(start: Comment, context: WalkContext): Comment {
+function findClosingMarker(start: Comment, context: WalkContext): Comment | undefined {
   const closeMarker = context.markers.componentEnd;
   let depth = 0;
   for (let current = start.nextSibling; current; current = current.nextSibling) {
@@ -349,10 +356,10 @@ function findClosingMarker(start: Comment, context: WalkContext): Comment {
       depth++;
     }
   }
-  throw new Error(`[vue-onigiri] Missing closing marker: ${closeMarker}`);
+  return undefined;
 }
 
-function findTeleportEnd(start: Node): Comment {
+function findTeleportEnd(start: Node): Comment | undefined {
   let depth = 0;
   for (let current: Node | null = start; current; current = current.nextSibling) {
     if (current.nodeType !== COMMENT_NODE) continue;
@@ -364,10 +371,10 @@ function findTeleportEnd(start: Node): Comment {
       if (depth === 0) return current as Comment;
     }
   }
-  throw new Error("[vue-onigiri] Missing teleport end marker");
+  return undefined;
 }
 
-function findFragmentEnd(start: Node): Comment {
+function findFragmentEnd(start: Node): Comment | undefined {
   let depth = 0;
   for (let current = start.nextSibling; current; current = current.nextSibling) {
     if (current.nodeType !== COMMENT_NODE) continue;
@@ -379,7 +386,7 @@ function findFragmentEnd(start: Node): Comment {
       depth--;
     }
   }
-  throw new Error("[vue-onigiri] Missing fragment end marker");
+  return undefined;
 }
 
 function collectStaticRuns(previous: VNode): Map<string, VNode[]> {
@@ -423,6 +430,9 @@ function createStaticRun(nodes: Node[], context: WalkContext): VNode {
     // With anchors set, Vue clones the parsed nodes at mount instead of parsing the HTML again.
     vnode.el = nodes[0]!;
     vnode.anchor = nodes[nodes.length - 1]!;
+    // A memo keeps Vue from cloning the vnode on re-render: production Vue never moves `el`
+    // from one Static vnode to another, so a clone would keep pointing at the parsed nodes.
+    (vnode as VNode & { memo?: unknown[] }).memo = [];
   }
   return vnode;
 }

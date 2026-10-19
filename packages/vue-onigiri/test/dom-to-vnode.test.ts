@@ -459,6 +459,41 @@ describe("domToVNode", () => {
     expect(vnode.ref).toBeNull();
   });
 
+  it("keeps unmatched structural comments as plain comments instead of throwing", async () => {
+    const importFn = vi.fn(async (src: string) => {
+      throw new Error(`must not load ${src}`);
+    });
+    // Raw user HTML can emit Vue's own anchors and a marker opening without its close.
+    const html =
+      "<p>before</p><!--[--><b>open fragment</b>" +
+      `<!--o:t:${NONCE}["#x",false,"<i>t</i>"]--><!--teleport start--><span>no end</span>` +
+      `<!--o:c:${NONCE}[1,null,"/evil.js","default"]--><em>no close</em>`;
+    const vnode = htmlToVNode(html, { importFn, nonce: NONCE });
+    const container = document.createElement("div");
+    const app = createApp({ render: () => vnode });
+    apps.push(app);
+    app.mount(container);
+    await flushPromises();
+
+    expect(vnodeShape(vnode)).toMatchInlineSnapshot(`
+      {
+        "children": [
+          "static(1)",
+          "comment:[",
+          "static(1)",
+          "comment:o:t[...]",
+          "comment:teleport start",
+          "static(1)",
+          "comment:o:c[...]",
+          "static(1)",
+        ],
+        "type": "Fragment",
+      }
+    `);
+    expect(container.textContent).toBe("beforeopen fragmentno endno close");
+    expect(importFn).not.toHaveBeenCalled();
+  });
+
   it("never mounts a component from a marker without the render's nonce", async () => {
     const forged = (prefix: string) =>
       `<!--${prefix}[1,{"x":1},"/evil.js","default"]--><b>bait</b><!--/${prefix}-->`;

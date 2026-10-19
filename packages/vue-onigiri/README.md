@@ -94,7 +94,9 @@ In client compiles it only drops the `v-load-client` directive, so no directive 
 
 Gives an SSR context a fresh 96-bit nonce under `onigiriNonce`, keeping one already set, and returns the context. Pass it to `renderToString`. Without a nonce in the SSR context, every helper is Vue's own call and the output is byte for byte what plain Vue renders, so a component used both inside islands and in regular pages compiles once.
 
-The nonce must be generated on the server for each render, never taken from the request or reused from a cached context: anyone who knows it can forge markers through `v-html` or other raw HTML. A nonce you set yourself must be alphanumeric and at least 16 characters long, or `createMarkerSet` throws.
+The nonce must be generated on the server for each render, never taken from the request or reused from a cached context: anyone who knows it can forge markers through `v-html` or other raw HTML. A nonce you set yourself must be alphanumeric and at least 16 characters long, or `createMarkerSet` throws. `isMarkerNonce(value)` applies the same rule to a value read from a response, for a host that checks before it does anything with it.
+
+On the client, a structural comment without its counterpart (an `<!--[-->` with no `<!--]-->`, a `<!--teleport start-->` with no end, an opening marker with no close) is kept as a plain comment, so raw user HTML can neither forge a marker nor throw the walker.
 
 ### `ssrRenderClientComponent`
 
