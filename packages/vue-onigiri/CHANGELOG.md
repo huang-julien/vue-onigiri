@@ -1,5 +1,67 @@
 # Changelog
 
+## v0.8.0
+
+### 🚀 Enhancements
+
+- Serialize in html AST branch that are fully static ([#29](https://github.com/huang-julien/vue-onigiri/pull/29))
+- Provde HTML first serializer/deserializer ([#30](https://github.com/huang-julien/vue-onigiri/pull/30))
+- ⚠️  Refactor back to single repo and move to HTML transport ([#31](https://github.com/huang-julien/vue-onigiri/pull/31))
+
+### 🔥 Performance
+
+- **runtime:** Don't create promises for sync subtrees ([#20](https://github.com/huang-julien/vue-onigiri/pull/20))
+- **runtime:** Unroll buffered trees in place instead of copying ([#22](https://github.com/huang-julien/vue-onigiri/pull/22))
+- **runtime:** Unroll serialized trees once at the root ([#23](https://github.com/huang-julien/vue-onigiri/pull/23))
+- **runtime:** Keep the vnode walk synchronous when nothing is async ([#24](https://github.com/huang-julien/vue-onigiri/pull/24))
+- **runtime:** Build element vnodes with createElementVNode ([#26](https://github.com/huang-julien/vue-onigiri/pull/26))
+- **payload:** ⚠️  Make children AST entry simple string ([#27](https://github.com/huang-julien/vue-onigiri/pull/27))
+
+### 🩹 Fixes
+
+- **compiler:** Leave vue globals unprefixed ([0165d84](https://github.com/huang-julien/vue-onigiri/commit/0165d84))
+- **compiler:** Always gen slot content in array ([6a1d379](https://github.com/huang-julien/vue-onigiri/commit/6a1d379))
+- **compiler:** Normalize additionnal imports ([0e2bfc3](https://github.com/huang-julien/vue-onigiri/commit/0e2bfc3))
+- **compiler:** Key onigiri modules on the real SFC path ([af7c79f](https://github.com/huang-julien/vue-onigiri/commit/af7c79f))
+- **runtime:** Set rendering instance for slot and onigiri render calls ([1a6b124](https://github.com/huang-julien/vue-onigiri/commit/1a6b124))
+- Disable client serialization by default ([b90d552](https://github.com/huang-julien/vue-onigiri/commit/b90d552))
+- **compiler:** Detect out-of-root package imports on POSIX paths ([2cde249](https://github.com/huang-julien/vue-onigiri/commit/2cde249))
+- Scope id ([db9aa08](https://github.com/huang-julien/vue-onigiri/commit/db9aa08))
+
+### 💅 Refactors
+
+- Split into multiple libs ([a847b74](https://github.com/huang-julien/vue-onigiri/commit/a847b74))
+
+### 🏡 Chore
+
+- Lint ([153b523](https://github.com/huang-julien/vue-onigiri/commit/153b523))
+- V0.6.2 ([0ccb472](https://github.com/huang-julien/vue-onigiri/commit/0ccb472))
+- V0.6.3 ([1b400d7](https://github.com/huang-julien/vue-onigiri/commit/1b400d7))
+- 0.6.4 ([cd2fc4d](https://github.com/huang-julien/vue-onigiri/commit/cd2fc4d))
+- Lint ([#17](https://github.com/huang-julien/vue-onigiri/pull/17))
+- Exclude bench from tsconfig ([#18](https://github.com/huang-julien/vue-onigiri/pull/18))
+- Lint ([#19](https://github.com/huang-julien/vue-onigiri/pull/19))
+- Set up CodSpeed benchmarks ([#21](https://github.com/huang-julien/vue-onigiri/pull/21))
+- 0.7.0 ([#28](https://github.com/huang-julien/vue-onigiri/pull/28))
+
+### ✅ Tests
+
+- Ad benchmarks tests ([#16](https://github.com/huang-julien/vue-onigiri/pull/16))
+- Add bench for component with vnodeonly ([#25](https://github.com/huang-julien/vue-onigiri/pull/25))
+
+### 🤖 CI
+
+- Drop SSR bench from bench.yml ([56fe19d](https://github.com/huang-julien/vue-onigiri/commit/56fe19d))
+
+#### ⚠️ Breaking Changes
+
+- ⚠️  Refactor back to single repo and move to HTML transport ([#31](https://github.com/huang-julien/vue-onigiri/pull/31))
+- **payload:** ⚠️  Make children AST entry simple string ([#27](https://github.com/huang-julien/vue-onigiri/pull/27))
+
+### ❤️ Contributors
+
+- Julien Huang <julien.h.dev@gmail.com>
+
 ## v0.7.0
 
 [compare changes](https://github.com/huang-julien/vue-onigiri/compare/cd2fc4d...v0.7.0)
