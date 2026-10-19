@@ -8,6 +8,6 @@ dist
 *.env*
 *.tgz
 
-packages/core/bench/results
-packages/core/bench/client/dist
-packages/core/bench/client/generated
+packages/vue-onigiri/bench/results
+packages/vue-onigiri/bench/client/dist
+packages/vue-onigiri/bench/client/generated

@@ -15,7 +15,6 @@
     "pnpm-lock.yaml",
     "**/CHANGELOG.md",
     "**/__snapshots__",
-    "packages/core/test/fixtures",
-    "packages/core/test/compiler-fixtures"
+    "packages/vue-onigiri/test/fixtures"
   ]
 }

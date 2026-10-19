@@ -25,10 +25,9 @@ jobs:
           node-version: 22
           cache: "pnpm"
       - run: pnpm install
-      - run: pnpm build:libs
 
       - name: Run benchmarks
         uses: CodSpeedHQ/action@f842b9a3ffe213dbb81768fd7f7eeb4dfcf1c369 # v5.4.2
         with:
           mode: simulation
-          run: pnpm --filter @vue-onigiri/core bench:codspeed
+          run: pnpm --filter vue-onigiri bench:codspeed

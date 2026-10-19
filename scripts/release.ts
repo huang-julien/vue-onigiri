@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 
 /** Packages published in lockstep; the first one drives the changelog and version. */
-const PACKAGES = ["core", "compiler", "shared"] as const;
+const PACKAGES = ["vue-onigiri"] as const;
 const LEAD = `packages/${PACKAGES[0]}`;
 
 run("pnpm test");

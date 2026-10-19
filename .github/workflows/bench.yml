@@ -1,6 +1,6 @@
 name: bench
 
-# SSR and compiler timings live in codspeed.yml. This workflow covers what
+# SSR timings live in codspeed.yml. This workflow covers what
 # CodSpeed cannot: wire sizes, and the Chromium bench on `bench`-labeled PRs.
 on:
   pull_request:
@@ -30,19 +30,18 @@ jobs:
           node-version: 22
           cache: "pnpm"
       - run: pnpm install
-      - run: pnpm build:libs
 
       - name: Payload sizes and client fixtures
-        run: pnpm --filter @vue-onigiri/core bench:size
+        run: pnpm --filter vue-onigiri bench:size
       - name: Install Playwright Chromium
         if: env.RUN_CLIENT == 'true'
-        run: pnpm --filter @vue-onigiri/core exec playwright install --with-deps chromium
+        run: pnpm --filter vue-onigiri exec playwright install --with-deps chromium
       - name: Client bench (vitest browser mode)
         if: env.RUN_CLIENT == 'true'
-        run: pnpm --filter @vue-onigiri/core bench:client
+        run: pnpm --filter vue-onigiri bench:client
       - name: Render report
         if: always()
-        run: pnpm --filter @vue-onigiri/core bench:report
+        run: pnpm --filter vue-onigiri bench:report
         env:
           BENCH_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
 
@@ -50,7 +49,7 @@ jobs:
         if: always()
         with:
           name: bench-results
-          path: packages/core/bench/results/*.json
+          path: packages/vue-onigiri/bench/results/*.json
 
       # Forked PRs get a read-only token, so only same-repo PRs can comment.
       - name: Upsert PR comment
@@ -60,7 +59,7 @@ jobs:
           script: |
             const fs = require("node:fs");
             const marker = "<!-- vue-onigiri-bench -->";
-            const body = fs.readFileSync("packages/core/bench/results/report.md", "utf8");
+            const body = fs.readFileSync("packages/vue-onigiri/bench/results/report.md", "utf8");
             const { owner, repo } = context.repo;
             const issue_number = context.issue.number;
 
