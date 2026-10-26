@@ -1,6 +1,6 @@
 {
   "name": "vue-onigiri",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "HTML-first Vue islands: Vue SSR writes nonce-bound markers around v-load-client components, the client rebuilds VNodes from the DOM",
   "license": "MIT",
   "repository": {
