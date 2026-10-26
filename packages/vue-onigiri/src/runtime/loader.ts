@@ -19,7 +19,7 @@ import type { ImportFn } from "./utils";
 
 const LOAD_FAILED: FunctionalComponent = () => null;
 
-export default defineComponent({
+export default /* @__PURE__ */ defineComponent({
   name: "vue-onigiri:component-loader",
   props: {
     data: {

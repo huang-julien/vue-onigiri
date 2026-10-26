@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  createMarkerNonce,
-  createMarkerSet,
-  decodeMarker,
-  encodeMarker,
-  isMarkerNonce,
-} from "../src/shared/markers";
+import { decodeMarker } from "../src/runtime/markers";
+import { createMarkerNonce, encodeMarker } from "../src/server/markers";
+import { createMarkerSet, isMarkerNonce } from "../src/shared/markers";
 
 const CASES: { name: string; value: unknown }[] = [
   {

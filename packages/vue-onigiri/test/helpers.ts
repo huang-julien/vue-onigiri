@@ -3,11 +3,11 @@ import * as serverRenderer from "@vue/server-renderer";
 import * as Vue from "vue";
 import { defineComponent, h, ref, type Component } from "vue";
 import { expect, type MockInstance } from "vitest";
+import { decodeMarker } from "../src/runtime/markers";
+import { encodeMarker } from "../src/server/markers";
 import {
   COMPONENT_MARKER_TYPE,
   createMarkerSet,
-  decodeMarker,
-  encodeMarker,
   type OnigiriComponentMarker,
   type OnigiriTeleportMarker,
 } from "../src/shared/markers";

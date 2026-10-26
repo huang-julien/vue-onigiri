@@ -19,13 +19,12 @@ import {
 import { isPromise } from "@vue/shared";
 import {
   COMPONENT_MARKER_TYPE,
-  createMarkerNonce,
   createMarkerSet,
-  encodeMarker,
   type MarkerSet,
   type OnigiriComponentMarker,
   type OnigiriTeleportMarker,
 } from "../shared/markers";
+import { createMarkerNonce, encodeMarker } from "./markers";
 
 /**
  * Chunk reference the Vite plugin attaches to every SFC it compiles, read when marking it.
@@ -220,7 +219,7 @@ export function ssrRenderTeleport(
  * Component form of `ssrRenderClientComponent` for Vue's vnode slot branch,
  * taken when a non-compiled child renders the slot that holds the component.
  */
-export const OnigiriClientBoundary = defineComponent({
+export const OnigiriClientBoundary = /* @__PURE__ */ defineComponent({
   name: "OnigiriClientBoundary",
   props: ["is", "props", "when"],
   ssrRender(
@@ -255,8 +254,6 @@ export const OnigiriClientBoundary = defineComponent({
     }
   },
 });
-
-const { normalizeVNode }: { normalizeVNode: (child: unknown) => VNode } = ssrUtils;
 
 let lastNonce: string | undefined;
 let lastMarkers: MarkerSet | undefined;
@@ -339,6 +336,8 @@ function renderVNodesToBuffer(
   parent: ComponentInternalInstance,
   scopeId: string | null,
 ): SSRBuffer {
+  // Read per call: a top-level read of `ssrUtils` would keep this module in client bundles.
+  const { normalizeVNode }: { normalizeVNode: (child: unknown) => VNode } = ssrUtils;
   const buffer: SSRBuffer = [];
   const push: PushFn = (item) => {
     buffer.push(item);

@@ -15,12 +15,12 @@ import { escapeHtml } from "@vue/shared";
 import {
   COMPONENT_MARKER_TYPE,
   createMarkerSet,
-  decodeMarker,
   type MarkerSet,
   type OnigiriComponentMarker,
   type OnigiriTeleportMarker,
 } from "../shared/markers";
 import loader from "./loader";
+import { decodeMarker } from "./markers";
 import type { ImportFn } from "./utils";
 
 /**
